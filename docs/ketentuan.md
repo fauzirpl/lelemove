@@ -1,0 +1,47 @@
+# Ketentuan Penggunaan
+
+Berlaku sejak 23 November 2026.
+
+## Penerimaan
+
+Dengan memasang atau memakai LELEMOVE, Anda menyetujui ketentuan ini. Bila tidak setuju, jangan pakai aplikasi ini dan hapus lewat Settings > Apps.
+
+## Apa yang dilakukan LELEMOVE
+
+LELEMOVE adalah alat bantu di komputer Windows untuk menyalin file antar OneDrive, SharePoint, Google Drive, dan folder komputer, memakai program open source rclone. LELEMOVE hanya menyalin dan mencocokkan file. LELEMOVE tidak menghapus, memindahkan, atau mengubah file di sumber.
+
+## Tanggung jawab Anda
+
+- Anda hanya menyalin data yang berhak Anda akses dan salin, termasuk data milik instansi atau organisasi tempat Anda bekerja.
+- Anda mematuhi kebijakan organisasi Anda tentang penyimpanan dan pemindahan data, terutama data rahasia, data pribadi, atau arsip resmi.
+- Anda mematuhi ketentuan layanan Google dan Microsoft yang berlaku untuk akun yang Anda hubungkan.
+- Anda memeriksa hasil penyalinan (fitur Verifikasi) sebelum menghapus apa pun dari sumber, dan menyimpan cadangan bila data itu penting.
+- Anda menjaga kerahasiaan komputer dan akun Anda. Token login tersimpan di komputer ini; siapa pun yang bisa masuk ke akun Windows Anda bisa memakai sambungan tersebut.
+
+## Client ID dan installer
+
+Installer yang dibangun dari komputer yang menyimpan client ID Google membawa client ID dan secret tersebut. Jangan bagikan installer seperti itu ke tempat umum; bagikan hanya kepada orang yang Anda percaya. Pemilik project Google Cloud bertanggung jawab atas pemakaian project dan kuotanya.
+
+## Tanpa jaminan
+
+LELEMOVE disediakan "sebagaimana adanya" (as is), tanpa jaminan apa pun, tersurat maupun tersirat, termasuk jaminan bahwa aplikasi bebas galat, selalu tersedia, atau cocok untuk keperluan tertentu. Penyalinan bisa gagal, terhenti, atau tidak lengkap karena jaringan, batas layanan cloud, izin akun, atau sebab lain.
+
+## Batasan tanggung jawab
+
+Sejauh diizinkan hukum yang berlaku, pengembang LELEMOVE tidak bertanggung jawab atas kehilangan data, kerusakan, biaya kuota internet, atau kerugian lain yang timbul dari pemakaian atau ketidakmampuan memakai aplikasi ini.
+
+## Layanan pihak ketiga
+
+LELEMOVE memakai Google Drive API dan Microsoft Graph API atas nama Anda. Ketersediaan, batas, dan perubahan layanan tersebut sepenuhnya diatur oleh Google dan Microsoft. Pemakaian layanan itu tunduk pada ketentuan masing-masing penyedia.
+
+## Komponen pihak ketiga
+
+LELEMOVE menyertakan rclone (lisensi MIT) dan pustaka open source lain dengan lisensi masing-masing. Daftar lengkapnya ada di Bantuan & info > Atribusi dan di berkas PIHAK-KETIGA.txt di folder aplikasi.
+
+## Merek dagang
+
+Google Drive adalah merek dagang Google LLC. Microsoft, OneDrive, dan SharePoint adalah merek dagang Microsoft Corporation. Nama-nama tersebut dipakai hanya untuk menyebut layanan yang didukung. LELEMOVE tidak berafiliasi dengan, disponsori, atau didukung oleh Google, Microsoft, maupun Lalamove.
+
+## Perubahan
+
+Ketentuan ini bisa diperbarui bersama versi aplikasi berikutnya. Ketentuan yang berlaku selalu yang tampil di Bantuan & info pada versi yang Anda pakai.

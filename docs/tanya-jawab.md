@@ -1,0 +1,73 @@
+# Tanya jawab
+
+### Apakah file di sumber ikut dihapus atau dipindahkan?
+
+Tidak. LELEMOVE hanya menyalin (rclone copy) dan mencocokkan (rclone check). File di sumber tidak pernah diubah, dipindahkan, atau dihapus. Setelah verifikasi menyatakan semua file cocok, menghapus file di sumber adalah keputusan Anda sendiri dan dilakukan di luar LELEMOVE.
+
+### Apakah file saya lewat server LELEMOVE?
+
+Tidak ada server LELEMOVE. Data mengalir langsung antara komputer Anda dan layanan cloud (Google atau Microsoft) lewat rclone yang berjalan di komputer Anda. Antar akun yang berbeda, data diunduh dan diunggah sekaligus dalam potongan di memori, tanpa menyimpan berkas utuh ke disk.
+
+### Kenapa kuota internet terpakai dua kali?
+
+Saat menyalin dari satu cloud ke cloud lain (misalnya OneDrive ke Google Drive), setiap byte diunduh ke komputer Anda lalu diunggah lagi. Jadi menyalin 10 GB memakai sekitar 10 GB unduhan dan 10 GB unggahan. Komputer juga harus tetap menyala selama menyalin.
+
+### Apa yang terjadi bila internet putus di tengah penyalinan?
+
+rclone mencoba ulang sendiri untuk gangguan singkat. Bila putusnya lama, LELEMOVE menunggu (30 detik sampai 10 menit, makin lama makin jarang), menguji sambungan ke Google/Microsoft, lalu melanjutkan otomatis begitu tersambung. File yang sudah sampai tidak diulang. Pengaturan ini bisa dimatikan di Pengaturan > Penyalinan.
+
+### Kenapa akun Google saya tertulis "login kedaluwarsa"?
+
+Selama project Google Cloud pemilik client ID masih berstatus "Testing", Google mencabut login setiap 7 hari. Klik Login ulang pada akun itu. Agar tidak terulang, pemilik project perlu klik "Publish app" di Google Cloud Console.
+
+### Apa itu client ID Google, dan kenapa perlu client ID sendiri?
+
+Client ID adalah identitas aplikasi saat meminta izin ke Google. Tanpa client ID sendiri, rclone memakai client ID bersama yang dipakai pengguna rclone di seluruh dunia, sehingga kuotanya sering habis dan penyalinan macet. Client ID sendiri gratis; pasang lewat Pengaturan > Client ID Google.
+
+### Penyalinan berhenti di persentase tertentu dan tidak bergerak. Kenapa?
+
+Biasanya layanan cloud sedang membatasi permintaan (rate limit), paling sering karena akun Google masih memakai client ID bersama. LELEMOVE menandainya dengan warna kuning. Pasang client ID sendiri di Pengaturan, login ulang akun Google itu, lalu klik Lanjutkan.
+
+### Kenapa penyalinan ke Google Drive berhenti sendiri setelah ratusan GB?
+
+Google membatasi unggahan 750 GB per akun per hari. Penyalinan berhenti dan bisa dilanjutkan besok; file yang sudah sampai dilewati.
+
+### Kenapa verifikasi hanya membandingkan nama dan ukuran?
+
+Verifikasi memakai checksum (sidik jari isi file) bila kedua layanan punya jenis checksum yang sama, misalnya komputer dengan Google Drive (MD5) atau komputer dengan OneDrive (QuickXorHash). OneDrive dan Google Drive tidak punya jenis checksum yang sama, jadi di antara keduanya yang dibandingkan nama dan ukuran.
+
+### Kenapa file Office yang disalin ke SharePoint ukurannya berbeda?
+
+SharePoint menambahkan metadata ke file .docx, .xlsx, dan .pptx saat diunggah. Isinya sama; LELEMOVE menghitungnya cocok dan menandainya dengan catatan.
+
+### Ada file "hanya online" di folder OneDrive. Apakah ikut tersalin?
+
+Ya. Saat disalin, aplikasi OneDrive mengunduhnya dulu ke disk. Periksa menghitung apakah ruang disk cukup. Bila tidak cukup, salin per subfolder, atau hubungkan akun OneDrive lewat internet dan pakai sebagai sumber.
+
+### Apa yang tidak ikut tersalin?
+
+Notebook OneNote, Personal Vault OneDrive, riwayat versi, izin berbagi, dan metadata kolom SharePoint. Dokumen Google (Docs, Sheets, Slides) yang disalin ke luar Google Drive diubah menjadi .docx, .xlsx, dan .pptx.
+
+### Bolehkah aplikasi ditutup saat menyalin?
+
+Boleh. Penyalinan berjalan di latar belakang. Saat aplikasi dibuka lagi, progresnya muncul kembali, dan Windows menampilkan notifikasi saat penyalinan selesai atau berhenti.
+
+### Bisakah LELEMOVE mencadangkan sendiri setiap hari?
+
+Bisa. Buka folder sumber di panel Dari dan tujuannya di panel Ke, lalu klik Jadwal backup > Jadwal baru dan pilih jam serta harinya. Jadwal dijalankan oleh Task Scheduler Windows selama Anda masuk ke Windows, walau jendela LELEMOVE tidak dibuka. Bila komputer mati atau tidur pada jamnya, backup dijalankan begitu komputer menyala lagi. Hanya file baru atau yang berubah yang disalin, dan hasilnya dikabarkan lewat notifikasi Windows.
+
+### Kenapa backup terjadwal saya "dilewati"?
+
+Pada jam itu ada penyalinan lain yang masih berjalan, jadi jadwal tidak memulai penyalinan kedua. Jadwal dicoba lagi pada waktu berikutnya; klik Jalankan sekarang di Jadwal backup untuk menjalankannya segera.
+
+### Bagaimana melanjutkan penyalinan yang berhenti?
+
+Klik Lanjutkan (tombol Mulai salin). rclone membandingkan isi tujuan dan hanya menyalin yang belum ada atau berbeda.
+
+### Bagaimana mencabut akses LELEMOVE ke akun saya?
+
+Klik ⋯ > Lepas akun ini untuk menghapus sambungan di komputer ini. Untuk mencabut izin sepenuhnya, hapus akses aplikasi di https://myaccount.google.com/permissions (Google) atau di pengaturan aplikasi akun Microsoft Anda.
+
+### Bagaimana menghapus LELEMOVE sepenuhnya?
+
+Hapus lewat Settings > Apps > LELEMOVE. Tugas Windows untuk jadwal backup ikut dihapus. Koneksi akun (%APPDATA%\rclone\rclone.conf) dan pengaturan, daftar jadwal, serta log (%LOCALAPPDATA%\pindah-drive) sengaja tidak ikut terhapus; hapus kedua folder itu sendiri bila tidak diperlukan lagi.

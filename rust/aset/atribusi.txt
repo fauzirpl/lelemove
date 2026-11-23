@@ -1,0 +1,144 @@
+ab_glyph v0.2.32|Apache-2.0|https://github.com/alexheretic/ab-glyph
+ab_glyph_rasterizer v0.1.10|Apache-2.0|https://github.com/alexheretic/ab-glyph
+accesskit v0.17.1|MIT OR Apache-2.0|https://github.com/AccessKit/accesskit
+accesskit_consumer v0.26.0|MIT OR Apache-2.0|https://github.com/AccessKit/accesskit
+accesskit_windows v0.24.1|MIT OR Apache-2.0|https://github.com/AccessKit/accesskit
+accesskit_winit v0.23.1|Apache-2.0|https://github.com/AccessKit/accesskit
+adler2 v2.0.1|0BSD OR MIT OR Apache-2.0|https://github.com/oyvindln/adler2
+ahash v0.8.12|MIT OR Apache-2.0|https://github.com/tkaitchuck/ahash
+aho-corasick v1.1.5|Unlicense OR MIT|https://github.com/BurntSushi/aho-corasick
+arboard v3.4.1|MIT OR Apache-2.0|https://github.com/1Password/arboard
+arrayvec v0.7.8|MIT OR Apache-2.0|https://github.com/bluss/arrayvec
+bitflags v1.3.2|MIT/Apache-2.0|https://github.com/bitflags/bitflags
+bitflags v2.13.2|MIT OR Apache-2.0|https://github.com/bitflags/bitflags
+bumpalo v3.20.4|MIT OR Apache-2.0|https://github.com/fitzgen/bumpalo
+bytemuck v1.25.2|Zlib OR Apache-2.0 OR MIT|https://github.com/Lokathor/bytemuck
+bytemuck_derive v1.12.1|Zlib OR Apache-2.0 OR MIT|https://github.com/Lokathor/bytemuck
+byteorder v1.5.0|Unlicense OR MIT|https://github.com/BurntSushi/byteorder
+byteorder-lite v0.1.0|Unlicense OR MIT|https://github.com/image-rs/byteorder-lite
+cfg-if v1.0.5|MIT OR Apache-2.0|https://github.com/rust-lang/cfg-if
+clipboard-win v5.4.3|BSL-1.0|https://github.com/DoumanAsh/clipboard-win
+crc32fast v1.5.5|MIT OR Apache-2.0|https://github.com/srijs/rust-crc32fast
+cursor-icon v1.2.0|MIT OR Apache-2.0 OR Zlib|https://github.com/rust-windowing/cursor-icon
+displaydoc v0.2.7|MIT OR Apache-2.0|https://github.com/yaahc/displaydoc
+document-features v0.2.12|MIT OR Apache-2.0|https://github.com/slint-ui/document-features
+dpi v0.1.2|Apache-2.0 AND MIT|https://github.com/rust-windowing/winit
+ecolor v0.31.1|MIT OR Apache-2.0|https://github.com/emilk/egui
+eframe v0.31.1|MIT OR Apache-2.0|https://github.com/emilk/egui/tree/master/crates/eframe
+egui v0.31.1|MIT OR Apache-2.0|https://github.com/emilk/egui
+egui_glow v0.31.1|MIT OR Apache-2.0|https://github.com/emilk/egui/tree/master/crates/egui_glow
+egui-winit v0.31.1|MIT OR Apache-2.0|https://github.com/emilk/egui/tree/master/crates/egui-winit
+emath v0.31.1|MIT OR Apache-2.0|https://github.com/emilk/egui/tree/master/crates/emath
+epaint v0.31.1|MIT OR Apache-2.0|https://github.com/emilk/egui/tree/master/crates/epaint
+epaint_default_fonts v0.31.1|(MIT OR Apache-2.0) AND OFL-1.1 AND Ubuntu-font-1.0|https://github.com/emilk/egui/tree/master/crates/epaint_default_fonts
+equivalent v1.0.3|Apache-2.0 OR MIT|https://github.com/indexmap-rs/equivalent
+error-code v3.4.0|BSL-1.0|https://github.com/DoumanAsh/error-code
+fdeflate v0.3.7|MIT OR Apache-2.0|https://github.com/image-rs/fdeflate
+flate2 v1.1.11|MIT OR Apache-2.0|https://github.com/rust-lang/flate2-rs
+foldhash v0.1.5|Zlib|https://github.com/orlp/foldhash
+foldhash v0.2.0|Zlib|https://github.com/orlp/foldhash
+form_urlencoded v1.2.3|MIT OR Apache-2.0|https://github.com/servo/rust-url
+glow v0.16.0|MIT OR Apache-2.0 OR Zlib|https://github.com/grovesNL/glow
+glutin v0.32.3|Apache-2.0|https://github.com/rust-windowing/glutin
+glutin_egl_sys v0.7.1|Apache-2.0|https://github.com/rust-windowing/glutin
+glutin_wgl_sys v0.6.1|Apache-2.0|https://github.com/rust-windowing/glutin
+glutin-winit v0.5.0|MIT|https://github.com/rust-windowing/glutin
+hashbrown v0.15.5|MIT OR Apache-2.0|https://github.com/rust-lang/hashbrown
+hashbrown v0.17.2|MIT OR Apache-2.0|https://github.com/rust-lang/hashbrown
+icu_collections v2.4.0|Unicode-3.0|https://github.com/unicode-org/icu4x
+icu_locale_core v2.4.0|Unicode-3.0|https://github.com/unicode-org/icu4x
+icu_normalizer v2.4.0|Unicode-3.0|https://github.com/unicode-org/icu4x
+icu_normalizer_data v2.4.0|Unicode-3.0|https://github.com/unicode-org/icu4x
+icu_properties v2.4.0|Unicode-3.0|https://github.com/unicode-org/icu4x
+icu_properties_data v2.4.0|Unicode-3.0|https://github.com/unicode-org/icu4x
+icu_provider v2.4.0|Unicode-3.0|https://github.com/unicode-org/icu4x
+idna v1.1.0|MIT OR Apache-2.0|https://github.com/servo/rust-url/
+idna_adapter v1.2.2|Apache-2.0 OR MIT|https://github.com/hsivonen/idna_adapter
+image v0.25.10|MIT OR Apache-2.0|https://github.com/image-rs/image
+immutable-chunkmap v2.1.5|Apache-2.0 OR MIT|https://github.com/estokes/immutable-chunkmap
+indexmap v2.14.2|Apache-2.0 OR MIT|https://github.com/indexmap-rs/indexmap
+itoa v1.0.19|MIT OR Apache-2.0|https://github.com/dtolnay/itoa
+libloading v0.8.6|ISC|https://github.com/nagisa/rust_libloading/
+litemap v0.8.3|Unicode-3.0|https://github.com/unicode-org/icu4x
+litrs v1.0.1|MIT OR Apache-2.0|https://github.com/LukasKalbertodt/litrs
+lock_api v0.4.14|MIT OR Apache-2.0|https://github.com/Amanieu/parking_lot
+log v0.4.35|MIT OR Apache-2.0|https://github.com/rust-lang/log
+memchr v2.8.3|Unlicense OR MIT|https://github.com/BurntSushi/memchr
+memoffset v0.9.1|MIT|https://github.com/Gilnaa/memoffset
+miniz_oxide v0.8.9|MIT OR Zlib OR Apache-2.0|https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide
+miniz_oxide v0.9.1|MIT OR Zlib OR Apache-2.0|https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide
+moxcms v0.8.1|BSD-3-Clause OR Apache-2.0|https://github.com/awxkee/moxcms.git
+mslnk v0.1.8|MIT|https://github.com/dobefore/mslnk.git
+nohash-hasher v0.2.0|Apache-2.0 OR MIT|https://github.com/paritytech/nohash-hasher
+num-traits v0.2.19|MIT OR Apache-2.0|https://github.com/rust-num/num-traits
+once_cell v1.21.4|MIT OR Apache-2.0|https://github.com/matklad/once_cell
+owned_ttf_parser v0.25.1|Apache-2.0|https://github.com/alexheretic/owned-ttf-parser
+parking_lot v0.12.3|MIT OR Apache-2.0|https://github.com/Amanieu/parking_lot
+parking_lot_core v0.9.10|MIT OR Apache-2.0|https://github.com/Amanieu/parking_lot
+paste v1.0.15|MIT OR Apache-2.0|https://github.com/dtolnay/paste
+percent-encoding v2.3.2|MIT OR Apache-2.0|https://github.com/servo/rust-url/
+pin-project-lite v0.2.18|Apache-2.0 OR MIT|https://github.com/taiki-e/pin-project-lite
+png v0.18.1|MIT OR Apache-2.0|https://github.com/image-rs/image-png
+potential_utf v0.1.6|Unicode-3.0|https://github.com/unicode-org/icu4x
+proc-macro2 v1.0.107|MIT OR Apache-2.0|https://github.com/dtolnay/proc-macro2
+profiling v1.0.18|MIT OR Apache-2.0|https://github.com/aclysma/profiling
+pxfm v0.1.30|BSD-3-Clause OR Apache-2.0|https://github.com/awxkee/pxfm
+quote v1.0.47|MIT OR Apache-2.0|https://github.com/dtolnay/quote
+raw-window-handle v0.6.2|MIT OR Apache-2.0 OR Zlib|https://github.com/rust-windowing/raw-window-handle
+regex v1.13.2|MIT OR Apache-2.0|https://github.com/rust-lang/regex
+regex-automata v0.4.19|MIT OR Apache-2.0|https://github.com/rust-lang/regex
+regex-syntax v0.8.12|MIT OR Apache-2.0|https://github.com/rust-lang/regex
+rfd v0.15.4|MIT|https://github.com/PolyMeilex/rfd
+scopeguard v1.2.0|MIT OR Apache-2.0|https://github.com/bluss/scopeguard
+serde v1.0.229|MIT OR Apache-2.0|https://github.com/serde-rs/serde
+serde_core v1.0.229|MIT OR Apache-2.0|https://github.com/serde-rs/serde
+serde_derive v1.0.229|MIT OR Apache-2.0|https://github.com/serde-rs/serde
+serde_json v1.0.154|MIT OR Apache-2.0|https://github.com/serde-rs/json
+simd-adler32 v0.3.10|MIT|https://github.com/mcountryman/simd-adler32
+smallvec v1.16.6|MIT OR Apache-2.0|https://github.com/smallvec/smallvec
+smol_str v0.2.2|MIT OR Apache-2.0|https://github.com/rust-analyzer/smol_str
+stable_deref_trait v1.2.1|MIT OR Apache-2.0|https://github.com/storyyeller/stable_deref_trait
+static_assertions v1.1.0|MIT OR Apache-2.0|https://github.com/nvzqz/static-assertions-rs
+syn v2.0.119|MIT OR Apache-2.0|https://github.com/dtolnay/syn
+syn v3.0.10|MIT OR Apache-2.0|https://github.com/dtolnay/syn
+synstructure v0.14.0|MIT|https://github.com/mystor/synstructure
+tinystr v0.8.5|Unicode-3.0|https://github.com/unicode-org/icu4x
+tracing v0.1.44|MIT|https://github.com/tokio-rs/tracing
+tracing-core v0.1.36|MIT|https://github.com/tokio-rs/tracing
+ttf-parser v0.25.1|MIT OR Apache-2.0|https://github.com/harfbuzz/ttf-parser
+unicode-ident v1.0.27|(MIT OR Apache-2.0) AND Unicode-3.0|https://github.com/dtolnay/unicode-ident
+unicode-segmentation v1.13.3|MIT OR Apache-2.0|https://github.com/unicode-rs/unicode-segmentation
+url v2.5.9|MIT OR Apache-2.0|https://github.com/servo/rust-url
+utf_types v1.0.0|Apache-2.0 OR MIT|https://github.com/hsivonen/utf_types
+utf8_iter v1.1.0|Apache-2.0 OR MIT|https://github.com/hsivonen/utf8_iter
+webbrowser v1.0.3|MIT OR Apache-2.0|https://github.com/amodm/webbrowser-rs
+web-time v1.1.0|MIT OR Apache-2.0|https://github.com/daxpedda/web-time
+winapi v0.3.9|MIT/Apache-2.0|https://github.com/retep998/winapi-rs
+winapi-x86_64-pc-windows-gnu v0.4.0|MIT/Apache-2.0|https://github.com/retep998/winapi-rs
+windows v0.58.0|MIT OR Apache-2.0|https://github.com/microsoft/windows-rs
+windows_x86_64_gnu v0.48.5|MIT OR Apache-2.0|https://github.com/microsoft/windows-rs
+windows_x86_64_gnu v0.52.6|MIT OR Apache-2.0|https://github.com/microsoft/windows-rs
+windows-core v0.58.0|MIT OR Apache-2.0|https://github.com/microsoft/windows-rs
+windows-implement v0.58.0|MIT OR Apache-2.0|https://github.com/microsoft/windows-rs
+windows-interface v0.58.0|MIT OR Apache-2.0|https://github.com/microsoft/windows-rs
+windows-result v0.2.0|MIT OR Apache-2.0|https://github.com/microsoft/windows-rs
+windows-strings v0.1.0|MIT OR Apache-2.0|https://github.com/microsoft/windows-rs
+windows-sys v0.48.0|MIT OR Apache-2.0|https://github.com/microsoft/windows-rs
+windows-sys v0.52.0|MIT OR Apache-2.0|https://github.com/microsoft/windows-rs
+windows-sys v0.59.0|MIT OR Apache-2.0|https://github.com/microsoft/windows-rs
+windows-targets v0.48.5|MIT OR Apache-2.0|https://github.com/microsoft/windows-rs
+windows-targets v0.52.6|MIT OR Apache-2.0|https://github.com/microsoft/windows-rs
+winit v0.30.13|Apache-2.0|https://github.com/rust-windowing/winit
+winreg v0.55.0|MIT|https://github.com/gentoo90/winreg-rs
+writeable v0.6.4|Unicode-3.0|https://github.com/unicode-org/icu4x
+yoke v0.8.4|Unicode-3.0|https://github.com/unicode-org/icu4x
+yoke-derive v0.8.4|Unicode-3.0|https://github.com/unicode-org/icu4x
+zerocopy v0.8.64|BSD-2-Clause OR Apache-2.0 OR MIT|https://github.com/google/zerocopy
+zerofrom v0.1.8|Unicode-3.0|https://github.com/unicode-org/icu4x
+zerofrom-derive v0.1.8|Unicode-3.0|https://github.com/unicode-org/icu4x
+zerotrie v0.2.5|Unicode-3.0|https://github.com/unicode-org/icu4x
+zerovec v0.11.9|Unicode-3.0|https://github.com/unicode-org/icu4x
+zerovec-derive v0.11.7|Unicode-3.0|https://github.com/unicode-org/icu4x
+zip v2.6.1|MIT|https://github.com/zip-rs/zip2.git
+zmij v1.0.23|MIT|https://github.com/dtolnay/zmij
+zopfli v0.8.4|Apache-2.0|https://github.com/zopfli-rs/zopfli

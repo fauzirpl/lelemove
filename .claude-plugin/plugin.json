@@ -1,0 +1,9 @@
+{
+  "name": "pindah-drive",
+  "version": "2.0.0",
+  "description": "Salin file antar OneDrive, SharePoint, Google Drive, dan folder komputer (ke arah mana pun, banyak akun) dengan rclone (pindah.exe, Rust): cek ruang, uji coba, salin di latar belakang, dan verifikasi. Hanya menyalin, tidak pernah menghapus.",
+  "author": {
+    "name": "Fauzi"
+  },
+  "keywords": ["onedrive", "google-drive", "backup", "rclone", "migrasi", "windows"]
+}

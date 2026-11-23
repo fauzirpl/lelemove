@@ -1,0 +1,71 @@
+[package]
+name = "pindah-drive"
+version = "2.0.0"
+edition = "2021"
+publish = false
+description = "Salin file antar OneDrive, SharePoint, Google Drive, dan komputer (memakai rclone)"
+
+[lib]
+name = "pindah_drive"
+path = "src/lib.rs"
+
+# Mesin + menu teks. Dipakai juga oleh jendela (proses terpisah) dan oleh plugin Claude.
+[[bin]]
+name = "pindah"
+path = "src/bin/pindah.rs"
+
+# Jendela aplikasi (egui). Diganti nama menjadi "LELEMOVE.exe" saat dikemas.
+[[bin]]
+name = "pindah-drive"
+path = "src/bin/pindah-drive/main.rs"
+
+# Installer. Tanpa muatan (PINDAH_PAYLOAD kosong) program ini menjadi uninstall.exe.
+[[bin]]
+name = "setup"
+path = "src/bin/setup.rs"
+
+# Alat build: menanam ikon & manifest ke .exe (toolchain GNU tidak membawa windres).
+[[bin]]
+name = "tanam-ikon"
+path = "src/bin/tanam-ikon.rs"
+
+[dependencies]
+eframe = "0.31"
+image = { version = "0.25", default-features = false, features = ["png"] }
+rfd = "0.15"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+regex = "1"
+winreg = "0.55"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+mslnk = "0.1"
+
+[dependencies.windows-sys]
+version = "0.59"
+features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Com",
+    "Win32_System_Console",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Power",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+]
+
+# Catatan toolchain: build memakai Rust GNU tanpa MinGW lengkap. Paket yang memakai
+# `windows-link` (raw-dylib) butuh dlltool + assembler `as.exe`, yang tidak ikut di rustup.
+# Karena itu Cargo.lock mengunci parking_lot 0.12.3 / parking_lot_core 0.9.10, libloading 0.8.6,
+# arboard 3.4.1, dan webbrowser 1.0.3, dan proyek ini tidak memakai chrono.
+# Cek dengan: cargo tree -i windows-link  (harus kosong untuk target x86_64-pc-windows-gnu)
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 4
+strip = true

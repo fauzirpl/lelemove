@@ -1,0 +1,14 @@
+{
+  "name": "pindah-drive-lokal",
+  "owner": {
+    "name": "Fauzi"
+  },
+  "description": "Marketplace lokal untuk plugin LELEMOVE (dulu Pindah Drive).",
+  "plugins": [
+    {
+      "name": "pindah-drive",
+      "source": "./",
+      "description": "Salin file antar OneDrive, SharePoint, Google Drive, dan komputer dengan rclone (Windows)."
+    }
+  ]
+}

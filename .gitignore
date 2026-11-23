@@ -1,0 +1,20 @@
+# Installer membawa client ID + secret Google (lihat buat-installer.ps1): jangan pernah di-commit.
+/dist/
+client-google.json
+rclone.conf
+*.pfx
+*.pem
+.env
+
+# Hasil build Rust
+/rust/target/
+
+# Program hasil build (dibuat ulang dari sumber)
+*.exe
+*.pdb
+payload.zip
+
+# Lain-lain
+.claude/settings.local.json
+Thumbs.db
+desktop.ini

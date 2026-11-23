@@ -1,0 +1,346 @@
+<Window
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Pindah Drive"
+    Width="760" Height="820" MinWidth="640" MinHeight="560"
+    WindowStartupLocation="CenterScreen"
+    Background="#FFFFFF"
+    FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="13" Foreground="#1F2328"
+    UseLayoutRounding="True" SnapsToDevicePixels="True"
+    TextOptions.TextFormattingMode="Display">
+
+  <Window.Resources>
+
+    <!-- Tombol biasa: putih bergaris tepi -->
+    <Style x:Key="Tombol" TargetType="Button">
+      <Setter Property="Foreground" Value="#1F2328"/>
+      <Setter Property="Background" Value="#FFFFFF"/>
+      <Setter Property="BorderBrush" Value="#D1D9E0"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="14,0"/>
+      <Setter Property="Height" Value="32"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="6" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="Background" Value="#F3F4F6"/>
+        </Trigger>
+        <Trigger Property="IsEnabled" Value="False">
+          <Setter Property="Opacity" Value="0.45"/>
+          <Setter Property="Cursor" Value="Arrow"/>
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+
+    <!-- Tombol utama: satu-satunya blok gelap di layar -->
+    <Style x:Key="TombolUtama" TargetType="Button" BasedOn="{StaticResource Tombol}">
+      <Setter Property="Foreground" Value="#FFFFFF"/>
+      <Setter Property="Background" Value="#1F2328"/>
+      <Setter Property="BorderBrush" Value="#1F2328"/>
+      <Setter Property="Height" Value="38"/>
+      <Setter Property="Padding" Value="22,0"/>
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="Background" Value="#373E47"/>
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+
+    <!-- Tautan teks -->
+    <Style x:Key="TombolTautan" TargetType="Button">
+      <Setter Property="Foreground" Value="#0969DA"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border Background="Transparent" Padding="{TemplateBinding Padding}">
+              <ContentPresenter VerticalAlignment="Center"/>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="Foreground" Value="#0550AE"/>
+        </Trigger>
+        <Trigger Property="IsEnabled" Value="False">
+          <Setter Property="Opacity" Value="0.45"/>
+          <Setter Property="Cursor" Value="Arrow"/>
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+
+    <Style x:Key="Isian" TargetType="TextBox">
+      <Setter Property="Height" Value="34"/>
+      <Setter Property="Padding" Value="6,0"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="BorderBrush" Value="#D1D9E0"/>
+    </Style>
+
+    <Style x:Key="JudulBagian" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="15"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+
+    <Style x:Key="Label" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="#59636E"/>
+    </Style>
+
+    <Style x:Key="Nomor" TargetType="Border">
+      <Setter Property="Width" Value="24"/>
+      <Setter Property="Height" Value="24"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="Background" Value="#F6F8FA"/>
+      <Setter Property="BorderBrush" Value="#D1D9E0"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="VerticalAlignment" Value="Top"/>
+      <Setter Property="HorizontalAlignment" Value="Left"/>
+    </Style>
+
+    <Style x:Key="TeksNomor" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style TargetType="ProgressBar">
+      <Setter Property="Height" Value="8"/>
+      <Setter Property="Foreground" Value="#1A7F37"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ProgressBar">
+            <Grid>
+              <Border x:Name="PART_Track" Background="#EAEEF2" CornerRadius="4"/>
+              <Border x:Name="PART_Indicator" Background="{TemplateBinding Foreground}"
+                      CornerRadius="4" HorizontalAlignment="Left"/>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+  </Window.Resources>
+
+  <DockPanel LastChildFill="True" Background="#FFFFFF">
+
+    <!-- Kepala -->
+    <Border DockPanel.Dock="Top" Padding="28,16,28,14" BorderBrush="#D1D9E0" BorderThickness="0,0,0,1">
+      <StackPanel>
+        <TextBlock Text="Pindah Drive" FontSize="20" FontWeight="SemiBold"/>
+        <TextBlock Margin="0,4,0,0" Foreground="#59636E" TextWrapping="Wrap"
+                   Text="Salin file antar OneDrive, SharePoint, Google Drive, dan komputer ini. File di sumber tidak diubah dan tidak dihapus."/>
+      </StackPanel>
+    </Border>
+
+    <!-- Kaki: status terakhir + tautan -->
+    <Border DockPanel.Dock="Bottom" Padding="28,10" Background="#F6F8FA" BorderBrush="#D1D9E0" BorderThickness="0,1,0,0">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+          <Button x:Name="TombolBukaLogin" Style="{StaticResource TombolTautan}" Margin="16,0,0,0"
+                  Content="Browser tidak terbuka? Buka halaman login" Visibility="Collapsed"/>
+          <Button x:Name="TombolBatal" Style="{StaticResource TombolTautan}" Margin="16,0,0,0"
+                  Content="Batalkan" Visibility="Collapsed"/>
+          <Button x:Name="TombolLog" Style="{StaticResource TombolTautan}" Margin="16,0,0,0" Content="Folder log"/>
+          <Button x:Name="TombolDrive" Style="{StaticResource TombolTautan}" Margin="16,0,0,0" Content="Buka tujuan"/>
+        </StackPanel>
+        <TextBlock x:Name="TeksStatus" Foreground="#59636E" TextTrimming="CharacterEllipsis"
+                   VerticalAlignment="Center" Text="Siap."/>
+      </DockPanel>
+    </Border>
+
+    <!-- Log aktivitas -->
+    <Expander x:Name="PanelLog" DockPanel.Dock="Bottom" Header="Log aktivitas" Margin="28,0,28,12" Foreground="#59636E">
+      <TextBox x:Name="Log" Height="130" Margin="0,8,0,0" Padding="6" IsReadOnly="True"
+               FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap"
+               VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+               BorderBrush="#D1D9E0" Background="#F6F8FA" Foreground="#1F2328"/>
+    </Expander>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <StackPanel Margin="28,4,28,20">
+
+        <!-- 1. Akun -->
+        <Grid Margin="0,14,0,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="40"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <Border Style="{StaticResource Nomor}"><TextBlock Style="{StaticResource TeksNomor}" Text="1"/></Border>
+          <StackPanel Grid.Column="1">
+            <TextBlock Style="{StaticResource JudulBagian}" Text="Akun"/>
+            <Grid Margin="0,6,0,0" Height="38">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="110"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Style="{StaticResource Label}" VerticalAlignment="Center" Text="rclone"/>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Ellipse x:Name="TitikRclone" Width="8" Height="8" Fill="#8C959F" Margin="0,0,8,0"/>
+                <TextBlock x:Name="StatusRclone" Text="Memeriksa&#x2026;"/>
+              </StackPanel>
+              <Button x:Name="TombolPasang" Grid.Column="2" Style="{StaticResource Tombol}" Content="Pasang rclone"/>
+            </Grid>
+
+            <!-- Baris akun dibuat dari kode (gui.ps1: Buat-BarisAkun) -->
+            <StackPanel x:Name="DaftarAkun"/>
+
+            <StackPanel x:Name="PanelPeringatanClient" Visibility="Collapsed" Margin="0,4,0,0">
+              <TextBlock x:Name="TeksPeringatanClient" FontSize="12" Foreground="#9A6700" TextWrapping="Wrap"
+                         Text="Akun Google yang memakai client ID bersama rclone sering dibatasi Google, sehingga penyalinan bisa macet. Pakai client ID sendiri lewat tombol Atur."/>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+              <Button x:Name="TombolTambahGoogle" Style="{StaticResource Tombol}" Content="+ Google Drive"/>
+              <Button x:Name="TombolTambahOneDrive" Style="{StaticResource Tombol}" Margin="8,0,0,0" Content="+ OneDrive"/>
+              <Button x:Name="TombolTambahSharePoint" Style="{StaticResource Tombol}" Margin="8,0,0,0" Content="+ SharePoint"/>
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+
+        <Border Height="1" Background="#D1D9E0" Margin="0,14,0,0"/>
+
+        <!-- 2. Dari mana, ke mana -->
+        <Grid Margin="0,14,0,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="40"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <Border Style="{StaticResource Nomor}"><TextBlock Style="{StaticResource TeksNomor}" Text="2"/></Border>
+          <StackPanel Grid.Column="1">
+            <TextBlock Style="{StaticResource JudulBagian}" Text="Dari mana, ke mana"/>
+
+            <Grid Margin="0,10,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="40"/>
+                <ColumnDefinition Width="190"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
+
+              <TextBlock Style="{StaticResource Label}" VerticalAlignment="Center" Text="Dari"/>
+              <ComboBox x:Name="LokasiSumber" Grid.Column="1" Height="34" VerticalContentAlignment="Center"/>
+              <ComboBox x:Name="PilihSumber" Grid.Column="2" Margin="8,0,0,0" IsEditable="True" Height="34" VerticalContentAlignment="Center"/>
+              <Button x:Name="TombolTelusuri" Grid.Column="3" Margin="8,0,0,0" Height="34"
+                      Style="{StaticResource Tombol}" Content="Telusuri&#x2026;"/>
+              <TextBlock x:Name="InfoSumber" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Margin="0,6,0,12"
+                         FontSize="12" Foreground="#59636E" TextWrapping="Wrap"/>
+
+              <TextBlock Grid.Row="2" Style="{StaticResource Label}" VerticalAlignment="Center" Text="Ke"/>
+              <ComboBox x:Name="LokasiTujuan" Grid.Row="2" Grid.Column="1" Height="34" VerticalContentAlignment="Center"/>
+              <TextBox x:Name="IsiTujuan" Grid.Row="2" Grid.Column="2" Margin="8,0,0,0" Style="{StaticResource Isian}"/>
+              <Button x:Name="TombolTelusuriTujuan" Grid.Row="2" Grid.Column="3" Margin="8,0,0,0" Height="34"
+                      Style="{StaticResource Tombol}" Content="Telusuri&#x2026;"/>
+              <TextBlock x:Name="InfoTujuan" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" Margin="0,6,0,0"
+                         FontSize="12" Foreground="#59636E" TextWrapping="Wrap"/>
+            </Grid>
+
+            <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+              <Button x:Name="TombolPeriksa" Style="{StaticResource Tombol}" Content="Periksa ukuran &amp; ruang"/>
+              <Button x:Name="TombolTukar" Style="{StaticResource TombolTautan}" Margin="16,0,0,0"
+                      Content="Tukar sumber &#x21C4; tujuan"/>
+            </StackPanel>
+
+            <Border x:Name="PanelPeriksa" Visibility="Collapsed" Margin="0,12,0,0" Padding="16,14"
+                    Background="#F6F8FA" BorderBrush="#D1D9E0" BorderThickness="1" CornerRadius="8">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <StackPanel Margin="0,0,16,0">
+                  <TextBlock FontSize="12" Foreground="#59636E" Text="Isi sumber"/>
+                  <TextBlock x:Name="HasilSumber" FontSize="16" FontWeight="SemiBold" Margin="0,2,0,0" Text="&#x2014;"/>
+                  <TextBlock x:Name="HasilSumberKet" FontSize="12" Foreground="#59636E" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                  <TextBlock x:Name="JudulTujuanPanel" FontSize="12" Foreground="#59636E" Text="Tujuan"/>
+                  <TextBlock x:Name="HasilTujuan" FontSize="16" FontWeight="SemiBold" Margin="0,2,0,0" Text="&#x2014;"/>
+                  <TextBlock x:Name="HasilTujuanKet" FontSize="12" Foreground="#59636E" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                </StackPanel>
+                <TextBlock x:Name="HasilUji" Grid.Row="1" Grid.ColumnSpan="2" Margin="0,12,0,0" TextWrapping="Wrap"/>
+              </Grid>
+            </Border>
+          </StackPanel>
+        </Grid>
+
+        <Border Height="1" Background="#D1D9E0" Margin="0,14,0,0"/>
+
+        <!-- 3. Salin -->
+        <Grid Margin="0,14,0,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="40"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <Border Style="{StaticResource Nomor}"><TextBlock Style="{StaticResource TeksNomor}" Text="3"/></Border>
+          <StackPanel Grid.Column="1">
+            <TextBlock Style="{StaticResource JudulBagian}" Text="Salin"/>
+            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+              <Button x:Name="TombolSalin" Style="{StaticResource TombolUtama}" Content="Mulai salin"/>
+              <Button x:Name="TombolHenti" Style="{StaticResource Tombol}" Height="38" Margin="8,0,0,0"
+                      Content="Hentikan" Visibility="Collapsed"/>
+            </StackPanel>
+
+            <StackPanel x:Name="PanelProgres" Visibility="Collapsed" Margin="0,16,0,0">
+              <Grid>
+                <TextBlock x:Name="ProgresJudul" FontWeight="SemiBold" Text="Sedang menyalin"/>
+                <TextBlock x:Name="ProgresPersen" HorizontalAlignment="Right" FontWeight="SemiBold" Text="0%"/>
+              </Grid>
+              <ProgressBar x:Name="Progres" Margin="0,8,0,0" Minimum="0" Maximum="100" Value="0"/>
+              <TextBlock x:Name="ProgresDetail" Margin="0,8,0,0" Foreground="#59636E" TextWrapping="Wrap"/>
+              <TextBlock x:Name="ProgresFile" Margin="0,4,0,0" FontSize="12" Foreground="#59636E" TextTrimming="CharacterEllipsis"/>
+              <TextBlock x:Name="ProgresCatatan" Margin="0,8,0,0" FontSize="12" Foreground="#59636E" TextWrapping="Wrap"
+                         Text="Aplikasi boleh ditutup. Penyalinan tetap berjalan dan progresnya muncul lagi saat aplikasi dibuka."/>
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+
+        <Border Height="1" Background="#D1D9E0" Margin="0,14,0,0"/>
+
+        <!-- 4. Verifikasi -->
+        <Grid Margin="0,14,0,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="40"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <Border Style="{StaticResource Nomor}"><TextBlock Style="{StaticResource TeksNomor}" Text="4"/></Border>
+          <StackPanel Grid.Column="1">
+            <TextBlock Style="{StaticResource JudulBagian}" Text="Verifikasi"/>
+            <TextBlock Margin="0,6,0,0" Foreground="#59636E" TextWrapping="Wrap"
+                       Text="Mencocokkan setiap file sumber dengan salinannya di tujuan. Berjalan otomatis setelah penyalinan selesai."/>
+            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+              <Button x:Name="TombolVerifikasi" Style="{StaticResource Tombol}" Content="Verifikasi sekarang"/>
+            </StackPanel>
+            <TextBlock x:Name="HasilVerifikasi" Margin="0,10,0,0" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Grid>
+
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</Window>
