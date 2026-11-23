@@ -17,21 +17,28 @@ dan nama akun `pd-*` di rclone tetap sama, jadi akun dan pengaturan lama langsun
 
 ## Pasang
 
-Jalankan **`dist\LELEMOVE-Setup-2.0.0.exe`**, lalu klik *Pasang* (atau *Perbarui* bila
-versi 1.x sudah terpasang; berkas PowerShell lamanya dibersihkan otomatis).
+Unduh **`LELEMOVE-Setup-<versi>.exe`** dari halaman
+[**Releases**](https://github.com/fauzirpl/lelemove/releases/latest), jalankan, lalu klik *Pasang*
+(atau *Perbarui* bila versi lama sudah terpasang; berkas PowerShell versi 1.x dibersihkan otomatis).
 
-- Dipasang untuk akun Windows Anda saja, di `%LOCALAPPDATA%\Programs\LELEMOVE`, tanpa hak admin.
+- Windows 10/11 64-bit. Dipasang untuk akun Windows Anda saja, di `%LOCALAPPDATA%\Programs\LELEMOVE`, tanpa hak admin.
 - rclone sudah ikut di dalamnya, jadi tidak perlu mengunduh apa pun lagi.
 - Muncul di Start Menu (dan Desktop bila dicentang), serta di *Settings > Apps*, tempat
   aplikasinya bisa dihapus lagi.
-- Pemasangan diam-diam: `LELEMOVE-Setup-2.0.0.exe /silent` (tambah `/nodesktop` bila
+- Pemasangan diam-diam: `LELEMOVE-Setup-<versi>.exe /silent` (tambah `/nodesktop` bila
   tidak ingin pintasan Desktop).
 - Akun, pengaturan, dan riwayat penyalinan dari versi 1.x tetap terbaca (format datanya sama).
 - Bila sebelumnya terpasang dengan nama lama di `Programs\Pindah Drive`, installer memindahkannya ke
   `Programs\LELEMOVE` dan mengganti pintasan "Pindah Drive" dengan "LELEMOVE".
 
-Installer ini tidak ditandatangani secara digital. Bila dibagikan lewat internet, Windows
-SmartScreen akan memperingatkan; klik *More info* > *Run anyway*.
+- Installer di Releases **tidak membawa client ID Google**. Agar penyalinan Google Drive tidak
+  macet karena dibatasi, buat client ID sendiri lewat *Pengaturan > Client ID Google* (lihat
+  [Penyalinan macet? Pakai client ID Google sendiri](#penyalinan-macet-pakai-client-id-google-sendiri)).
+
+Installer belum ditandatangani secara digital, jadi Windows SmartScreen memperingatkan saat
+pertama dibuka; klik *More info* > *Run anyway*. Keaslian unduhan bisa dicek dengan
+`Get-FileHash .\LELEMOVE-Setup-<versi>.exe -Algorithm SHA256` lalu dicocokkan dengan berkas
+`.sha256` di halaman rilis yang sama.
 
 ## Cara memakai
 
@@ -321,7 +328,8 @@ docs/                          tanya-jawab.md, ketentuan.md, privasi.md: ditanam
                                (include_str!), dan privasi.md bisa dipakai sebagai halaman kebijakan
                                privasi untuk "Publish app" di Google Cloud Console
 aset/ikon.ico                  ikon aplikasi (lele); dibuat ulang dengan: python aset\buat-ikon.py aset\ikon.ico pratinjau.png
-buat-installer.ps1             membuat dist\LELEMOVE-Setup-<versi>.exe (rclone ikut dibundel)
+buat-installer.ps1             membuat dist\LELEMOVE-Setup-<versi>.exe (rclone ikut dibundel;
+                               -TanpaClient = tanpa client ID Google, untuk rilis publik)
 skills/pindah-drive/SKILL.md   panduan untuk Claude; .claude-plugin/ = manifest plugin lokal
 arsip-v1-powershell/           sumber versi 1.x (PowerShell + WPF + C#), tidak dipakai lagi
 ```
@@ -355,6 +363,23 @@ komputer ini). Ikon memakai huruf Segoe MDL2 Assets bawaan Windows 10/11. Pratin
 untuk dokumentasi: `"LELEMOVE.exe" --pratinjau layar.png [--dialog client] [--log]
 [--lebar 760] [--tinggi 820]`; pakai `PINDAH_DRIVE_DATA=<folder sementara>` agar data asli
 tidak tersentuh.
+
+### Membuat rilis
+
+Installer untuk publik **wajib** dibangun dengan `-TanpaClient`. Tanpa opsi itu, client ID dan
+secret Google dari `%LOCALAPPDATA%\pindah-drive\client-google.json` ikut masuk ke installer.
+Keduanya menulis ke nama berkas yang sama di `dist\`, jadi pindahkan dulu installer pribadi bila
+masih dipakai.
+
+```powershell
+# 1. Naikkan "version" di rust\Cargo.toml (dan .claude-plugin\plugin.json), commit, lalu push.
+# 2. Bangun installer publik dan checksum-nya.
+.\buat-installer.ps1 -TanpaClient
+$exe = ".\dist\LELEMOVE-Setup-<versi>.exe"
+"$((Get-FileHash $exe -Algorithm SHA256).Hash.ToLower())  $(Split-Path $exe -Leaf)" | Set-Content -Encoding ascii "$exe.sha256"
+# 3. Terbitkan (tag dibuat di commit terakhir main).
+gh release create v<versi> $exe "$exe.sha256" --target main --title "LELEMOVE <versi>" --notes-file catatan-rilis.md
+```
 
 Memakai sebagai plugin Claude Code:
 
