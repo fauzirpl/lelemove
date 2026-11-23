@@ -5,7 +5,8 @@
 //! belakang dan tetap jalan walau aplikasi ditutup; saat dibuka lagi, progresnya muncul kembali.
 //!
 //! Pratinjau (dokumentasi/pengujian):
-//!   "LELEMOVE.exe" --pratinjau layar.png [--dialog akun-google|client|pengaturan|jadwal|jadwal-baru|info:<tab>|jelajah:<akun>|sharepoint:<akun>:<kata>]
+//!   "LELEMOVE.exe" --pratinjau layar.png [--dialog akun-google|client|pengaturan|jadwal|jadwal-baru|filter|riwayat|
+//!                      pindahkan|pindahkan-tanya|info:<tab>|jelajah:<akun>|sharepoint:<akun>:<kata>]
 //!                      [--log] [--lebar 760] [--tinggi 820] [--tunda 2500]
 //!
 //! Tugas Windows jadwal backup memanggil `LELEMOVE.exe --jadwal <id>` (tanpa jendela).
@@ -13,8 +14,10 @@
 
 mod aksi;
 mod dialog;
+mod filter;
 mod info;
 mod jadwal;
+mod riwayat;
 
 use eframe::egui::{
     self, pos2, vec2, Align, Align2, Color32, ComboBox, FontId, Frame, Id, Label, Layout, Margin, Rect,
@@ -36,7 +39,9 @@ use pindah_drive::gaya::{
 };
 use pindah_drive::mesin::akun::{self, Akun, Sambungan};
 use pindah_drive::mesin::dasar::{angka, bil, format_ukuran as ukuran, jalur, ke_byte, teks, waktu_lokal, waktu_tampil};
+use pindah_drive::mesin::filter::{self as mf, Filter};
 use pindah_drive::mesin::jadwal as mj;
+use pindah_drive::mesin::riwayat as mr;
 use pindah_drive::mesin::job::{baca_job, baca_statistik, baris_error, job_berjalan};
 use pindah_drive::mesin::rclone;
 use pindah_drive::mesin::rute::{self, adalah_lokal, daftar_onedrive, rapikan_sumber, tujuan_bawaan};
@@ -44,7 +49,7 @@ use pindah_drive::mesin::{Mesin, Opsi};
 use pindah_drive::{v, win, APP_ID, MUTEX_JENDELA};
 
 use aksi::{Aksi, Isi, Kabar, Setelah};
-use dialog::{AkunBaru, AkunGoogle, ClientId, Dialog, Hasil, Jelajah, Konfirmasi, Pemuat, Pengaturan, SharePoint, Tanya};
+use dialog::{AkunBaru, AkunGoogle, ClientId, Dialog, Hasil, Jelajah, Ketik, Konfirmasi, Pemuat, Pengaturan, SharePoint, Tanya};
 
 const IKON: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../aset/ikon.ico"));
 const TITIK: &str = "\u{00B7}";
@@ -239,7 +244,12 @@ struct App {
     label_salin: String,
     /// Batas kecepatan salin dalam bentuk --bwlimit rclone ("5M"), "off" = tanpa batas.
     batas: String,
+    /// Filter file rute ini (pengaturan.json; dibaca juga oleh pindah.exe).
+    filter: Filter,
     verifikasi: Teks,
+    /// Verifikasi terakhir: (file cocok, file lain, sumber, tujuan). Tautan "Pindahkan" ditawarkan
+    /// selama panel Dari/Ke masih menunjuk rute yang sama.
+    bisa_pindahkan: Option<(i64, i64, String, String)>,
 
     aksi: Option<Aksi>,
     url_login: Option<String>,
@@ -298,7 +308,9 @@ impl App {
             progres_sejak_jam: String::new(),
             label_salin: "Mulai salin".into(),
             batas: rute::baca_batas_kecepatan(),
+            filter: mf::baca_filter(),
             verifikasi: kosong(),
+            bisa_pindahkan: None,
             aksi: None,
             url_login: None,
             pesan: ("Siap.".into(), REDUP),
@@ -435,6 +447,17 @@ impl App {
                     if let Some(Dialog::Jadwal(d)) = &mut self.dialog {
                         if d.gen == gen {
                             d.baris = Some(baris);
+                        }
+                    }
+                }
+                Kabar::Riwayat { gen, daftar } => {
+                    let baris: Vec<riwayat::Baris> = daftar
+                        .into_iter()
+                        .map(|c| riwayat::Baris { sumber: self.nama_jalur(&c.sumber), tujuan: self.nama_jalur(&c.tujuan), c })
+                        .collect();
+                    if let Some(Dialog::Riwayat(r)) = &mut self.dialog {
+                        if r.gen == gen {
+                            r.baris = Some(baris);
                         }
                     }
                 }
@@ -606,6 +629,7 @@ impl App {
                 self.perbarui_progres();
             }
             Setelah::Verifikasi => self.selesai_verifikasi(kode, &h),
+            Setelah::Pindahkan => self.selesai_pindahkan(kode, &h),
             Setelah::Jadwal { ok } => {
                 if kode == 0 {
                     self.set_pesan(&ok, HIJAU);
@@ -705,6 +729,73 @@ impl App {
             sibuk: self.aksi.is_some(),
             job_jalan: self.job_jalan,
         }));
+    }
+
+    // -------------------------------------------------------------- riwayat & pindahkan
+
+    /// Membuka riwayat; riwayat.jsonl dibaca di utas latar.
+    fn buka_riwayat(&mut self, saring: riwayat::Saring, pesan: Option<(String, Color32)>) {
+        self.gen += 1;
+        let gen = self.gen;
+        aksi::latar(&self.tx, &self.ctx, move || Kabar::Riwayat { gen, daftar: mr::baca(0) });
+        self.dialog = Some(Dialog::Riwayat(riwayat::Riwayat { baris: None, gen, saring, pesan }));
+    }
+
+    /// Jumlah file yang bisa dipindahkan: hanya bila verifikasi terakhir untuk rute yang sedang
+    /// dibuka dan tidak ada aksi/penyalinan yang berjalan.
+    fn pindahkan_tersedia(&self) -> Option<i64> {
+        let (n, _, s, t) = self.bisa_pindahkan.as_ref()?;
+        (self.aksi.is_none() && !self.job_jalan && *s == self.jalur_sumber() && *t == self.jalur_tujuan()).then_some(*n)
+    }
+
+    fn klik_pindahkan(&mut self) {
+        let Some((n, lain, _, _)) = self.bisa_pindahkan.clone() else { return };
+        let s = self.jalur_sumber();
+        if adalah_lokal(&s) && !win::drive_tetap(Path::new(&s)) {
+            self.set_pesan("Folder sumber ada di drive jaringan atau flashdisk tanpa Recycle Bin; LELEMOVE tidak menghapus di sana.", KUNING);
+            return;
+        }
+        let mut isi = format!(
+            "Hapus dari sumber {} file yang sudah terbukti sama di tujuan?\n\nDari:\n    {}\nSalinannya tetap di:\n    {}\n\nSebelum menghapus, LELEMOVE mencocokkan ulang setiap file; hanya yang benar-benar sama yang dihapus. Yang dihapus masuk ke {}, jadi masih bisa dipulihkan.",
+            angka(n),
+            self.nama_jalur(&s),
+            self.nama_jalur(&self.jalur_tujuan()),
+            tempat_sampah(&s)
+        );
+        if lain > 0 {
+            isi += &format!("\n\n{} file lain belum cocok dan tidak akan dihapus.", angka(lain));
+        }
+        if !self.filter.kosong() {
+            isi += &format!("\n\nFilter: {}.", self.filter.uraian());
+        }
+        self.tanya("Pindahkan", isi, "Lanjut", true, Konfirmasi::Pindahkan1);
+    }
+
+    fn selesai_pindahkan(&mut self, kode: i32, h: &Value) {
+        self.bisa_pindahkan = None;
+        self.muat_panel(DARI, true);
+        self.muat_panel(KE, true);
+        let n = h_bil(h, "Dihapus");
+        let tempat = teks(h.get("Tempat"));
+        if !h_ada(h, "AkanDihapus") {
+            self.verifikasi = ("Pindahkan tidak berjalan. Lihat log aktivitas.".into(), MERAH);
+            self.log_terbuka = true;
+            return;
+        }
+        if h_bil(h, "AkanDihapus") == 0 {
+            self.verifikasi = ("Tidak ada file yang terbukti sama di tujuan; tidak ada yang dihapus.".into(), KUNING);
+            return;
+        }
+        if kode == 0 {
+            self.verifikasi = (format!("{CENTANG}  {} file dipindahkan. Yang dihapus dari sumber ada di {tempat}.", angka(n)), HIJAU);
+            self.set_pesan("Pindahkan selesai.", HIJAU);
+        } else {
+            self.verifikasi = (
+                format!("Hanya {} dari {} file yang terhapus dari sumber. Lihat log aktivitas.", angka(n), angka(h_bil(h, "AkanDihapus"))),
+                KUNING,
+            );
+            self.log_terbuka = true;
+        }
     }
 
     /// Perubahan jadwal lewat pindah.exe; daftar tetap terbuka (dengan tanda sibuk) sampai selesai.
@@ -827,6 +918,31 @@ impl App {
             Konfirmasi::HapusJadwal(id) => {
                 self.aksi_jadwal("Menghapus jadwal", v!["jadwal", "-Id", id, "-Hapus"], "Jadwal dihapus.")
             }
+            Konfirmasi::Pindahkan1 => {
+                let Some((n, _, _, _)) = self.bisa_pindahkan.clone() else { return };
+                let s = self.jalur_sumber();
+                self.dialog = Some(Dialog::Ketik(Ketik {
+                    judul: "Konfirmasi terakhir".into(),
+                    isi: format!(
+                        "Sekitar {} file akan dihapus dari:\n    {}\n\nYang dihapus masuk ke {}.",
+                        angka(n),
+                        self.nama_jalur(&s),
+                        tempat_sampah(&s)
+                    ),
+                    kata: "HAPUS".into(),
+                    ya: "Hapus dari sumber".into(),
+                    isian: String::new(),
+                    tujuan: Konfirmasi::Pindahkan2,
+                    fokus: true,
+                }));
+            }
+            Konfirmasi::Pindahkan2 => {
+                if self.ambil_isian().is_none() {
+                    return;
+                }
+                self.verifikasi = (format!("Memverifikasi ulang, lalu menghapus dari sumber{ELIPSIS}"), REDUP);
+                self.jalankan_aksi("Memindahkan: verifikasi ulang lalu hapus dari sumber", v!["pindahkan", "-Ya"], Setelah::Pindahkan);
+            }
             Konfirmasi::Lepas(n) => self.jalankan_aksi(
                 "Melepas akun",
                 v!["lepas", "-Akun", n, "-Ya"],
@@ -917,19 +1033,25 @@ impl App {
             Hasil::JadwalBaru => {
                 let kini = self.rute_kini();
                 let nama = kini.as_ref().map(|r| self.nama_jadwal_bawaan(&r.sumber)).unwrap_or_default();
-                self.dialog = Some(Dialog::JadwalIsian(jadwal::Isian::baru(kini, nama)));
+                self.dialog = Some(Dialog::JadwalIsian(jadwal::Isian::baru(kini, nama, self.filter.clone())));
             }
             Hasil::JadwalUbah(id) => match mj::cari(&id) {
                 Some(j) => {
                     let rute = self.rute_jadwal(&j.sumber, &j.tujuan);
-                    self.dialog = Some(Dialog::JadwalIsian(jadwal::Isian::dari(&j, rute, self.rute_kini())));
+                    self.dialog = Some(Dialog::JadwalIsian(jadwal::Isian::dari(&j, rute, self.rute_kini(), self.filter.clone())));
                 }
                 None => self.buka_jadwal(Some(("Jadwal itu sudah tidak ada.".into(), KUNING))),
             },
-            Hasil::JadwalSimpan { id, nama, sumber, tujuan, jam, hari, verifikasi } => {
+            Hasil::JadwalSimpan { id, nama, sumber, tujuan, jam, hari, verifikasi, filter } => {
                 let mut a = v!["jadwal", "-Tambah", "-Nama", nama, "-Sumber", sumber, "-Tujuan", tujuan, "-Jam", jam, "-Hari", hari];
                 if !verifikasi {
                     a.push("-TanpaVerifikasi".into());
+                }
+                if !filter.kosong() {
+                    a.extend(v!["-Sertakan", filter.teks_sertakan(), "-Lewati", filter.teks_lewati()]);
+                    if let Some(t) = &filter.sejak {
+                        a.extend(v!["-Sejak", t]);
+                    }
                 }
                 let baru = id.is_none();
                 if let Some(id) = id {
@@ -970,6 +1092,55 @@ impl App {
             Hasil::JadwalLog(log) => {
                 win::buka(&log);
                 self.buka_jadwal(None);
+            }
+            Hasil::FilterSimpan(f) => {
+                mf::simpan_filter(&f);
+                self.tulis_log(&if f.kosong() { "Filter file dihapus.".to_string() } else { format!("Filter file: {}", f.uraian()) });
+                self.filter = f;
+                // Hasil periksa, uji coba, dan verifikasi sebelumnya dihitung tanpa filter ini.
+                self.periksa = None;
+                self.ringkas_uji = None;
+                self.sudah_diperiksa = false;
+                self.verifikasi = kosong();
+                self.bisa_pindahkan = None;
+                self.set_pesan(if self.filter.kosong() { "Filter dihapus: seluruh isi folder disalin." } else { "Filter disimpan." }, HIJAU);
+            }
+            Hasil::RiwayatLog(log, saring) => {
+                win::buka(&log);
+                self.buka_riwayat(saring, None);
+            }
+            Hasil::RiwayatLaporan(id, saring) => {
+                let pesan = match mr::baca(0).into_iter().find(|c| c.id == id) {
+                    Some(c) => {
+                        let p = jalur().log.join(format!("laporan-{}-{id}.html", c.jenis));
+                        match std::fs::write(&p, mr::html_verifikasi(&c)) {
+                            Ok(()) => {
+                                win::buka(&p.to_string_lossy());
+                                ("Laporan dibuka di browser. Tekan Ctrl+P untuk menyimpannya sebagai PDF.".to_string(), HIJAU)
+                            }
+                            Err(e) => (format!("Laporan tidak bisa dibuat: {e}"), MERAH),
+                        }
+                    }
+                    None => ("Catatan riwayat itu tidak ditemukan.".to_string(), MERAH),
+                };
+                self.buka_riwayat(saring, Some(pesan));
+            }
+            Hasil::RiwayatCsvFile(id, saring) => {
+                let pesan = match mr::baca(0).into_iter().find(|c| c.id == id) {
+                    Some(c) => pesan_ekspor(simpan_ekspor(&format!("verifikasi-{}.csv", c.id), "CSV", &mr::csv_per_file(&c)), false),
+                    None => Some(("Catatan riwayat itu tidak ditemukan.".to_string(), MERAH)),
+                };
+                self.buka_riwayat(saring, pesan);
+            }
+            Hasil::RiwayatEkspor { html, daftar, saring } => {
+                let (y, mo, d, _, _, _) = waktu_lokal();
+                let pesan = if html {
+                    let isi = mr::html_riwayat(&daftar);
+                    pesan_ekspor(simpan_ekspor(&format!("laporan-lelemove-{y:04}{mo:02}{d:02}.html"), "HTML", &isi), true)
+                } else {
+                    pesan_ekspor(simpan_ekspor(&format!("riwayat-lelemove-{y:04}{mo:02}{d:02}.csv"), "CSV", &mr::csv(&daftar)), false)
+                };
+                self.buka_riwayat(saring, pesan);
             }
             Hasil::Folder { jalur, untuk_sumber } => {
                 if untuk_sumber {
@@ -1584,11 +1755,14 @@ impl App {
             self.set_pesan("Tidak ada yang perlu disalin: semua file sudah ada di tujuan.", HIJAU);
             return;
         }
-        let batas = if self.batas == "off" {
+        let mut batas = if self.batas == "off" {
             String::new()
         } else {
             format!("\nKecepatan dibatasi {}.", rute::tampil_batas(&self.batas))
         };
+        if !self.filter.kosong() {
+            batas += &format!("\nFilter: {}.", self.filter.uraian());
+        }
         let isi = format!(
             "Dari:\n    {}\n\nKe:\n    {}\n\nAkan disalin: {} file, sekitar {}.{batas}\n\nFile di sumber tidak diubah atau dihapus. Penyalinan berjalan di latar belakang; aplikasi boleh ditutup.",
             self.nama_jalur(&s),
@@ -1804,10 +1978,16 @@ impl App {
             return;
         }
         self.verifikasi = (format!("Mencocokkan setiap file{ELIPSIS}"), REDUP);
+        self.bisa_pindahkan = None;
         self.jalankan_aksi("Memverifikasi hasil salinan", v!["verifikasi"], Setelah::Verifikasi);
     }
 
     fn selesai_verifikasi(&mut self, kode: i32, h: &Value) {
+        // File yang cocok boleh dipindahkan (dihapus dari sumber) atas permintaan pengguna.
+        let cocok = h_bil(h, "Cocok") - h_bil(h, "OfficeSharePoint");
+        let lain = h_bil(h, "Hilang") + h_bil(h, "Beda") + h_bil(h, "Galat") + h_bil(h, "OfficeSharePoint");
+        self.bisa_pindahkan =
+            (h_ada(h, "Cocok") && cocok > 0).then(|| (cocok, lain, self.jalur_sumber(), self.jalur_tujuan()));
         let perlu_login = self.catat_perlu_login(h);
         if !h_ada(h, "Cocok") {
             self.verifikasi = match perlu_login {
@@ -2089,12 +2269,22 @@ impl App {
                     }
                     ada = true;
                     ui.add(Label::new(RichText::new(&self.verifikasi.0).color(self.verifikasi.1)).wrap());
+                    if let Some(n) = self.pindahkan_tersedia() {
+                        let t = format!("Pindahkan: hapus {} file ini dari sumber{ELIPSIS}", angka(n));
+                        if ui
+                            .link(kecil(&t, TAUTAN))
+                            .on_hover_text("Opsional. Hanya file yang terbukti sama di tujuan yang dihapus, dan masuk ke Recycle Bin / Sampah sehingga masih bisa dipulihkan.")
+                            .clicked()
+                        {
+                            pilih = 3;
+                        }
+                    }
                 }
                 if !ada {
                     ui.add(
                         Label::new(kecil(
                             "Buka folder yang mau disalin di panel Dari dan folder tujuan di panel Ke, lalu klik Mulai salin. \
-                             Ukuran, ruang tujuan, dan uji coba diperiksa dulu. File di sumber tidak diubah dan tidak dihapus.",
+                             Ukuran, ruang tujuan, dan uji coba diperiksa dulu. Menyalin tidak mengubah atau menghapus file di sumber.",
                             REDUP,
                         ))
                         .wrap(),
@@ -2108,6 +2298,7 @@ impl App {
                     win::buka(&u);
                 }
             }
+            3 => self.klik_pindahkan(),
             _ => {}
         }
     }
@@ -2229,6 +2420,7 @@ impl App {
         let mut atur = false;
         let mut bantuan = false;
         let mut jadwal = false;
+        let mut riwayat_ = false;
         egui::SidePanel::left("lokasi")
             .exact_width(lebar)
             .resizable(false)
@@ -2238,6 +2430,8 @@ impl App {
                 egui::TopBottomPanel::bottom("lokasi-bawah")
                     .frame(Frame::new().fill(LATAR2).inner_margin(Margin { left: 0, right: 0, top: 6, bottom: 0 }))
                     .show_inside(ui, |ui| {
+                        let r = baris_lokasi(ui, "pengaturan", ik::RIWAYAT, "Riwayat & laporan", "", REDUP, None, "", false, true);
+                        riwayat_ = r.baris.on_hover_text("Semua penyalinan, verifikasi, dan pemindahan; laporan CSV dan siap cetak untuk audit.").clicked();
                         let r = baris_lokasi(ui, "pengaturan", ik::JADWAL, "Jadwal backup", "", REDUP, None, "", false, true);
                         jadwal = r.baris.on_hover_text("Salin otomatis setiap hari atau pada hari tertentu, lewat Task Scheduler Windows.").clicked();
                         let r = baris_lokasi(ui, "pengaturan", ik::BANTUAN, "Bantuan & info", "", REDUP, None, "", false, true);
@@ -2402,6 +2596,9 @@ impl App {
         }
         if jadwal {
             self.buka_jadwal(None);
+        }
+        if riwayat_ {
+            self.buka_riwayat(riwayat::Saring::Semua, None);
         }
     }
 
@@ -2611,7 +2808,9 @@ impl App {
         let (masuk, ke_atas, coba_lagi, login) = self.daftar_folder(&mut ud, sisi, boleh);
         p.line_segment([kaki.left_top(), kaki.right_top()], Stroke::new(1.0_f32, GARIS_HALUS));
         let mut uk = ui.new_child(UiBuilder::new().max_rect(kaki).layout(Layout::top_down(Align::Min)));
-        self.kaki_panel(&mut uk, sisi);
+        if self.kaki_panel(&mut uk, sisi) {
+            self.dialog = Some(Dialog::Filter(filter::FilterIsian::dari(&self.filter)));
+        }
 
         // ---- tindakan (setelah semua digambar)
         if let Some((lok, isi)) = pilih_lok {
@@ -2835,8 +3034,11 @@ impl App {
         let (judul, ket) = self.ringkasan_kaki(sisi);
         tambah(&judul.0, FontId::new(13.5, tebal()));
         tambah(&ket.0, FontId::proportional(12.5));
-        let info = if sisi == DARI { &self.info_sumber } else { &self.info_tujuan };
-        tambah(&info.0, FontId::proportional(12.5));
+        tambah(&self.info_kaki(sisi).0, FontId::proportional(12.5));
+        if sisi == DARI {
+            // Baris filter (selalu satu baris, dipotong bila panjang).
+            h += 20.0;
+        }
         h.max(44.0)
     }
 
@@ -2857,10 +3059,28 @@ impl App {
         ((jumlah, REDUP), kosong())
     }
 
-    fn kaki_panel(&self, ui: &mut Ui, sisi: usize) {
+    /// Kaki panel. Hasil: tautan filter (panel Dari) diklik.
+    fn kaki_panel(&self, ui: &mut Ui, sisi: usize) -> bool {
+        let mut atur_filter = false;
         Frame::new().inner_margin(Margin { left: 12, right: 12, top: 8, bottom: 8 }).show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.spacing_mut().item_spacing.y = 2.0;
+            if sisi == DARI {
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 6.0;
+                    let boleh = self.boleh_rute();
+                    if self.filter.kosong() {
+                        ui.label(kecil("Semua jenis file", REDUP));
+                        let r = ui.add_enabled(boleh, egui::Link::new(kecil(&format!("Filter{ELIPSIS}"), TAUTAN)));
+                        atur_filter = r.on_hover_text("Hanya jenis file tertentu, lewati pola tertentu, atau hanya yang diubah sejak tanggal tertentu.").clicked();
+                    } else {
+                        let r = ui.add_enabled(boleh, egui::Link::new(kecil("Ubah filter", TAUTAN)));
+                        atur_filter = r.clicked();
+                        let t = format!("Filter: {}", self.filter.uraian());
+                        ui.add(Label::new(kecil(&t, KUNING)).truncate()).on_hover_text(&t);
+                    }
+                });
+            }
             let (judul, ket) = self.ringkasan_kaki(sisi);
             if !judul.0.is_empty() {
                 let tebal_ = self.periksa.is_some();
@@ -2870,11 +3090,21 @@ impl App {
             if !ket.0.is_empty() {
                 ui.add(Label::new(kecil(&ket.0, ket.1)).wrap());
             }
-            let info = if sisi == DARI { &self.info_sumber } else { &self.info_tujuan };
+            let info = self.info_kaki(sisi);
             if !info.0.is_empty() {
                 ui.add(Label::new(kecil(&info.0, info.1)).wrap());
             }
         });
+        atur_filter
+    }
+
+    /// Keterangan terakhir di kaki panel; dengan filter, "Seluruh isi ... disalin" tidak lagi benar.
+    fn info_kaki(&self, sisi: usize) -> Teks {
+        let info = if sisi == DARI { &self.info_sumber } else { &self.info_tujuan };
+        if sisi == DARI && !self.filter.kosong() && info.0.starts_with("Seluruh isi") {
+            return ("Hanya file yang lolos filter yang disalin.".into(), info.1);
+        }
+        info.clone()
     }
 
     /// Celah di antara kedua panel: panah arah salin dan tombol tukar.
@@ -2973,6 +3203,22 @@ impl App {
             "pengaturan" => self.buka_pengaturan(None),
             "jadwal" => self.buka_jadwal(None),
             "jadwal-baru" => self.tangani_dialog(Hasil::JadwalBaru),
+            "filter" => self.dialog = Some(Dialog::Filter(filter::FilterIsian::dari(&self.filter))),
+            "riwayat" => self.buka_riwayat(riwayat::Saring::Semua, None),
+            "pindahkan" => {
+                self.bisa_pindahkan = Some(rute_contoh(128, 2));
+                self.verifikasi = (format!("{CENTANG}  Verifikasi: semua 128 file sudah ada di tujuan (contoh)."), HIJAU);
+                self.konfirmasi(Konfirmasi::Pindahkan1);
+            }
+            "pindahkan-tautan" => {
+                self.bisa_pindahkan = Some(rute_contoh(3, 0));
+                self.verifikasi = (format!("{CENTANG}  Verifikasi: semua 3 file sudah ada di tujuan (contoh)."), HIJAU);
+            }
+            "pindahkan-tanya" => {
+                self.bisa_pindahkan = Some(rute_contoh(128, 2));
+                self.verifikasi = (format!("{CENTANG}  Verifikasi: 128 cocok, 2 belum ada di tujuan (contoh)."), KUNING);
+                self.klik_pindahkan();
+            }
             _ if d.starts_with("info") => self.buka_info(info::Tab::dari_nama(d.trim_start_matches("info").trim_start_matches(':'))),
             "tanya" => self.tanya("Lepas akun", "Lepas Google Drive dari LELEMOVE?\n\nFile di akun tersebut TIDAK terhapus; hanya sambungan di komputer ini yang dihapus.".into(), "Lepas akun", true, Konfirmasi::Lepas("pd-x".into())),
             _ if d.starts_with("jelajah:") => {
@@ -3334,6 +3580,50 @@ impl eframe::App for App {
         self.urus_pratinjau(ctx);
         let jeda = if self.aksi.is_some() || self.job_jalan || self.pratinjau.is_some() || self.panel_memuat() { 250 } else { 1600 };
         ctx.request_repaint_after(Duration::from_millis(jeda));
+    }
+}
+
+/// Pratinjau: hasil verifikasi contoh untuk rute tersimpan (yang akan dibuka panel).
+fn rute_contoh(cocok: i64, lain: i64) -> (i64, i64, String, String) {
+    let r = rute::baca_pengaturan();
+    (cocok, lain, r.sumber.unwrap_or_default(), r.tujuan.unwrap_or_default())
+}
+
+/// Ke mana berkas yang "dipindahkan" dari sumber ini pergi.
+fn tempat_sampah(sumber: &str) -> &'static str {
+    let rem = akun::remote_dari(sumber);
+    if rem.is_empty() {
+        "Recycle Bin Windows"
+    } else if akun::jenis_dari_nama(&rem) == "google" {
+        "Sampah Google Drive (dipulihkan dalam 30 hari)"
+    } else {
+        "Recycle bin OneDrive/SharePoint"
+    }
+}
+
+/// Jendela "Simpan sebagai". None = dibatalkan.
+fn simpan_ekspor(nama: &str, jenis: &str, isi: &str) -> Option<Result<PathBuf, String>> {
+    let ext = nama.rsplit('.').next().unwrap_or("txt").to_string();
+    let p = rfd::FileDialog::new()
+        .set_title(format!("Simpan {jenis}"))
+        .set_file_name(nama)
+        .add_filter(jenis, &[ext.as_str()])
+        .set_directory(win::folder(win::Folder::Dokumen).unwrap_or_default())
+        .save_file()?;
+    Some(std::fs::write(&p, isi).map(|_| p.clone()).map_err(|e| format!("{} tidak bisa disimpan: {e}", p.display())))
+}
+
+/// Pesan untuk dialog riwayat setelah ekspor; laporan HTML langsung dibuka di browser.
+fn pesan_ekspor(h: Option<Result<PathBuf, String>>, buka: bool) -> Option<(String, Color32)> {
+    match h? {
+        Ok(p) => {
+            if buka {
+                win::buka(&p.to_string_lossy());
+            }
+            let ket = if buka { " Tekan Ctrl+P di browser untuk menyimpannya sebagai PDF." } else { "" };
+            Some((format!("Tersimpan: {}.{ket}", p.display()), HIJAU))
+        }
+        Err(e) => Some((e, MERAH)),
     }
 }
 

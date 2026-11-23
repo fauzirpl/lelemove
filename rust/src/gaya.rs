@@ -60,6 +60,7 @@ pub mod ik {
     pub const PENGATURAN: char = '\u{E713}';
     pub const BANTUAN: char = '\u{E897}';
     pub const JADWAL: char = '\u{E787}';
+    pub const RIWAYAT: char = '\u{E81C}';
     pub const BUKA_MAP: char = '\u{ED25}';
     pub const BAWAH: char = '\u{E70D}';
     pub const KANAN: char = '\u{E76C}';

@@ -8,14 +8,16 @@ Dengan memasang atau memakai LELEMOVE, Anda menyetujui ketentuan ini. Bila tidak
 
 ## Apa yang dilakukan LELEMOVE
 
-LELEMOVE adalah alat bantu di komputer Windows untuk menyalin file antar OneDrive, SharePoint, Google Drive, dan folder komputer, memakai program open source rclone. LELEMOVE hanya menyalin dan mencocokkan file. LELEMOVE tidak menghapus, memindahkan, atau mengubah file di sumber.
+LELEMOVE adalah alat bantu di komputer Windows untuk menyalin file antar OneDrive, SharePoint, Google Drive, dan folder komputer, memakai program open source rclone. LELEMOVE menyalin dan mencocokkan file. Menyalin tidak mengubah atau menghapus file di sumber.
+
+LELEMOVE hanya menghapus file di sumber bila Anda sendiri memilih Pindahkan setelah verifikasi dan mengonfirmasinya dua kali. Saat itu LELEMOVE mencocokkan ulang setiap file dan hanya menghapus yang terbukti sama di tujuan, ke Recycle Bin Windows atau tempat sampah layanan cloud. LELEMOVE tidak pernah menghapus apa pun di tujuan.
 
 ## Tanggung jawab Anda
 
 - Anda hanya menyalin data yang berhak Anda akses dan salin, termasuk data milik instansi atau organisasi tempat Anda bekerja.
 - Anda mematuhi kebijakan organisasi Anda tentang penyimpanan dan pemindahan data, terutama data rahasia, data pribadi, atau arsip resmi.
 - Anda mematuhi ketentuan layanan Google dan Microsoft yang berlaku untuk akun yang Anda hubungkan.
-- Anda memeriksa hasil penyalinan (fitur Verifikasi) sebelum menghapus apa pun dari sumber, dan menyimpan cadangan bila data itu penting.
+- Anda memeriksa hasil penyalinan (fitur Verifikasi) sebelum menghapus apa pun dari sumber, termasuk lewat Pindahkan, dan menyimpan cadangan bila data itu penting. Recycle Bin dan tempat sampah layanan cloud punya batas waktu dan ukuran; setelah dikosongkan, file tidak bisa dipulihkan.
 - Anda menjaga kerahasiaan komputer dan akun Anda. Token login tersimpan di komputer ini; siapa pun yang bisa masuk ke akun Windows Anda bisa memakai sambungan tersebut.
 
 ## Client ID dan installer

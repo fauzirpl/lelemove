@@ -4,7 +4,8 @@ Menyalin file antar **OneDrive**, **SharePoint**, **Google Drive**, dan **folder
 ke arah mana pun, memakai [rclone](https://rclone.org). Contohnya OneDrive → Google Drive,
 SharePoint → Google Drive, Google Drive → OneDrive, OneDrive kantor → OneDrive pribadi,
 Google Drive A → Google Drive B, atau cloud → komputer.
-File di sumber tidak pernah diubah atau dihapus.
+Menyalin tidak mengubah atau menghapus file di sumber. File di sumber hanya dihapus bila Anda sendiri
+memilih **Pindahkan** setelah verifikasi, dan itu pun masuk ke Recycle Bin / Sampah.
 
 Versi 2 ditulis ulang dalam **Rust** (jendela memakai egui). Tidak lagi butuh PowerShell, jadi
 tetap jalan di komputer kantor yang memblokir skrip.
@@ -54,6 +55,8 @@ dan **Ke** (tujuan) berdampingan, toolbar di atas, dan bilah penyalinan di bawah
 - **Pengaturan** (ikon ⚙ di dasar daftar kiri). Berisi **Client ID Google** (pasang, ganti,
   atau hapus client ID aplikasi, dan lihat akun Google mana yang sudah memakainya; client ID
   tidak lagi diatur per akun) dan **Penyalinan > Lanjutkan otomatis bila jaringan putus**.
+- **Riwayat & laporan** (ikon jam di dasar daftar kiri). Semua penyalinan, verifikasi, dan
+  pemindahan, beserta laporan CSV dan siap cetak. Lihat *Riwayat & laporan* di bawah.
 - **Jadwal backup** (ikon kalender di dasar daftar kiri). Menyalin otomatis setiap hari atau
   pada hari tertentu, tanpa perlu membuka aplikasi. Lihat *Jadwal backup otomatis* di bawah.
 - **Bantuan & info** (ikon ? di atas Pengaturan). Dialog bertab: *Tanya jawab*, *Ketentuan*
@@ -74,7 +77,11 @@ dan **Ke** (tujuan) berdampingan, toolbar di atas, dan bilah penyalinan di bawah
   Batas kecepatan di kanan toolbar (Tanpa batas, 1, 5, atau 10 MB/dtk) menjaga internet tetap
   lancar untuk keperluan lain; pilihannya diingat dan berlaku saat penyalinan dimulai atau
   dilanjutkan.
+- **Filter.** Di bawah panel Dari, klik *Filter…* untuk menyalin hanya jenis file tertentu,
+  melewati pola tertentu, atau hanya file yang diubah sejak tanggal tertentu. Lihat *Filter file*.
 - **Verifikasi.** Berjalan otomatis setelah penyalinan selesai; bisa juga diklik di toolbar.
+- **Pindahkan (opsional).** Setelah verifikasi, tautan *Pindahkan: hapus … file ini dari sumber*
+  menghapus dari sumber file yang terbukti sama di tujuan. Lihat *Pindahkan*.
 
 *Hentikan* menghentikan penyalinan. *Lanjutkan* meneruskannya, dan file yang sudah sampai dilewati.
 *Log aktivitas* di bilah status bawah membuka catatan lengkap setiap langkah.
@@ -107,6 +114,53 @@ berikutnya; *Hentikan* tetap bisa dipakai. Notifikasi Windows muncul sekali saat
 kali putus. Di log tercatat baris `LELEMOVE: jaringan terputus ...` dan `... penyalinan
 dilanjutkan`. Matikan lewat *Pengaturan > Penyalinan* (`"LanjutOtomatis": false` di
 `pengaturan.json`); penyalinan dari konsol tanpa `-Latar` tidak pernah melanjutkan sendiri.
+
+## Filter file
+
+| Isian | Contoh | Arti |
+|---|---|---|
+| Hanya jenis file ini | `pdf, docx, xlsx` | Hanya ekstensi ini yang disalin (huruf besar-kecil sama saja). Kosong = semua. |
+| Lewati | `*.tmp, Arsip Lama/, node_modules/` | Pola yang tidak disalin. Akhiran `/` = folder beserta isinya; `*` = teks apa saja. |
+| Hanya yang diubah sejak | `31-01-2026` | Hanya file yang tanggal ubahnya pada/sesudah tanggal itu. |
+
+Filter disimpan di `pengaturan.json` (`Filter`) dan dipakai sama persis oleh periksa, uji coba,
+salin, verifikasi, dan pindahkan; file yang sengaja tidak disalin tidak dilaporkan "belum ada di
+tujuan". Saat filter jenis atau tanggal aktif, folder kosong di sumber tidak ikut dibuat di tujuan
+(rclone akan membuat *semua* subfolder walau isinya tidak ada yang lolos). File sistem
+(`desktop.ini`, `Thumbs.db`, berkas kunci Office `~$*`) selalu dilewati. Jadwal backup menyimpan
+salinan filternya sendiri (*Pakai folder & filter yang sedang dibuka*).
+
+## Riwayat & laporan
+
+Setiap penyalinan (termasuk yang dihentikan, gagal, atau dilewati jadwal), verifikasi, dan
+pemindahan dicatat sebagai satu baris di `%LOCALAPPDATA%\pindah-drive\riwayat.jsonl`. Riwayat tidak
+dihapus otomatis.
+
+- **Laporan per file** (pada verifikasi/pindahkan): halaman HTML siap cetak berisi rute, waktu,
+  metode (checksum atau nama & ukuran), filter, ringkasan, dan status **setiap file**, yang
+  bermasalah ditampilkan lebih dulu. Simpan sebagai PDF lewat *Ctrl+P* di browser. Cocok sebagai
+  bukti audit bahwa salinan lengkap.
+- **CSV per file**: daftar yang sama untuk Excel (UTF-8, pemisah koma).
+- **Ekspor CSV / Laporan HTML**: seluruh riwayat yang tampil (bisa disaring: Salin, Verifikasi,
+  Pindahkan).
+
+Daftar per file dibaca dari berkas `verifikasi-*.txt` di folder log, yang ikut terhapus setelah
+60 hari; ringkasannya tetap ada di riwayat.
+
+## Pindahkan (hapus sumber setelah verifikasi)
+
+Opsional dan selalu atas permintaan Anda. Muncul sebagai tautan di bawah hasil verifikasi bila ada
+file yang cocok, dengan dua kali konfirmasi (yang kedua: ketik `HAPUS`).
+
+1. LELEMOVE **memverifikasi ulang** saat itu juga (hasil verifikasi sebelumnya bisa basi).
+2. Hanya file berstatus *cocok persis* yang dihapus dari **sumber**. File yang belum ada, berbeda,
+   gagal dibaca, atau file Office yang metadatanya diubah SharePoint tidak disentuh.
+3. Ke mana perginya: folder komputer → **Recycle Bin**; Google Drive → **Sampah** (30 hari);
+   OneDrive/SharePoint → **recycle bin** layanan itu. Folder yang menjadi kosong ikut dihapus;
+   folder yang memang kosong sejak awal dibiarkan.
+4. Folder sumber di drive jaringan atau flashdisk ditolak, karena di sana tidak ada Recycle Bin.
+
+Tujuan tidak pernah dihapus apa pun. Jadwal backup tidak bisa memindahkan (selalu menyalin).
 
 ## Jadwal backup otomatis
 
@@ -282,6 +336,13 @@ pindah salin -Latar -Ya
 pindah salin -Latar -Ya -BatasKecepatan 5M              # batasi 5 MB/dtk (diingat; "off" = tanpa batas)
 pindah status
 pindah verifikasi
+pindah salin -Latar -Ya -Sertakan "pdf,docx" -Lewati "*.tmp,Arsip Lama/" -Sejak 2026-01-01   # filter (diingat)
+pindah salin -Latar -Ya -TanpaFilter                    # hapus filter
+pindah pindahkan                                        # verifikasi ulang + tampilkan berapa file yang akan dihapus
+pindah pindahkan -Ya                                    # hapus dari SUMBER file yang cocok (ke Recycle Bin/Sampah)
+pindah riwayat [-Jumlah 50]                             # riwayat salin, verifikasi, pindahkan
+pindah riwayat -Csv riwayat.csv | -Laporan laporan.html # ekspor semua
+pindah riwayat -Id <id> -Laporan verifikasi.html        # laporan per file satu verifikasi (atau -Csv)
 pindah jadwal                                           # daftar backup terjadwal
 pindah jadwal -Tambah -Nama "Dokumen" -Sumber "D:\Data" -Tujuan "pd-gdrive:Arsip" -Jam 22:00 -Hari sen,rab,jum
 pindah jadwal -Tambah -Id <id> ... [-TanpaVerifikasi]   # ubah jadwal yang ada (isian lengkap lagi)
@@ -317,9 +378,13 @@ rust/                          kode sumber versi 2 (satu crate Rust)
   src/bin/pindah.rs            pindah.exe: baris perintah & menu teks
   src/mesin/lanjut.rs          lanjut otomatis saat jaringan putus (keputusan, jeda, uji sambungan)
   src/mesin/jadwal.rs          jadwal backup: jadwal.json, XML Task Scheduler, schtasks
+  src/mesin/filter.rs          filter file -> aturan --filter / --max-age rclone
+  src/mesin/riwayat.rs         riwayat.jsonl, CSV, laporan HTML siap cetak
   src/bin/pindah-drive/        LELEMOVE.exe: jendela aplikasi (egui) + dialog
   src/bin/pindah-drive/info.rs dialog Bantuan & info (tanya jawab, ketentuan, privasi, atribusi, tentang)
   src/bin/pindah-drive/jadwal.rs dialog Jadwal backup (daftar + isian)
+  src/bin/pindah-drive/filter.rs dialog Filter file
+  src/bin/pindah-drive/riwayat.rs dialog Riwayat & laporan
   src/bin/setup.rs             installer; tanpa muatan menjadi uninstall.exe
   src/bin/tanam-ikon.rs        alat build: menanam ikon & manifest (UpdateResourceW)
   aset/app.manifest            asInvoker + Common Controls 6

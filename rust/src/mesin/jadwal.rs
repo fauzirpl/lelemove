@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use super::dasar::{baca_json, jalur, tulis_json, waktu_lokal};
+pub use super::filter::Filter;
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
@@ -57,6 +58,9 @@ pub struct Jadwal {
     pub aktif: bool,
     #[serde(default)]
     pub terakhir: Option<Terakhir>,
+    /// Filter file milik jadwal ini (salinan; tidak ikut berubah bila filter di jendela diubah).
+    #[serde(default, skip_serializing_if = "Filter::kosong")]
+    pub filter: Filter,
 }
 
 fn benar() -> bool {
@@ -367,7 +371,24 @@ mod uji {
             verifikasi: true,
             aktif: true,
             terakhir: None,
+            filter: Filter::default(),
         }
+    }
+
+    #[test]
+    fn filter_tersimpan() {
+        // Jadwal lama (tanpa field Filter) tetap terbaca; filter kosong tidak ditulis.
+        let lama: Jadwal = serde_json::from_str(
+            r#"{"Id":"a1","Nama":"x","Sumber":"D:\\A","Tujuan":"pd-gdrive:B","Jam":"22:00","Hari":[],"Verifikasi":true,"Aktif":true,"Terakhir":null}"#,
+        )
+        .unwrap();
+        assert!(lama.filter.kosong());
+        assert!(!serde_json::to_string(&lama).unwrap().contains("Filter"));
+        let mut j = contoh(vec![]);
+        j.filter = Filter::urai("pdf", "", "").unwrap();
+        let t = serde_json::to_string(&j).unwrap();
+        assert!(t.contains(r#""Filter":{"Sertakan":["pdf"],"Lewati":[]}"#));
+        assert_eq!(serde_json::from_str::<Jadwal>(&t).unwrap(), j);
     }
 
     #[test]

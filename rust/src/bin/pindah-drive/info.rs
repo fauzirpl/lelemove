@@ -264,7 +264,7 @@ fn tentang(ui: &mut Ui, i: &Info) {
     ui.label(RichText::new("LELEMOVE").family(tebal()).size(22.0).color(gaya::HIJAU));
     ui.label(RichText::new(format!("Versi {VERSI}")).color(TINTA));
     ui.add_space(6.0);
-    paragraf(ui, "Salin file antar OneDrive, SharePoint, Google Drive, dan folder komputer, ke arah mana pun. Hanya menyalin dan mencocokkan; file di sumber tidak pernah diubah atau dihapus.");
+    paragraf(ui, "Salin file antar OneDrive, SharePoint, Google Drive, dan folder komputer, ke arah mana pun. Menyalin dan mencocokkan; file di sumber tidak diubah, kecuali Anda sendiri memilih Pindahkan setelah verifikasi (yang dihapus masuk ke Recycle Bin / Sampah).");
     ui.add_space(8.0);
     egui::Grid::new("tentang").num_columns(2).spacing(vec2(14.0, 4.0)).show(ui, |ui| {
         let mut baris = |k: &str, v: &str| {

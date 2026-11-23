@@ -8,7 +8,7 @@ use eframe::egui::{self, vec2, Align, Color32, ComboBox, Layout, RichText, Scrol
 
 use pindah_drive::gaya::{self, kecil, tebal, tombol, tombol_utama, HIJAU, KUNING, MERAH, REDUP, TINTA};
 use pindah_drive::mesin::dasar::waktu_tampil;
-use pindah_drive::mesin::jadwal::{self as mj, Jadwal, HARI_PENDEK, URUTAN_HARI};
+use pindah_drive::mesin::jadwal::{self as mj, Filter, Jadwal, HARI_PENDEK, URUTAN_HARI};
 
 use crate::dialog::Hasil;
 
@@ -59,10 +59,13 @@ pub struct Isian {
     pub hari: [bool; 7],
     pub verifikasi: bool,
     pub galat: Option<String>,
+    /// Filter milik jadwal ini, dan filter panel Dari saat ini (ikut dipakai bersama rute_kini).
+    pub filter: Filter,
+    pub filter_kini: Filter,
 }
 
 impl Isian {
-    pub fn baru(rute_kini: Option<Rute>, nama: String) -> Self {
+    pub fn baru(rute_kini: Option<Rute>, nama: String, filter_kini: Filter) -> Self {
         Isian {
             id: None,
             nama,
@@ -73,10 +76,12 @@ impl Isian {
             hari: [true; 7],
             verifikasi: true,
             galat: None,
+            filter: filter_kini.clone(),
+            filter_kini,
         }
     }
 
-    pub fn dari(j: &Jadwal, rute: Rute, rute_kini: Option<Rute>) -> Self {
+    pub fn dari(j: &Jadwal, rute: Rute, rute_kini: Option<Rute>, filter_kini: Filter) -> Self {
         let (jam, menit) = mj::urai_jam(&j.jam).unwrap_or((22, 0));
         let mut hari = [j.hari.is_empty(); 7];
         for h in &j.hari {
@@ -92,6 +97,8 @@ impl Isian {
             hari,
             verifikasi: j.verifikasi,
             galat: None,
+            filter: j.filter.clone(),
+            filter_kini,
         }
     }
 
@@ -124,6 +131,7 @@ impl Isian {
             verifikasi: self.verifikasi,
             aktif: true,
             terakhir: None,
+            filter: self.filter.clone(),
         }
     }
 }
@@ -239,6 +247,9 @@ pub fn daftar(ui: &mut Ui, d: &mut Daftar) -> Option<Hasil> {
                             .truncate(),
                         )
                         .on_hover_text(format!("{}\n{PANAH} {}", j.sumber, j.tujuan));
+                        if !j.filter.kosong() {
+                            ui.add(egui::Label::new(kecil(&format!("filter: {}", j.filter.uraian()), REDUP)).truncate());
+                        }
                         if let Some(r) = terakhir(ui, j, x.hidup) {
                             h = Some(r);
                         }
@@ -325,6 +336,11 @@ pub fn isian(ui: &mut Ui, s: &mut Isian) -> Option<Hasil> {
                         ui.add(egui::Label::new(RichText::new(n).color(TINTA)).truncate()).on_hover_text(mentah);
                     });
                 }
+                ui.horizontal(|ui| {
+                    label_kiri(ui, "Filter");
+                    let t = if s.filter.kosong() { "semua file".to_string() } else { s.filter.uraian() };
+                    ui.add(egui::Label::new(RichText::new(&t).color(TINTA)).truncate()).on_hover_text(&t);
+                });
             }
             None => {
                 ui.label(RichText::new("Belum ada folder yang dipilih.").color(KUNING));
@@ -335,13 +351,13 @@ pub fn isian(ui: &mut Ui, s: &mut Isian) -> Option<Hasil> {
             }
         }
         if let Some(k) = &s.rute_kini {
-            if s.rute.as_ref() != Some(k) {
+            if s.rute.as_ref() != Some(k) || s.filter != s.filter_kini {
                 ui.add_space(4.0);
-                if ui
-                    .add(tombol("Pakai folder yang sedang dibuka"))
-                    .on_hover_text(format!("{}  {PANAH}  {}", k.nama_sumber, k.nama_tujuan))
-                    .clicked()
-                {
+                let mut t = format!("{}  {PANAH}  {}", k.nama_sumber, k.nama_tujuan);
+                if !s.filter_kini.kosong() {
+                    t += &format!("\nfilter: {}", s.filter_kini.uraian());
+                }
+                if ui.add(tombol("Pakai folder & filter yang sedang dibuka")).on_hover_text(t).clicked() {
                     pakai_kini = true;
                 }
             }
@@ -349,6 +365,7 @@ pub fn isian(ui: &mut Ui, s: &mut Isian) -> Option<Hasil> {
     });
     if pakai_kini {
         s.rute = s.rute_kini.clone();
+        s.filter = s.filter_kini.clone();
     }
     ui.add_space(10.0);
 
@@ -428,6 +445,7 @@ pub fn isian(ui: &mut Ui, s: &mut Isian) -> Option<Hasil> {
                     jam: format!("{:02}:{:02}", s.jam, s.menit),
                     hari: s.arg_hari(),
                     verifikasi: s.verifikasi,
+                    filter: s.filter.clone(),
                 });
             }
         }
@@ -444,7 +462,7 @@ mod uji {
 
     #[test]
     fn arg_hari() {
-        let mut s = Isian::baru(None, "x".into());
+        let mut s = Isian::baru(None, "x".into(), Filter::default());
         assert_eq!(s.arg_hari(), "setiap");
         s.hari = [false, true, false, true, false, true, false];
         assert_eq!(s.arg_hari(), "sen,rab,jum");

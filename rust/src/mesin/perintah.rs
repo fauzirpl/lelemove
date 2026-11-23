@@ -12,7 +12,9 @@ use std::sync::LazyLock;
 
 use super::akun::*;
 use super::dasar::*;
+use super::filter::{baca_filter, simpan_filter, Filter};
 use super::jadwal;
+use super::riwayat::{self, Catatan};
 use super::job::*;
 use super::lanjut;
 use super::rclone::{self, cari_rclone, daftar_remote, panggil, token_kedaluwarsa, Mode};
@@ -21,7 +23,7 @@ use crate::{notifikasi, v, win};
 
 pub const PERINTAH: &[&str] = &[
     "menu", "cek", "akun", "pasang", "hubungkan", "lepas", "bawaan", "klien", "situs", "pustaka", "periksa", "uji",
-    "salin", "status", "berhenti", "verifikasi", "jadwal", "bantuan",
+    "salin", "status", "berhenti", "verifikasi", "pindahkan", "jadwal", "riwayat", "bantuan",
 ];
 
 static RE_FS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"file system for "([^":]+):"#).unwrap());
@@ -87,6 +89,16 @@ pub struct Opsi {
     /// Batas kecepatan salin dalam bentuk --bwlimit rclone ("5M"); "off" = tanpa batas.
     /// None: pakai yang tersimpan di pengaturan.json.
     pub batas_kecepatan: Option<String>,
+    /// Filter file: -Sertakan "pdf,docx", -Lewati "*.tmp", -Sejak 2026-01-31, -TanpaFilter.
+    /// None = pakai yang tersimpan; diberikan = disimpan untuk perintah berikutnya.
+    pub sertakan: Option<String>,
+    pub lewati: Option<String>,
+    pub sejak: Option<String>,
+    pub tanpa_filter: bool,
+    /// riwayat: -Jumlah N, -Csv <berkas>, -Laporan <berkas.html>.
+    pub jumlah: Option<String>,
+    pub csv: Option<String>,
+    pub laporan: Option<String>,
 }
 
 impl Default for Opsi {
@@ -124,6 +136,13 @@ impl Default for Opsi {
             mesin: false,
             log_latar: None,
             batas_kecepatan: None,
+            sertakan: None,
+            lewati: None,
+            sejak: None,
+            tanpa_filter: false,
+            jumlah: None,
+            csv: None,
+            laporan: None,
         }
     }
 }
@@ -154,6 +173,7 @@ pub fn urai_argumen<I: IntoIterator<Item = String>>(args: I) -> Result<Opsi, Str
                 "aktifkan" => o.aktifkan = true,
                 "nonaktifkan" => o.nonaktifkan = true,
                 "tanpaverifikasi" => o.tanpa_verifikasi = true,
+                "tanpafilter" => o.tanpa_filter = true,
                 "mesin" => o.mesin = true,
                 "h" | "help" | "?" | "bantuan" => o.perintah = "bantuan".into(),
                 _ => {
@@ -182,6 +202,13 @@ pub fn urai_argumen<I: IntoIterator<Item = String>>(args: I) -> Result<Opsi, Str
                         "jam" => o.jam = isi,
                         "hari" => o.hari = isi,
                         "bataskecepatan" => o.batas_kecepatan = Some(normalisasi_batas(&nilai)?),
+                        // Boleh kosong: -Sertakan "" menghapus bagian itu dari filter tersimpan.
+                        "sertakan" => o.sertakan = Some(nilai),
+                        "lewati" => o.lewati = Some(nilai),
+                        "sejak" => o.sejak = Some(nilai),
+                        "jumlah" => o.jumlah = isi,
+                        "csv" => o.csv = isi,
+                        "laporan" => o.laporan = isi,
                         _ => return Err(format!("Opsi tidak dikenal: {a}")),
                     }
                 }
@@ -299,6 +326,50 @@ fn ringkas_tersalin(s: &Statistik) -> String {
     format!("{} file baru ({}). Buka LELEMOVE untuk verifikasi.", angka(n), format_ukuran(ke_byte(a, satuan)))
 }
 
+/// Folder yang menjadi kosong karena isinya dipindahkan ikut dihapus (dari yang terdalam),
+/// tanpa menyentuh folder yang memang kosong sejak awal atau folder sumber itu sendiri.
+fn folder_induk(relatif: &[String]) -> Vec<String> {
+    let mut d: Vec<String> = Vec::new();
+    for p in relatif {
+        let mut s = p.as_str();
+        while let Some(i) = s.rfind('/') {
+            s = &s[..i];
+            if !d.iter().any(|x| x == s) {
+                d.push(s.to_string());
+            }
+        }
+    }
+    d.sort_by_key(|x| std::cmp::Reverse(x.matches('/').count()));
+    d
+}
+
+fn hapus_folder_kosong_lokal(akar: &Path, dihapus: &[PathBuf]) {
+    let rel: Vec<String> = dihapus
+        .iter()
+        .filter(|p| !p.exists())
+        .filter_map(|p| p.strip_prefix(akar).ok().map(|r| r.to_string_lossy().replace('\\', "/")))
+        .collect();
+    for d in folder_induk(&rel) {
+        let _ = std::fs::remove_dir(akar.join(d.replace('/', "\\"))); // gagal bila tidak kosong: dibiarkan
+    }
+}
+
+fn hapus_folder_kosong_cloud(src: &str, dihapus: &[String]) {
+    // Satu panggilan rclone per folder; batasi supaya tidak berjalan terlalu lama.
+    for d in folder_induk(dihapus).into_iter().take(100) {
+        let _ = panggil(&v!["rmdir", gabung_path(src, &d), "--drive-use-trash"], Mode::Tangkap);
+    }
+}
+
+/// (file, byte) yang tersalin menurut statistik terakhir di log rclone.
+fn angka_tersalin(log: &str) -> (i64, i64) {
+    let Some(s) = baca_statistik(log) else { return (0, 0) };
+    let n: i64 = s.file.split('/').next().and_then(|x| x.trim().parse().ok()).unwrap_or(0);
+    let data = s.data.split('/').next().unwrap_or("").trim();
+    let (a, satuan) = data.split_once(' ').unwrap_or((data, ""));
+    (n, ke_byte(a, satuan) as i64)
+}
+
 /// "12 file baru (1,20 GB)." atau "Tidak ada file baru." (untuk backup terjadwal).
 fn ringkas_baru(s: &Statistik) -> String {
     let n: i64 = s.file.split('/').next().and_then(|x| x.trim().parse().ok()).unwrap_or(0);
@@ -368,11 +439,46 @@ pub struct Mesin {
     pub hasil: Map<String, Value>,
     /// Penyalinan ini dijalankan oleh jadwal: notifikasi "selesai" dikirim setelah verifikasi.
     dari_jadwal: bool,
+    /// Nama jadwal yang sedang dijalankan (dicatat di riwayat).
+    nama_jadwal: String,
 }
 
 impl Mesin {
     pub fn baru(o: Opsi) -> Self {
-        Mesin { o, hasil: Map::new(), dari_jadwal: false }
+        Mesin { o, hasil: Map::new(), dari_jadwal: false, nama_jadwal: String::new() }
+    }
+
+    /// Filter file untuk perintah ini: yang tersimpan, atau dari -Sertakan/-Lewati/-Sejak
+    /// (lalu disimpan, seperti -Sumber/-Tujuan). -TanpaFilter menghapusnya. None = isian salah.
+    fn ambil_filter(&mut self) -> Option<Filter> {
+        if self.o.tanpa_filter {
+            simpan_filter(&Filter::default());
+            return Some(Filter::default());
+        }
+        let lama = baca_filter();
+        if self.o.sertakan.is_none() && self.o.lewati.is_none() && self.o.sejak.is_none() {
+            return Some(lama);
+        }
+        let s = self.o.sertakan.clone().unwrap_or_else(|| lama.teks_sertakan());
+        let l = self.o.lewati.clone().unwrap_or_else(|| lama.teks_lewati());
+        let t = self.o.sejak.clone().unwrap_or_else(|| lama.sejak.clone().unwrap_or_default());
+        match Filter::urai(&s, &l, &t) {
+            Ok(f) => {
+                simpan_filter(&f);
+                Some(f)
+            }
+            Err(e) => {
+                gagal(&e);
+                None
+            }
+        }
+    }
+
+    fn info_filter(&mut self, f: &Filter) {
+        self.catat("Filter", f.uraian());
+        if !f.kosong() {
+            info(&format!("Filter: {}", f.uraian()));
+        }
     }
 
     fn catat(&mut self, k: &str, v: impl Into<Value>) {
@@ -428,6 +534,8 @@ impl Mesin {
             "status" => self.status(),
             "berhenti" => self.berhenti(),
             "verifikasi" => self.verifikasi(),
+            "pindahkan" => self.pindahkan(),
+            "riwayat" => self.riwayat(),
             _ => {
                 tampilkan_bantuan();
                 0
@@ -1128,6 +1236,9 @@ impl Mesin {
             };
             ok(&format!("[{}] {}: {} ({status})", j.id, j.nama, jadwal::uraian(j)));
             info(&format!("    {}  ->  {}", j.sumber, j.tujuan));
+            if !j.filter.kosong() {
+                info(&format!("    filter: {}", j.filter.uraian()));
+            }
             if let Some(t) = &j.terakhir {
                 info(&format!("    terakhir {} ({}): {}", t.mulai, t.hasil, t.ket));
             }
@@ -1155,6 +1266,18 @@ impl Mesin {
                 return 1;
             }
         };
+        // Filter milik jadwal ini: hanya dari -Sertakan/-Lewati/-Sejak (bukan filter jendela).
+        let filter = match Filter::urai(
+            self.o.sertakan.as_deref().unwrap_or(""),
+            self.o.lewati.as_deref().unwrap_or(""),
+            self.o.sejak.as_deref().unwrap_or(""),
+        ) {
+            Ok(f) => f,
+            Err(e) => {
+                gagal(&e);
+                return 1;
+            }
+        };
         let r = Rute { sumber: Some(src.clone()), tujuan: Some(dst.clone()) };
         if !self.rute_siap(&r, true) {
             return 1;
@@ -1171,6 +1294,7 @@ impl Mesin {
             verifikasi: !self.o.tanpa_verifikasi,
             aktif: true,
             terakhir: lama.and_then(|l| l.terakhir),
+            filter,
         };
         if let Err(e) = jadwal::pasang_tugas(&j) {
             gagal(&format!("Tugas Windows tidak bisa dibuat: {e}"));
@@ -1178,6 +1302,9 @@ impl Mesin {
         }
         jadwal::simpan(&j);
         ok(&format!("Jadwal \"{}\" dipasang: {}.", j.nama, jadwal::uraian(&j)));
+        if !j.filter.kosong() {
+            info(&format!("Filter: {}", j.filter.uraian()));
+        }
         info(&format!("Berikutnya: {}. Tugas Windows: {}", jadwal::berikutnya(&j).unwrap_or_default(), jadwal::nama_tugas(&id)));
         self.catat("Id", id);
         0
@@ -1190,17 +1317,33 @@ impl Mesin {
             return 1;
         };
         let mulai = sekarang_iso();
+        self.nama_jadwal = j.nama.clone();
         let catat = |hasil: &str, ket: &str, log: &str| {
             jadwal::catat_terakhir(
                 id,
                 jadwal::Terakhir { mulai: mulai.clone(), selesai: sekarang_iso(), hasil: hasil.into(), ket: ket.into(), log: log.into() },
             )
         };
+        // Jadwal yang tidak sempat menyalin juga masuk riwayat (bukti untuk audit).
+        let riwayat_batal = |hasil: &str, ket: &str| {
+            riwayat::catat(Catatan {
+                jenis: "salin".into(),
+                mulai: mulai.clone(),
+                sumber: j.sumber.clone(),
+                tujuan: j.tujuan.clone(),
+                hasil: hasil.into(),
+                ket: ket.into(),
+                filter: j.filter.uraian(),
+                jadwal: j.nama.clone(),
+                ..Default::default()
+            })
+        };
         let rute = format!("{} \u{2192} {}", nama_tempat(&j.sumber), nama_tempat(&j.tujuan));
         if baca_job().is_some_and(|x| job_berjalan(&x)) {
             let ket = "Dilewati: penyalinan lain sedang berjalan.";
             awas(ket);
             catat("dilewati", ket, "");
+            riwayat_batal("dilewati", ket);
             let _ = notifikasi::kirim(
                 &format!("Backup terjadwal dilewati: {}", j.nama),
                 &[rute, "Penyalinan lain sedang berjalan; dicoba lagi pada jadwal berikutnya.".into()],
@@ -1223,6 +1366,7 @@ impl Mesin {
                 }
             };
             catat("galat", &ket, "");
+            riwayat_batal("galat", &ket);
             let _ = notifikasi::kirim(&format!("Backup terjadwal gagal: {}", j.nama), &[rute, ket]);
             return 1;
         }
@@ -1240,6 +1384,7 @@ impl Mesin {
                 ("Latar", json!(true)),
                 ("Jadwal", json!(j.id)),
                 ("JadwalNama", json!(j.nama)),
+                ("Filter", if j.filter.kosong() { Value::Null } else { json!(j.filter.uraian()) }),
             ],
             true,
         );
@@ -1247,7 +1392,7 @@ impl Mesin {
         // Sama dengan pekerja latar: lanjut otomatis saat jaringan putus + notifikasi galat.
         self.o.log_latar = Some(log.clone());
         self.dari_jadwal = true;
-        let kode = self.jalankan_salin(&j.sumber, &j.tujuan, &log, &batas, false);
+        let kode = self.jalankan_salin(&j.sumber, &j.tujuan, &log, &batas, false, &j.filter);
         if kode != 0 {
             let ket = baris_error(&log, 1)
                 .pop()
@@ -1263,7 +1408,7 @@ impl Mesin {
             return 0;
         }
         catat("berjalan", &format!("{baru} Memverifikasi hasil salinan\u{2026}"), &log);
-        let v = self.verifikasi_rute(&j.sumber, &j.tujuan);
+        let v = self.verifikasi_rute(&j.sumber, &j.tujuan, &j.filter);
         let n = |k: &str| bil(self.hasil.get(k)).unwrap_or(0);
         if v == 0 {
             let ket = format!("{baru} Terverifikasi: {} file cocok.", angka(n("Cocok")));
@@ -1320,22 +1465,39 @@ impl Mesin {
         if !self.rute_siap(&r, false) {
             return 1;
         }
+        let Some(f) = self.ambil_filter() else { return 1 };
         let (src, dst) = (r.sumber.clone().unwrap(), r.tujuan.clone().unwrap());
         let mut hasil = 0;
-        let src_bytes: i64;
+        let mut src_bytes: i64;
 
         judul("Sumber");
         info(&src);
+        self.info_filter(&f);
         if adalah_lokal(&src) {
             info("Menghitung isi folder (hanya membaca daftar file, tidak mengunduh apa pun)...");
             let u = ukur_lokal(&src);
             src_bytes = u.bytes;
-            self.catat("SumberJumlah", u.jumlah);
-            self.catat("SumberBytes", u.bytes);
+            let mut jumlah = u.jumlah;
+            // Dengan filter, yang dihitung hanya file yang lolos (oleh rclone, aturan yang sama dengan salin).
+            if !f.kosong() && cari_rclone().is_some() {
+                let mut a = v!["size", &src, "--json"];
+                a.extend(f.argumen());
+                let h = panggil(&a, Mode::Tangkap);
+                if h.kode == 0 {
+                    let j = json_dari(&h.out);
+                    src_bytes = bil(j.get("bytes")).unwrap_or(0);
+                    jumlah = bil(j.get("count")).unwrap_or(0);
+                }
+            }
+            self.catat("SumberJumlah", jumlah);
+            self.catat("SumberBytes", src_bytes);
             self.catat("HanyaCloudJumlah", u.jumlah_hanya_cloud);
             self.catat("HanyaCloudBytes", u.hanya_cloud);
             self.catat("DiskCukup", true);
-            ok(&format!("{} file, total {}", angka(u.jumlah), format_ukuran(u.bytes as f64)));
+            ok(&format!("{} file, total {}", angka(jumlah), format_ukuran(src_bytes as f64)));
+            if !f.kosong() {
+                info(&format!("(dari {} file di folder ini; sisanya tidak lolos filter)", angka(u.jumlah)));
+            }
             if u.terbesar > 0 {
                 info(&format!("File terbesar: {} ({})", u.terbesar_nama, format_ukuran(u.terbesar as f64)));
             }
@@ -1363,7 +1525,7 @@ impl Mesin {
         } else if self.wajib_rclone() {
             info("Menghitung isi folder di cloud...");
             let mut a = v!["size", &src, "--json"];
-            a.extend(argumen_kecualian());
+            a.extend(f.argumen());
             let h = panggil(&a, Mode::Tangkap);
             if h.kode != 0 {
                 gagal("Tidak bisa membaca sumber.");
@@ -1400,7 +1562,12 @@ impl Mesin {
 
         let mut sudah: i64 = 0;
         if !rem_t.is_empty() || Path::new(&dst).is_dir() {
-            let h = panggil(&v!["size", &dst, "--json"], Mode::Tangkap);
+            // Yang sudah ada di tujuan dihitung dengan filter yang sama, supaya selisihnya sebanding.
+            let mut a = v!["size", &dst, "--json"];
+            if !f.kosong() {
+                a.extend(f.argumen());
+            }
+            let h = panggil(&a, Mode::Tangkap);
             if h.kode == 0 {
                 sudah = bil(json_dari(&h.out).get("bytes")).unwrap_or(0);
                 if sudah > 0 {
@@ -1480,11 +1647,16 @@ impl Mesin {
         if !self.rute_siap(&r, true) {
             return 1;
         }
+        let Some(f) = self.ambil_filter() else { return 1 };
         let (src, dst) = (r.sumber.clone().unwrap(), r.tujuan.clone().unwrap());
         judul("Uji coba (dry run): tidak ada file yang disalin");
+        self.info_filter(&f);
         let log = path_log("uji", "log");
-        let mut a = v!["copy", &src, &dst, "--dry-run", "--create-empty-src-dirs"];
-        a.extend(argumen_kecualian());
+        let mut a = v!["copy", &src, &dst, "--dry-run"];
+        if f.buat_folder_kosong() {
+            a.push("--create-empty-src-dirs".into());
+        }
+        a.extend(f.argumen());
         a.extend(argumen_tujuan(&dst));
         a.extend(v!["--log-level", "NOTICE", "--stats", "1h", "--stats-log-level", "NOTICE"]);
         let h = panggil(&a, Mode::Tangkap);
@@ -1521,12 +1693,13 @@ impl Mesin {
         }
 
         let mut hasil = 0;
-        if adalah_lokal(&src) {
+        // Dengan filter, selisih jumlah file memang disengaja: perbandingan ini tidak berarti.
+        if adalah_lokal(&src) && f.kosong() {
             // Bandingkan jumlah file versi Windows dengan versi rclone: selisih berarti ada yang terlewat
             // (mis. placeholder OneDrive yang dianggap "bukan file biasa").
             let u = ukur_lokal(&src);
             let mut a = v!["size", &src, "--json"];
-            a.extend(argumen_kecualian());
+            a.extend(f.argumen());
             let s = panggil(&a, Mode::Tangkap);
             if s.kode == 0 {
                 let nr = bil(json_dari(&s.out).get("count")).unwrap_or(0);
@@ -1591,9 +1764,13 @@ impl Mesin {
         info(&format!("Log: {log}"));
     }
 
-    fn jalankan_salin(&mut self, src: &str, dst: &str, log: &str, batas: &str, tampil: bool) -> i32 {
-        let mut a = v!["copy", src, dst, "--create-empty-src-dirs"];
-        a.extend(argumen_kecualian());
+    fn jalankan_salin(&mut self, src: &str, dst: &str, log: &str, batas: &str, tampil: bool, f: &Filter) -> i32 {
+        let mulai = sekarang_iso();
+        let mut a = v!["copy", src, dst];
+        if f.buat_folder_kosong() {
+            a.push("--create-empty-src-dirs".into());
+        }
+        a.extend(f.argumen());
         a.extend(argumen_tujuan(dst));
         a.extend(v![
             "--transfers", "4", "--checkers", "8",
@@ -1678,6 +1855,29 @@ impl Mesin {
         };
         win::jaga_bangun(false);
         perbarui_job(&[("Selesai", json!(sekarang_iso())), ("Kode", kode.clone())], false);
+        let (n_file, n_byte) = angka_tersalin(log);
+        let berhasil = bil(Some(&kode)) == Some(0);
+        riwayat::catat(Catatan {
+            jenis: "salin".into(),
+            mulai,
+            sumber: src.into(),
+            tujuan: dst.into(),
+            hasil: if berhasil { "selesai" } else { "galat" }.into(),
+            ket: if berhasil {
+                String::new()
+            } else {
+                baris_error(log, 1)
+                    .pop()
+                    .map(|e| potong(&RE_AWAL_ERROR.replace(&e, ""), 200))
+                    .unwrap_or_else(|| format!("rclone berhenti dengan kode {}.", teks(Some(&kode))))
+            },
+            file: n_file,
+            byte: n_byte,
+            filter: f.uraian(),
+            jadwal: self.nama_jadwal.clone(),
+            log: log.into(),
+            ..Default::default()
+        });
         if tampil {
             self.ringkas_hasil(log, &kode);
         }
@@ -1702,10 +1902,11 @@ impl Mesin {
         }
         let (src, dst) = (r.sumber.clone().unwrap(), r.tujuan.clone().unwrap());
         let batas = self.o.batas_kecepatan.clone().unwrap_or_else(baca_batas_kecepatan);
+        let Some(f) = self.ambil_filter() else { return 1 };
 
         // Proses anak yang dijalankan oleh "salin -Latar".
         if let Some(log) = self.o.log_latar.clone() {
-            return self.jalankan_salin(&src, &dst, &log, &batas, false);
+            return self.jalankan_salin(&src, &dst, &log, &batas, false, &f);
         }
         if baca_job().is_some_and(|j| job_berjalan(&j)) {
             awas("Penyalinan lain masih berjalan. Lihat: pindah status");
@@ -1722,6 +1923,9 @@ impl Mesin {
         info("Mode  : SALIN saja. File di sumber tidak diubah atau dihapus.");
         if batas != "off" {
             info(&format!("Batas : {}", tampil_batas(&batas)));
+        }
+        if !f.kosong() {
+            info(&format!("Filter: {}", f.uraian()));
         }
         if !self.konfirmasi("Mulai menyalin sekarang?") {
             return 1;
@@ -1740,6 +1944,7 @@ impl Mesin {
                 ("Sumber", json!(src)),
                 ("Tujuan", json!(dst)),
                 ("BatasKecepatan", batas_job),
+                ("Filter", if f.kosong() { Value::Null } else { json!(f.uraian()) }),
             ],
             true,
         );
@@ -1764,7 +1969,7 @@ impl Mesin {
             };
         }
         info("Tekan Ctrl+C untuk berhenti; jalankan lagi nanti untuk melanjutkan.");
-        self.jalankan_salin(&src, &dst, &log, &batas, true)
+        self.jalankan_salin(&src, &dst, &log, &batas, true, &f)
     }
 
     pub fn status(&mut self) -> i32 {
@@ -1852,6 +2057,23 @@ impl Mesin {
             }
         }
         perbarui_job(&[("Selesai", json!(sekarang_iso())), ("Kode", json!("dihentikan"))], false);
+        // Pekerja latar sudah dimatikan, jadi ia tidak sempat mencatat; catat di sini.
+        let log = teks(job.get("Log"));
+        let (n_file, n_byte) = angka_tersalin(&log);
+        riwayat::catat(Catatan {
+            jenis: "salin".into(),
+            mulai: teks(job.get("Mulai")),
+            sumber: teks(job.get("Sumber")),
+            tujuan: teks(job.get("Tujuan")),
+            hasil: "dihentikan".into(),
+            ket: "Dihentikan oleh pengguna; bisa dilanjutkan.".into(),
+            file: n_file,
+            byte: n_byte,
+            filter: teks(job.get("Filter")),
+            jadwal: teks(job.get("JadwalNama")),
+            log,
+            ..Default::default()
+        });
         ok("Penyalinan dihentikan. Jalankan \"salin\" lagi untuk melanjutkan; file yang sudah tersalin dilewati.");
         0
     }
@@ -1868,18 +2090,52 @@ impl Mesin {
             awas("Tunggu penyalinan selesai dulu (lihat: pindah status).");
             return 1;
         }
-        self.verifikasi_rute(&src, &dst)
+        let Some(f) = self.ambil_filter() else { return 1 };
+        self.verifikasi_rute(&src, &dst, &f)
     }
 
-    /// Mencocokkan `src` dengan `dst` (dipakai `verifikasi` dan backup terjadwal).
-    fn verifikasi_rute(&mut self, src: &str, dst: &str) -> i32 {
+    /// Mencocokkan `src` dengan `dst` (dipakai `verifikasi`, `pindahkan`, dan backup terjadwal).
+    fn verifikasi_rute(&mut self, src: &str, dst: &str, f: &Filter) -> i32 {
+        let mulai = sekarang_iso();
+        let kode = self.verifikasi_inti(src, dst, f);
+        let n = |k: &str| bil(self.hasil.get(k)).unwrap_or(0);
+        let ada_laporan = kode == 0 || n("Cocok") + n("Hilang") + n("Beda") + n("Galat") > 0;
+        riwayat::catat(Catatan {
+            jenis: "verifikasi".into(),
+            mulai,
+            sumber: src.into(),
+            tujuan: dst.into(),
+            hasil: if kode == 0 {
+                "cocok"
+            } else if ada_laporan {
+                "selisih"
+            } else {
+                "galat"
+            }
+            .into(),
+            ket: if ada_laporan { String::new() } else { "Verifikasi tidak berjalan; lihat log aktivitas.".into() },
+            file: n("Cocok"),
+            hilang: n("Hilang"),
+            beda: n("Beda"),
+            galat: n("Galat"),
+            metode: teks(self.hasil.get("Metode")),
+            filter: f.uraian(),
+            jadwal: self.nama_jadwal.clone(),
+            laporan: teks(self.hasil.get("Laporan")),
+            ..Default::default()
+        });
+        kode
+    }
+
+    fn verifikasi_inti(&mut self, src: &str, dst: &str, f: &Filter) -> i32 {
         let (src, dst) = (src.to_string(), dst.to_string());
         judul("Verifikasi: mencocokkan sumber dengan tujuan");
+        self.info_filter(f);
         info("Membandingkan setiap file: dengan checksum bila kedua sisi punya jenis yang sama, selain itu nama & ukuran...");
         let lap = path_log("verifikasi", "txt");
         let laps = lap.to_string_lossy().to_string();
         let mut a = v!["check", &src, &dst, "--one-way", "--combined", &laps];
-        a.extend(argumen_kecualian());
+        a.extend(f.argumen());
         a.extend(v!["--log-level", "NOTICE"]);
         let h = panggil(&a, Mode::Tangkap);
         // rclone: "No common hash found - not using a hash for checks" (mis. OneDrive <-> Google Drive)
@@ -1937,8 +2193,12 @@ impl Mesin {
         if !isi.is_empty() && hilang.is_empty() && beda.is_empty() && galat.is_empty() {
             ok(&format!("SEMUA FILE COCOK: {} file dari {src}", angka(sama.len() as i64)));
             info(&format!("sudah ada di {dst}."));
-            info("File di sumber tidak diubah. Hapus sendiri dari sumber bila sudah yakin.");
+            info("File di sumber tidak diubah.");
             info(&format!("Laporan: {laps}"));
+            return 0;
+        }
+        if isi.is_empty() && h.kode == 0 {
+            ok("Tidak ada file untuk dicocokkan (folder kosong, atau tidak ada yang lolos filter).");
             return 0;
         }
         if isi.is_empty() {
@@ -1955,6 +2215,225 @@ impl Mesin {
         info("Jalankan \"salin\" lagi untuk melengkapi, lalu verifikasi ulang.");
         info(&format!("Laporan lengkap: {laps}"));
         1
+    }
+
+    // -------------------------------------------------------------- pindahkan
+
+    /// Menghapus dari SUMBER file yang terbukti sama di tujuan. Selalu memverifikasi ulang saat
+    /// itu juga dan hanya menghapus file berstatus cocok persis ("=" di laporan rclone); file lain
+    /// (belum ada, berbeda, gagal dibaca, Office yang diubah SharePoint) tidak disentuh.
+    /// Komputer: ke Recycle Bin. Google Drive: ke Sampah. OneDrive/SharePoint: ke Recycle bin.
+    fn pindahkan(&mut self) -> i32 {
+        let r = self.ambil_rute();
+        if !self.rute_siap(&r, true) {
+            return 1;
+        }
+        let Some(f) = self.ambil_filter() else { return 1 };
+        let (src, dst) = (r.sumber.clone().unwrap(), r.tujuan.clone().unwrap());
+        if baca_job().is_some_and(|j| job_berjalan(&j)) {
+            awas("Tunggu penyalinan selesai dulu (lihat: pindah status).");
+            return 1;
+        }
+        let lokal = adalah_lokal(&src);
+        if lokal && !win::drive_tetap(Path::new(&src)) {
+            gagal("Folder sumber ada di drive jaringan atau flashdisk yang tidak punya Recycle Bin; file di sana akan hilang permanen.");
+            info("LELEMOVE tidak menghapusnya. Hapus sendiri bila sudah yakin.");
+            return 1;
+        }
+        let tempat = if lokal {
+            "Recycle Bin Windows"
+        } else if jenis_dari_nama(&remote_dari(&src)) == "google" {
+            "Sampah Google Drive"
+        } else {
+            "Recycle bin OneDrive/SharePoint"
+        };
+        let mulai = sekarang_iso();
+
+        // 1. Verifikasi ulang sekarang: hasil verifikasi sebelumnya bisa basi.
+        let v = self.verifikasi_rute(&src, &dst, &f);
+        let laporan = teks(self.hasil.get("Laporan"));
+        let per_file = riwayat::baca_per_file(Path::new(&laporan));
+        let cocok: Vec<String> = per_file.iter().filter(|(s, _)| *s == '=').map(|(_, p)| p.clone()).collect();
+        let lain = per_file.iter().filter(|(s, _)| *s != '=' && *s != '+').count() as i64;
+        judul("Pindahkan: hapus dari sumber file yang sudah terbukti sama di tujuan");
+        self.catat("AkanDihapus", cocok.len() as i64);
+        self.catat("TidakDihapus", lain);
+        if cocok.is_empty() {
+            info("Tidak ada file yang terbukti sama di tujuan; tidak ada yang dihapus.");
+            return if v == 0 { 0 } else { 1 };
+        }
+        info(&format!("{} file di {src} terbukti sama di {dst}.", angka(cocok.len() as i64)));
+        info(&format!("File itu dipindahkan ke {tempat}, jadi masih bisa dipulihkan."));
+        if lain > 0 {
+            awas(&format!("{} file lain belum cocok dan TIDAK dihapus.", angka(lain)));
+        }
+        if !self.o.ya {
+            if !bisa_bertanya() {
+                awas("Butuh persetujuan. Ulangi perintah dengan tambahan -Ya setelah disetujui.");
+                return 3;
+            }
+            if baca_baris("        Ketik HAPUS untuk melanjutkan: ").trim() != "HAPUS" {
+                info("Dibatalkan; tidak ada yang dihapus.");
+                return 1;
+            }
+        }
+
+        // 2. Hapus (ke tempat sampah masing-masing layanan).
+        let log = path_log("pindahkan", "log");
+        let logs = log.to_string_lossy().to_string();
+        let dihapus = if lokal {
+            let akar = PathBuf::from(&src);
+            let berkas: Vec<PathBuf> = cocok.iter().map(|p| akar.join(p.replace('/', "\\"))).collect();
+            let n = win::ke_recycle_bin(&berkas);
+            let catatan: String = berkas
+                .iter()
+                .map(|p| format!("{} {}\r\n", if p.exists() { "GAGAL  " } else { "Dihapus" }, p.display()))
+                .collect();
+            let _ = std::fs::write(&log, catatan);
+            hapus_folder_kosong_lokal(&akar, &berkas);
+            n
+        } else {
+            let daftar = path_log("pindahkan-daftar", "txt");
+            let _ = std::fs::write(&daftar, cocok.join("\n") + "\n");
+            let a = v![
+                "delete", &src, "--files-from-raw", daftar.to_string_lossy(),
+                // Google Drive: ke Sampah (bawaan rclone, ditegaskan). OneDrive: ke recycle bin (bawaan).
+                "--drive-use-trash", "--log-file", &logs, "--log-level", "INFO",
+            ];
+            let h = panggil(&a, Mode::Tangkap);
+            let n = std::fs::read_to_string(&log).unwrap_or_default().lines().filter(|l| l.contains(": Deleted")).count();
+            if h.kode != 0 {
+                awas(&format!("rclone berhenti dengan kode {}; sebagian file mungkin belum terhapus.", h.kode));
+                for b in h.galat_terakhir(5) {
+                    info(&b);
+                }
+                self.saran_login(&h.err, &[&src]);
+            }
+            let _ = std::fs::remove_file(&daftar);
+            hapus_folder_kosong_cloud(&src, &cocok);
+            n
+        };
+
+        let semua = dihapus == cocok.len();
+        let mut ket = format!("{} file ke {tempat}", angka(dihapus as i64));
+        if !semua {
+            ket += &format!("; {} gagal dihapus", angka((cocok.len() - dihapus) as i64));
+        }
+        if lain > 0 {
+            ket += &format!("; {} file belum cocok tidak dihapus", angka(lain));
+        }
+        riwayat::catat(Catatan {
+            jenis: "pindahkan".into(),
+            mulai,
+            sumber: src.clone(),
+            tujuan: dst.clone(),
+            hasil: if semua { "selesai" } else if dihapus > 0 { "sebagian" } else { "galat" }.into(),
+            ket: ket.clone(),
+            file: dihapus as i64,
+            hilang: bil(self.hasil.get("Hilang")).unwrap_or(0),
+            beda: bil(self.hasil.get("Beda")).unwrap_or(0),
+            galat: bil(self.hasil.get("Galat")).unwrap_or(0),
+            filter: f.uraian(),
+            log: logs.clone(),
+            laporan,
+            ..Default::default()
+        });
+        self.catat("Dihapus", dihapus as i64);
+        self.catat("Tempat", tempat);
+        if semua {
+            ok(&format!("{} file dipindahkan: kini hanya ada di {dst}.", angka(dihapus as i64)));
+        } else {
+            awas(&format!("Hanya {} dari {} file yang terhapus dari sumber.", angka(dihapus as i64), angka(cocok.len() as i64)));
+        }
+        info(&format!("Yang dihapus ada di {tempat} bila perlu dipulihkan. Log: {logs}"));
+        if semua {
+            0
+        } else {
+            1
+        }
+    }
+
+    // -------------------------------------------------------------- riwayat
+
+    /// Daftar riwayat; -Csv / -Laporan mengekspor. Dengan -Id: satu catatan (laporan per file).
+    fn riwayat(&mut self) -> i32 {
+        let semua = riwayat::baca(0);
+        let tulis = |p: &str, isi: &str, apa: &str| -> i32 {
+            match std::fs::write(p, isi) {
+                Ok(()) => {
+                    ok(&format!("{apa} disimpan: {p}"));
+                    0
+                }
+                Err(e) => {
+                    gagal(&format!("{apa} tidak bisa disimpan ke {p}: {e}"));
+                    1
+                }
+            }
+        };
+        if let Some(id) = self.o.id.clone() {
+            let Some(c) = semua.iter().find(|c| c.id == id) else {
+                gagal(&format!("Riwayat {id} tidak ada."));
+                return 1;
+            };
+            let per_file = !c.laporan.is_empty();
+            if let Some(p) = self.o.laporan.clone() {
+                let isi = if per_file { riwayat::html_verifikasi(c) } else { riwayat::html_riwayat(std::slice::from_ref(c)) };
+                return tulis(&p, &isi, "Laporan");
+            }
+            if let Some(p) = self.o.csv.clone() {
+                let isi = if per_file { riwayat::csv_per_file(c) } else { riwayat::csv(std::slice::from_ref(c)) };
+                return tulis(&p, &isi, "CSV");
+            }
+            self.catat("Riwayat", serde_json::to_value(vec![c]).unwrap_or(Value::Null));
+            judul(&format!("{} {}", riwayat::label_jenis(c), waktu_tampil(&c.mulai)));
+            info(&format!("Dari  : {}", c.sumber));
+            info(&format!("Ke    : {}", c.tujuan));
+            info(&format!("Hasil : {} ({})", riwayat::label_hasil(c), riwayat::ringkas(c)));
+            if !c.ket.is_empty() {
+                info(&format!("Ket   : {}", c.ket));
+            }
+            if !c.log.is_empty() {
+                info(&format!("Log   : {}", c.log));
+            }
+            return 0;
+        }
+        if let Some(p) = self.o.csv.clone() {
+            return tulis(&p, &riwayat::csv(&semua), "CSV riwayat");
+        }
+        if let Some(p) = self.o.laporan.clone() {
+            return tulis(&p, &riwayat::html_riwayat(&semua), "Laporan riwayat");
+        }
+        let n = self.o.jumlah.as_deref().and_then(|j| j.parse::<usize>().ok()).unwrap_or(20).min(semua.len());
+        judul("Riwayat");
+        if semua.is_empty() {
+            info("Belum ada riwayat. Riwayat dicatat sejak versi yang memuat fitur ini.");
+        }
+        for c in &semua[..n] {
+            let baris = format!(
+                "{}  {} {}: {} -> {}",
+                waktu_tampil(&c.mulai),
+                riwayat::label_jenis(c),
+                riwayat::label_hasil(c).to_lowercase(),
+                nama_tempat(&c.sumber),
+                nama_tempat(&c.tujuan)
+            );
+            if riwayat::hasil_baik(c) {
+                ok(&baris);
+            } else {
+                awas(&baris);
+            }
+            let mut ket = format!("    {}", riwayat::ringkas(c));
+            if !c.jadwal.is_empty() {
+                ket += &format!(" (jadwal {})", c.jadwal);
+            }
+            info(&format!("{ket}  [-Id {}]", c.id));
+        }
+        if semua.len() > n {
+            info(&format!("... {} lagi. Tampilkan lebih banyak: pindah riwayat -Jumlah 100", angka((semua.len() - n) as i64)));
+        }
+        self.catat("Riwayat", serde_json::to_value(&semua[..n]).unwrap_or(Value::Null));
+        self.catat("Jumlah", semua.len() as i64);
+        0
     }
 
     // -------------------------------------------------------------- menu teks
@@ -2173,6 +2652,7 @@ pub fn tampilkan_bantuan() {
     polos("  klien [-ClientId X -ClientSecret Y | -Hapus]   client ID Google aplikasi (lihat/simpan/hapus)");
     polos("  jadwal                      daftar backup terjadwal");
     polos("  jadwal -Tambah -Sumber X -Tujuan Y [-Nama N] [-Jam 22:00] [-Hari sen,rab,jum] [-TanpaVerifikasi] [-Id X]");
+    polos("         [-Sertakan ..] [-Lewati ..] [-Sejak ..]   filter khusus jadwal ini");
     polos("  jadwal -Id X -Hapus | -Aktifkan | -Nonaktifkan | -Jalankan");
     polos("  bawaan -Akun <nama>         jadikan client ID akun Google itu client ID aplikasi");
     polos("  situs -Akun <sharepoint> -Cari <kata>              cari situs SharePoint");
@@ -2185,5 +2665,13 @@ pub fn tampilkan_bantuan() {
     polos("        [-BatasKecepatan 5M]  batasi kecepatan (5M = 5 MB/dtk, 500K, off); diingat untuk berikutnya");
     polos("  status | berhenti           pantau / hentikan penyalinan latar");
     polos("  verifikasi                  cocokkan isi sumber dan tujuan");
+    polos("  pindahkan [-Ya]             verifikasi ulang, lalu hapus dari SUMBER file yang terbukti sama");
+    polos("                              (ke Recycle Bin / Sampah; file yang tidak cocok tidak disentuh)");
+    polos("  riwayat [-Jumlah 50]        riwayat salin, verifikasi, pindahkan");
+    polos("          [-Csv x.csv | -Laporan x.html]   ekspor semua riwayat");
+    polos("          -Id <id> [-Csv x.csv | -Laporan x.html]   laporan per file satu verifikasi");
+    polos("  Filter (periksa, uji, salin, verifikasi, pindahkan; diingat untuk berikutnya):");
+    polos("    -Sertakan \"pdf,docx\"  hanya jenis file ini   -Lewati \"*.tmp,node_modules/\"  lewati pola ini");
+    polos("    -Sejak 2026-01-31     hanya yang diubah sejak tanggal itu   -TanpaFilter  hapus filter");
     polos("  menu                        menu teks (bawaan bila tanpa perintah)");
 }

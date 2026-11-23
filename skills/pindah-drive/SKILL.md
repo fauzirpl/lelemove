@@ -25,9 +25,13 @@ jadi progres penyalinan yang dimulai dari sini juga tampil di sana, dan sebalikn
 
 ## Aturan yang tidak boleh dilanggar
 
-- **Hanya menyalin.** Jangan pernah menjalankan `rclone sync`, `move`, `delete`, `purge`,
-  `deletefile`, atau `cleanup`. Mesin memang hanya memakai `copy` dan `check`. Penghapusan
-  file dari sumber adalah keputusan pengguna, dilakukan sendiri setelah verifikasi lolos.
+- **Menyalin, bukan menghapus.** Jangan pernah menjalankan `rclone sync`, `move`, `delete`,
+  `purge`, `deletefile`, atau `cleanup` sendiri. Satu-satunya jalan menghapus adalah
+  `pindah pindahkan`, dan hanya bila pengguna sendiri meminta file di SUMBER dihapus setelah
+  verifikasi. Jalankan dulu tanpa `-Ya` (memverifikasi ulang dan menyebut jumlah file), sampaikan
+  jumlah dan tempat sampahnya (Recycle Bin / Sampah Google Drive / recycle bin OneDrive), lalu
+  tambahkan `-Ya` hanya setelah pengguna menyetujui angka itu di chat. Jangan pernah untuk
+  tujuan, untuk drive jaringan/flashdisk, atau di dalam jadwal.
 - **Login dilakukan pengguna di browser.** Jangan meminta, mengetik, atau menampilkan password,
   kode, maupun token. Jangan membaca atau menampilkan `%APPDATA%\rclone\rclone.conf`
   (isinya token).
@@ -79,6 +83,14 @@ jadi progres penyalinan yang dimulai dari sini juga tampil di sana, dan sebalikn
    Saat selesai atau berhenti karena galat, Windows menampilkan notifikasi ke pengguna.
 7. **Verifikasi:** `verifikasi` setelah `status` menunjukkan SELESAI. Checksum dipakai bila kedua
    sisi punya jenis yang sama; OneDrive ↔ Google Drive hanya nama & ukuran.
+8. **Laporan (bila diminta):** `riwayat` menampilkan catatan beserta `-Id`-nya;
+   `riwayat -Id <id> -Laporan <berkas.html>` membuat laporan per file untuk audit,
+   `riwayat -Csv <berkas.csv>` mengekspor semua.
+
+**Filter:** bila pengguna hanya ingin jenis file tertentu, tambahkan `-Sertakan "pdf,docx"`,
+`-Lewati "*.tmp,Folder/"`, atau `-Sejak 2026-01-31` ke `periksa`/`uji`/`salin`/`verifikasi`.
+Filter diingat di `pengaturan.json` untuk perintah berikutnya; `-TanpaFilter` menghapusnya.
+Sebutkan filter yang aktif saat melaporkan hasil, karena file di luar filter memang tidak disalin.
 
 Cara kerja data: antar akun berbeda, data dialirkan lewat komputer (unduh + unggah sekaligus di
 memori, tidak disimpan ke disk). Komputer harus tetap menyala selama menyalin.
@@ -108,4 +120,4 @@ konsol (minta izin dulu). Jadwal tidak mengubah rute yang tersimpan di `pengatur
 | Personal Vault | Tidak ikut tersalin. Pengguna harus memindahkannya manual. |
 
 Data kerja ada di `%LOCALAPPDATA%\pindah-drive\` (`pengaturan.json`, `job.json`, `akun.json`,
-`jadwal.json`, folder `log\`). Bila butuh detail, baca log terbaru di sana, bukan `rclone.conf`.
+`jadwal.json`, `riwayat.jsonl`, folder `log\`). Bila butuh detail, baca log terbaru di sana, bukan `rclone.conf`.

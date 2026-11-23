@@ -12,6 +12,7 @@ use std::thread;
 
 use pindah_drive::mesin::akun::{Akun, Pustaka, Sambungan, Situs};
 use pindah_drive::mesin::jadwal::Jadwal;
+use pindah_drive::mesin::riwayat::Catatan;
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
@@ -31,6 +32,8 @@ pub enum Kabar {
     Pustaka { gen: u64, hasil: Result<Vec<Pustaka>, String> },
     /// Daftar jadwal backup + (tugas Windows-nya masih ada, prosesnya sedang berjalan).
     Jadwal { gen: u64, daftar: Vec<(Jadwal, bool, bool)> },
+    /// Isi riwayat.jsonl (terbaru dulu).
+    Riwayat { gen: u64, daftar: Vec<Catatan> },
 }
 
 /// Isi satu folder di panel Dari/Ke (hanya subfolder; yang disalin selalu seluruh isi folder).
@@ -55,6 +58,8 @@ pub enum Setelah {
     Verifikasi,
     /// Perubahan jadwal backup: buka lagi daftar jadwal dengan pesan ini.
     Jadwal { ok: String },
+    /// Pindahkan (hapus dari sumber file yang terverifikasi).
+    Pindahkan,
 }
 
 pub struct Aksi {

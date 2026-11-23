@@ -22,6 +22,9 @@ pub enum Konfirmasi {
     HapusClient,
     /// Hapus jadwal backup (id).
     HapusJadwal(String),
+    /// Pindahkan: konfirmasi pertama (penjelasan), lalu kedua (ketik HAPUS).
+    Pindahkan1,
+    Pindahkan2,
     Lepas(String),
     MulaiSalin,
     Henti,
@@ -35,6 +38,18 @@ pub struct Tanya {
     pub tidak: String,
     pub awas: bool,
     pub tujuan: Konfirmasi,
+}
+
+/// Konfirmasi yang harus diketik (tindakan yang menghapus sesuatu).
+pub struct Ketik {
+    pub judul: String,
+    pub isi: String,
+    /// Kata yang harus diketik persis, mis. "HAPUS".
+    pub kata: String,
+    pub ya: String,
+    pub isian: String,
+    pub tujuan: Konfirmasi,
+    pub fokus: bool,
 }
 
 pub struct AkunBaru {
@@ -105,6 +120,11 @@ pub struct SharePoint {
 
 pub enum Dialog {
     Tanya(Tanya),
+    Ketik(Ketik),
+    /// Filter file (lihat filter.rs).
+    Filter(crate::filter::FilterIsian),
+    /// Riwayat & laporan (lihat riwayat.rs).
+    Riwayat(crate::riwayat::Riwayat),
     AkunBaru(AkunBaru),
     ClientId(ClientId),
     Pengaturan(Pengaturan),
@@ -139,13 +159,30 @@ pub enum Hasil {
     /// Jadwal backup: buka isian jadwal baru dari folder yang sedang dibuka.
     JadwalBaru,
     JadwalUbah(String),
-    JadwalSimpan { id: Option<String>, nama: String, sumber: String, tujuan: String, jam: String, hari: String, verifikasi: bool },
+    JadwalSimpan {
+        id: Option<String>,
+        nama: String,
+        sumber: String,
+        tujuan: String,
+        jam: String,
+        hari: String,
+        verifikasi: bool,
+        filter: pindah_drive::mesin::filter::Filter,
+    },
     JadwalJalankan(String),
     /// (id, aktif)
     JadwalAktif(String, bool),
     JadwalHapus(String),
     JadwalLog(String),
     KembaliJadwal,
+    /// Filter file disimpan (kosong = hapus filter).
+    FilterSimpan(pindah_drive::mesin::filter::Filter),
+    /// Riwayat: buka laporan HTML / simpan CSV per file (id catatan), buka log, ekspor yang tampil.
+    /// Saringan dibawa supaya dialog dibuka lagi dengan saringan yang sama.
+    RiwayatLaporan(String, crate::riwayat::Saring),
+    RiwayatCsvFile(String, crate::riwayat::Saring),
+    RiwayatLog(String, crate::riwayat::Saring),
+    RiwayatEkspor { html: bool, daftar: Vec<pindah_drive::mesin::riwayat::Catatan>, saring: crate::riwayat::Saring },
     Folder { jalur: String, untuk_sumber: bool },
     Pustaka { remote: String, situs_nama: String, pustaka_id: String, pustaka_nama: String },
 }
@@ -389,6 +426,9 @@ fn isian(ui: &mut Ui, teks: &mut String, sandi: bool) -> egui::Response {
 pub fn tampil(ctx: &egui::Context, d: &mut Dialog, p: &mut Pemuat) -> Option<Hasil> {
     let r = egui::Modal::new(egui::Id::new("dialog-pindah-drive")).show(ctx, |ui| match d {
         Dialog::Tanya(t) => tanya(ui, t),
+        Dialog::Ketik(k) => ketik(ui, k),
+        Dialog::Filter(f) => crate::filter::tampil(ui, f),
+        Dialog::Riwayat(r) => crate::riwayat::tampil(ui, r),
         Dialog::AkunBaru(a) => akun_baru(ui, a),
         Dialog::ClientId(c) => client_id(ui, c),
         Dialog::Pengaturan(s) => pengaturan(ui, s),
@@ -429,6 +469,36 @@ fn tanya(ui: &mut Ui, t: &mut Tanya) -> Option<Hasil> {
             h = Some(Hasil::Ya(t.tujuan.clone()));
         }
         if !t.tidak.is_empty() && ui.add(tombol(&t.tidak).min_size(vec2(0.0, 38.0))).clicked() {
+            h = Some(Hasil::Batal);
+        }
+    });
+    h
+}
+
+/// Konfirmasi kedua untuk tindakan yang menghapus: tombolnya aktif setelah kata diketik persis.
+fn ketik(ui: &mut Ui, k: &mut Ketik) -> Option<Hasil> {
+    ui.set_width(460.0);
+    ui.horizontal(|ui| {
+        ui.label(gaya::ikon(gaya::ik::AWAS, 16.0, KUNING));
+        ui.label(RichText::new(&k.judul).family(tebal()).size(16.5).color(KUNING));
+    });
+    ui.add_space(8.0);
+    ui.label(RichText::new(&k.isi).color(TINTA));
+    ui.add_space(10.0);
+    ui.label(RichText::new(format!("Ketik {} untuk melanjutkan:", k.kata)).color(REDUP));
+    let r = isian(ui, &mut k.isian, false);
+    if k.fokus {
+        r.request_focus();
+        k.fokus = false;
+    }
+    let cocok = k.isian.trim() == k.kata;
+    let enter = cocok && r.lost_focus() && ui.input(|i| i.key_pressed(Key::Enter));
+    let mut h = None;
+    baris_tombol(ui, |ui| {
+        if ui.add_enabled(cocok, tombol_utama(&k.ya)).clicked() || enter {
+            h = Some(Hasil::Ya(k.tujuan.clone()));
+        }
+        if ui.add(tombol("Batal").min_size(vec2(0.0, 38.0))).clicked() {
             h = Some(Hasil::Batal);
         }
     });

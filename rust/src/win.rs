@@ -269,6 +269,47 @@ pub fn ruang_bebas(path: &Path) -> u64 {
     bebas
 }
 
+/// Drive tetap (disk di komputer ini), yang punya Recycle Bin. Drive jaringan dan flashdisk tidak:
+/// berkas yang "dihapus ke Recycle Bin" di sana langsung hilang permanen.
+pub fn drive_tetap(path: &Path) -> bool {
+    use windows_sys::Win32::Storage::FileSystem::GetDriveTypeW;
+    const DRIVE_FIXED: u32 = 3;
+    let akar = akar_path(path);
+    let w = lebar(&format!("{}\\", akar.trim_end_matches('\\')));
+    unsafe { GetDriveTypeW(w.as_ptr()) == DRIVE_FIXED }
+}
+
+/// Memindahkan berkas ke Recycle Bin (bisa dipulihkan), seperti tombol Delete di Explorer.
+/// Bila ada berkas yang terlalu besar untuk Recycle Bin, Windows menanyakannya dulu
+/// (FOF_WANTNUKEWARNING), bukan menghapusnya diam-diam. Hasil: berkas yang benar-benar sudah tidak ada.
+pub fn ke_recycle_bin(berkas: &[PathBuf]) -> usize {
+    use windows_sys::Win32::UI::Shell::{SHFileOperationW, SHFILEOPSTRUCTW};
+    const FO_DELETE: u32 = 3;
+    const FOF_SILENT: u16 = 0x0004;
+    const FOF_NOCONFIRMATION: u16 = 0x0010;
+    const FOF_ALLOWUNDO: u16 = 0x0040;
+    const FOF_NOERRORUI: u16 = 0x0400;
+    const FOF_WANTNUKEWARNING: u16 = 0x4000;
+    // Beberapa ratus jalur per panggilan: cepat, tetapi satu kegagalan tidak menghentikan semuanya.
+    for kelompok in berkas.chunks(200) {
+        let mut daftar: Vec<u16> = Vec::new();
+        for p in kelompok.iter().filter(|p| p.is_file()) {
+            daftar.extend(p.as_os_str().encode_wide());
+            daftar.push(0);
+        }
+        if daftar.is_empty() {
+            continue;
+        }
+        daftar.push(0); // daftar diakhiri dua nol
+        let mut op: SHFILEOPSTRUCTW = unsafe { std::mem::zeroed() };
+        op.wFunc = FO_DELETE;
+        op.pFrom = daftar.as_ptr();
+        op.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI | FOF_WANTNUKEWARNING;
+        unsafe { SHFileOperationW(&mut op) };
+    }
+    berkas.iter().filter(|p| !p.exists()).count()
+}
+
 /// Membuka berkas, folder, atau alamat web dengan program bawaan Windows.
 pub fn buka(target: &str) {
     use windows_sys::Win32::UI::Shell::ShellExecuteW;

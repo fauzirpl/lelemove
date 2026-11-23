@@ -211,7 +211,7 @@ pub fn baca_pengaturan() -> Rute {
 }
 
 /// Mengubah pengaturan.json tanpa membuang field lain (Sumber, Tujuan, BatasKecepatan, ...).
-fn ubah_pengaturan(ubah: impl FnOnce(&mut Map<String, Value>)) {
+pub(crate) fn ubah_pengaturan(ubah: impl FnOnce(&mut Map<String, Value>)) {
     let mut m = baca_objek(&jalur().pengaturan).unwrap_or_default();
     // Berkas baru tetap memuat Sumber & Tujuan, seperti yang ditulis versi PowerShell.
     for k in ["Sumber", "Tujuan"] {

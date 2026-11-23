@@ -2,7 +2,19 @@
 
 ### Apakah file di sumber ikut dihapus atau dipindahkan?
 
-Tidak. LELEMOVE hanya menyalin (rclone copy) dan mencocokkan (rclone check). File di sumber tidak pernah diubah, dipindahkan, atau dihapus. Setelah verifikasi menyatakan semua file cocok, menghapus file di sumber adalah keputusan Anda sendiri dan dilakukan di luar LELEMOVE.
+Tidak, selama Anda hanya menyalin. LELEMOVE menyalin (rclone copy) dan mencocokkan (rclone check); keduanya tidak mengubah file di sumber. File di sumber baru dihapus bila Anda sendiri memilih Pindahkan setelah verifikasi (lihat pertanyaan berikutnya).
+
+### Bagaimana cara memindahkan, bukan sekadar menyalin?
+
+Salin dulu, lalu tunggu verifikasi selesai. Di bawah hasil verifikasi muncul tautan "Pindahkan: hapus ... file ini dari sumber". Setelah dua kali konfirmasi (yang kedua dengan mengetik HAPUS), LELEMOVE mencocokkan ulang setiap file dan hanya menghapus dari sumber yang terbukti sama di tujuan. File yang belum ada, berbeda, atau gagal dibaca tidak disentuh. Yang dihapus masuk ke Recycle Bin Windows, Sampah Google Drive, atau recycle bin OneDrive/SharePoint, jadi masih bisa dipulihkan. Folder di drive jaringan atau flashdisk (tanpa Recycle Bin) tidak didukung.
+
+### Bisakah hanya menyalin jenis file tertentu?
+
+Bisa. Klik "Filter..." di bawah panel Dari. Anda bisa memilih hanya ekstensi tertentu (misalnya pdf, docx, xlsx), melewati pola tertentu (misalnya *.tmp atau folder Arsip Lama/), atau hanya file yang diubah sejak tanggal tertentu. Filter yang sama dipakai saat periksa, uji coba, salin, verifikasi, dan pindahkan, jadi file yang sengaja tidak disalin tidak dilaporkan "belum ada di tujuan". Jadwal backup menyimpan filternya sendiri.
+
+### Bisakah saya mendapat bukti bahwa semua file sudah tercadangkan?
+
+Bisa. Buka Riwayat & laporan di daftar kiri. Setiap penyalinan, verifikasi, dan pemindahan tercatat di sana, termasuk yang dijalankan jadwal. Untuk satu verifikasi, "Laporan per file" membuka laporan siap cetak berisi status setiap file (simpan sebagai PDF dengan Ctrl+P di browser), dan "CSV per file" menyimpannya untuk Excel. "Ekspor CSV" dan "Laporan HTML" merangkum seluruh riwayat yang tampil.
 
 ### Apakah file saya lewat server LELEMOVE?
 
@@ -70,4 +82,4 @@ Klik ⋯ > Lepas akun ini untuk menghapus sambungan di komputer ini. Untuk menca
 
 ### Bagaimana menghapus LELEMOVE sepenuhnya?
 
-Hapus lewat Settings > Apps > LELEMOVE. Tugas Windows untuk jadwal backup ikut dihapus. Koneksi akun (%APPDATA%\rclone\rclone.conf) dan pengaturan, daftar jadwal, serta log (%LOCALAPPDATA%\pindah-drive) sengaja tidak ikut terhapus; hapus kedua folder itu sendiri bila tidak diperlukan lagi.
+Hapus lewat Settings > Apps > LELEMOVE. Tugas Windows untuk jadwal backup ikut dihapus. Koneksi akun (%APPDATA%\rclone\rclone.conf) dan pengaturan, daftar jadwal, riwayat, serta log (%LOCALAPPDATA%\pindah-drive) sengaja tidak ikut terhapus; hapus kedua folder itu sendiri bila tidak diperlukan lagi.

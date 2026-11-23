@@ -231,8 +231,10 @@ pub fn format_ukuran(b: f64) -> String {
         format!("{} GB", angka_id(b / GB, 2))
     } else if b >= MB {
         format!("{} MB", angka_id(b / MB, 1))
-    } else {
+    } else if b >= KB {
         format!("{} KB", angka_id(b / KB, 0))
+    } else {
+        format!("{} B", angka_id(b.max(0.0), 0))
     }
 }
 
