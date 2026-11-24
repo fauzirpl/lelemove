@@ -140,6 +140,8 @@ pub enum Dialog {
     JadwalIsian(crate::jadwal::Isian),
     Jelajah(Jelajah),
     SharePoint(SharePoint),
+    /// Migrasi email (lihat email.rs).
+    Email(crate::email::Email),
 }
 
 pub enum Hasil {
@@ -202,6 +204,9 @@ pub enum Hasil {
     RiwayatEkspor { html: bool, daftar: Vec<pindah_drive::mesin::riwayat::Catatan>, saring: crate::riwayat::Saring },
     Folder { jalur: String, untuk_sumber: bool },
     Pustaka { remote: String, situs_nama: String, pustaka_id: String, pustaka_nama: String },
+    /// Migrasi email: jalankan `pindah email` (kata sandi lewat stdin); dialog tetap terbuka.
+    EmailMulai { periksa: bool, args: Vec<String>, rahasia: String },
+    EmailHenti,
 }
 
 /// Akses untuk memulai pemuatan latar dari dalam dialog.
@@ -458,6 +463,7 @@ pub fn tampil(ctx: &egui::Context, d: &mut Dialog, p: &mut Pemuat) -> Option<Has
         Dialog::JadwalIsian(j) => crate::jadwal::isian(ui, j),
         Dialog::Jelajah(j) => jelajah(ui, j, p),
         Dialog::SharePoint(s) => sharepoint(ui, s, p),
+        Dialog::Email(e) => crate::email::tampil(ui, e),
     });
     if r.inner.is_some() {
         return r.inner;

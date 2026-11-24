@@ -344,6 +344,31 @@ pub enum Folder {
     Desktop,
 }
 
+/// Mengisi `buf` dengan byte acak dari generator sistem (arc4random).
+pub fn isi_acak(buf: &mut [u8]) {
+    unsafe { libc::arc4random_buf(buf.as_mut_ptr().cast(), buf.len()) };
+}
+
+/// Membaca satu baris dari terminal tanpa menampilkan ketikan (kata sandi).
+pub fn baca_sandi() -> String {
+    use std::os::fd::AsRawFd;
+    let fd = std::io::stdin().as_raw_fd();
+    let mut lama: libc::termios = unsafe { std::mem::zeroed() };
+    let terminal = unsafe { libc::tcgetattr(fd, &mut lama) } == 0;
+    if terminal {
+        let mut baru = lama;
+        baru.c_lflag &= !libc::ECHO;
+        unsafe { libc::tcsetattr(fd, libc::TCSANOW, &baru) };
+    }
+    let mut s = String::new();
+    let _ = std::io::stdin().read_line(&mut s);
+    if terminal {
+        unsafe { libc::tcsetattr(fd, libc::TCSANOW, &lama) };
+        println!();
+    }
+    s.trim_end_matches(['\r', '\n']).to_string()
+}
+
 /// Folder pribadi pengguna ($HOME, atau dari basis data pengguna bila HOME kosong).
 pub fn folder_rumah() -> PathBuf {
     if let Some(h) = std::env::var_os("HOME").filter(|h| !h.is_empty()) {

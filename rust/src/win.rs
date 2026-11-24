@@ -450,6 +450,34 @@ pub fn folder(f: Folder) -> Option<PathBuf> {
     }
 }
 
+/// Mengisi `buf` dengan byte acak dari generator sistem (BCryptGenRandom).
+pub fn isi_acak(buf: &mut [u8]) {
+    use windows_sys::Win32::Security::Cryptography::{BCryptGenRandom, BCRYPT_USE_SYSTEM_PREFERRED_RNG};
+    let ok = unsafe { BCryptGenRandom(null_mut(), buf.as_mut_ptr(), buf.len() as u32, BCRYPT_USE_SYSTEM_PREFERRED_RNG) } >= 0;
+    if !ok {
+        // Tidak seharusnya terjadi; jangan pernah memakai buffer nol sebagai rahasia.
+        panic!("BCryptGenRandom gagal");
+    }
+}
+
+/// Membaca satu baris dari konsol tanpa menampilkan ketikan (kata sandi).
+pub fn baca_sandi() -> String {
+    use windows_sys::Win32::System::Console::{GetConsoleMode, GetStdHandle, SetConsoleMode, ENABLE_ECHO_INPUT, STD_INPUT_HANDLE};
+    let h = unsafe { GetStdHandle(STD_INPUT_HANDLE) };
+    let mut mode = 0u32;
+    let konsol = unsafe { GetConsoleMode(h, &mut mode) } != 0;
+    if konsol {
+        unsafe { SetConsoleMode(h, mode & !ENABLE_ECHO_INPUT) };
+    }
+    let mut s = String::new();
+    let _ = std::io::stdin().read_line(&mut s);
+    if konsol {
+        unsafe { SetConsoleMode(h, mode) };
+        println!();
+    }
+    s.trim_end_matches(['\r', '\n']).to_string()
+}
+
 /// Folder data aplikasi per pengguna (%LOCALAPPDATA%).
 pub fn folder_data() -> PathBuf {
     PathBuf::from(std::env::var("LOCALAPPDATA").unwrap_or_default())

@@ -20,7 +20,7 @@ static RE_OFFICE: LazyLock<Regex> =
 #[serde(rename_all = "PascalCase", default)]
 pub struct Catatan {
     pub id: String,
-    /// salin | verifikasi | pindahkan
+    /// salin | verifikasi | pindahkan | email
     pub jenis: String,
     pub mulai: String,
     pub selesai: String,
@@ -90,6 +90,7 @@ pub fn label_jenis(c: &Catatan) -> &'static str {
     match c.jenis.as_str() {
         "verifikasi" => "Verifikasi",
         "pindahkan" => "Pindahkan",
+        "email" => "Email",
         _ => "Salin",
     }
 }
@@ -125,6 +126,10 @@ pub fn ringkas(c: &Catatan) -> String {
             t
         }
         "pindahkan" => format!("{} file dihapus dari sumber", angka(c.file)),
+        "email" if c.hasil == "galat" => c.ket.clone(),
+        "email" if c.file == 0 && c.galat == 0 => "Tidak ada email baru".into(),
+        "email" if c.galat > 0 => format!("{} email disalin ({}), {} gagal", angka(c.file), format_ukuran(c.byte as f64), angka(c.galat)),
+        "email" => format!("{} email disalin ({})", angka(c.file), format_ukuran(c.byte as f64)),
         _ if matches!(c.hasil.as_str(), "selesai") && c.file == 0 => "Tidak ada file baru".into(),
         _ if c.hasil == "selesai" => format!("{} file baru ({})", angka(c.file), format_ukuran(c.byte as f64)),
         _ => c.ket.clone(),

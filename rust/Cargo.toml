@@ -36,6 +36,8 @@ rfd = "0.15"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 regex = "1"
+# Koneksi IMAP aman (migrasi email): TLS bawaan sistem (SChannel di Windows, Security di macOS).
+native-tls = "0.2"
 
 # Windows: registry, pintasan Start Menu, Win32, dan muatan installer (zip).
 [target.'cfg(windows)'.dependencies]
@@ -59,6 +61,7 @@ version = "0.59"
 features = [
     "Win32_Foundation",
     "Win32_Security",
+    "Win32_Security_Cryptography",
     "Win32_Storage_FileSystem",
     "Win32_System_Com",
     "Win32_System_Console",
@@ -75,7 +78,8 @@ features = [
 # Catatan toolchain: build memakai Rust GNU tanpa MinGW lengkap. Paket yang memakai
 # `windows-link` (raw-dylib) butuh dlltool + assembler `as.exe`, yang tidak ikut di rustup.
 # Karena itu Cargo.lock mengunci parking_lot 0.12.3 / parking_lot_core 0.9.10, libloading 0.8.6,
-# arboard 3.4.1, dan webbrowser 1.0.3, dan proyek ini tidak memakai chrono.
+# arboard 3.4.1, webbrowser 1.0.3, native-tls 0.2.14, dan schannel 0.1.27 (versi terakhir yang
+# masih memakai windows-sys 0.59), dan proyek ini tidak memakai chrono.
 # Cek dengan: cargo tree -i windows-link  (harus kosong untuk target x86_64-pc-windows-gnu)
 
 [profile.release]

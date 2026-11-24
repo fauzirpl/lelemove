@@ -11,6 +11,7 @@ LELEMOVE berjalan sepenuhnya di komputer Anda. Tidak ada server LELEMOVE, tidak 
 - File dan folder di akun yang Anda hubungkan (Google Drive, OneDrive, SharePoint, Dropbox, server NAS/Nextcloud/SFTP, object storage S3, dan layanan lain), serta folder komputer yang Anda pilih.
 - Data itu dibaca dan ditulis hanya untuk menjalankan perintah Anda: menelusuri folder, memeriksa ukuran dan kuota, menyalin, dan mencocokkan hasil salinan.
 - Isi file tidak dianalisis, tidak dipakai untuk tujuan lain, dan tidak dibagikan kepada pihak mana pun selain layanan tujuan yang Anda pilih.
+- Migrasi email: email di akun lama (Gmail, Outlook, atau server IMAP lain) dibaca dan disalin ke server email yang Anda pilih. Isi email tidak dianalisis dan tidak dikirim ke tempat lain. Email di akun lama tidak diubah atau dihapus.
 
 ## Ke mana data mengalir
 
@@ -22,6 +23,7 @@ Data mengalir langsung antara komputer Anda dan server layanan yang Anda hubungk
 - Untuk layanan yang memakai isian (NAS, Nextcloud, SFTP, FTP, S3, MEGA, dan sejenisnya): alamat server, nama pengguna, dan kata sandi atau kunci akses, juga di rclone.conf. Kata sandi disimpan terobfuskasi; ini menyamarkan, bukan enkripsi, sehingga siapa pun yang bisa membaca berkas itu bisa memulihkannya. Pakai kata sandi aplikasi atau kunci akses khusus bila layanannya menyediakan. Kata sandi dikirim ke rclone lewat jalur masukan proses, bukan lewat baris perintah. Kunci akses object storage (secret S3, key B2/Azure) disimpan apa adanya karena begitulah rclone memakainya.
 - Pengaturan, daftar akun, status penyalinan, dan log di %LOCALAPPDATA%\pindah-drive. Log memuat nama dan jalur file yang disalin, serta pesan galat. Log yang lebih tua dari 60 hari dihapus otomatis.
 - Client ID Google (bila dipasang) di %LOCALAPPDATA%\pindah-drive\client-google.json.
+- Migrasi email: alamat server dan nama pengguna terakhir di %LOCALAPPDATA%\pindah-drive\email.json, dan client ID Azure (bila diisi) di client-microsoft.json. Kata sandi email tidak disimpan: hanya dikirim ke server email masing-masing selama migrasi. Token login Google/Microsoft untuk email hanya ada di memori selama migrasi berjalan.
 - Jadwal backup (nama, folder sumber dan tujuan, jam, hasil terakhir) di %LOCALAPPDATA%\pindah-drive\jadwal.json, ditambah satu tugas Task Scheduler Windows per jadwal ("LELEMOVE - Backup ...") milik pengguna Windows Anda.
 - Riwayat penyalinan, verifikasi, dan pemindahan (waktu, folder sumber dan tujuan, jumlah file, hasil) di %LOCALAPPDATA%\pindah-drive\riwayat.jsonl. Riwayat tidak dihapus otomatis karena dipakai sebagai catatan audit; laporan per file merujuk ke berkas verifikasi di folder log, yang ikut terhapus setelah 60 hari.
 - Laporan HTML yang Anda buat memuat nama komputer dan nama pengguna Windows sebagai keterangan pembuat laporan. Laporan dan CSV hasil ekspor disimpan di tempat yang Anda pilih.
@@ -38,6 +40,8 @@ LELEMOVE's use and transfer to any other app of information received from Google
 ## Izin akun Microsoft
 
 Untuk OneDrive dan SharePoint, LELEMOVE meminta izin membaca dan menulis file yang bisa Anda akses, serta izin akses berkelanjutan (offline_access) agar penyalinan bisa berjalan tanpa login berulang. Izin itu dipakai hanya untuk menjalankan perintah Anda.
+
+Untuk migrasi email dari Outlook/Microsoft 365, LELEMOVE meminta izin IMAP (IMAP.AccessAsUser.All) lewat aplikasi Azure milik Anda sendiri, hanya untuk membaca email yang akan dipindahkan. Untuk Gmail lewat login Google, izinnya akses email penuh (https://mail.google.com/), karena itulah satu-satunya izin Google untuk IMAP; dipakai hanya untuk membaca email yang dipindahkan.
 
 ## Mencabut akses dan menghapus data
 

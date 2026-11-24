@@ -14,6 +14,7 @@
 
 mod aksi;
 mod dialog;
+mod email;
 mod filter;
 mod info;
 mod jadwal;
@@ -208,6 +209,8 @@ struct App {
     tx: Sender<Kabar>,
     rx: Receiver<Kabar>,
     exe_mesin: PathBuf,
+    /// Migrasi email yang dialognya ditutup saat masih berjalan (dibuka lagi dari sidebar).
+    email_latar: Option<email::Email>,
 
     rclone: Option<PathBuf>,
     versi_rclone: String,
@@ -281,6 +284,7 @@ impl App {
             tx,
             rx,
             exe_mesin: exe_mesin(),
+            email_latar: None,
             rclone: None,
             versi_rclone: String::new(),
             status_siap: false,
@@ -394,6 +398,11 @@ impl App {
                     }
                 }
                 Kabar::AksiSelesai(kode) => self.aksi_selesai(kode),
+                Kabar::Progres(v) => {
+                    if let Some(e) = self.email_mut() {
+                        email::terima_progres(e, v);
+                    }
+                }
                 Kabar::Status { rclone, versi, akun, client_bawaan } => {
                     self.terima_status(rclone, versi, akun, client_bawaan)
                 }
@@ -475,7 +484,30 @@ impl App {
         }
     }
 
+    /// Dialog Migrasi email yang sedang terbuka, atau yang berjalan di latar.
+    fn email_mut(&mut self) -> Option<&mut email::Email> {
+        match &mut self.dialog {
+            Some(Dialog::Email(e)) => Some(e),
+            _ => self.email_latar.as_mut(),
+        }
+    }
+
+    fn buka_email(&mut self) {
+        if let Some(e) = self.email_latar.take() {
+            self.dialog = Some(Dialog::Email(e));
+            return;
+        }
+        let set = pindah_drive::mesin::email::baca_setelan();
+        let ms = pindah_drive::mesin::email::client_microsoft().is_some();
+        self.dialog = Some(Dialog::Email(email::Email::baru(&set, ms, self.ada_client_bawaan)));
+    }
+
     fn terima_baris(&mut self, b: &str) {
+        if let Some(e) = self.email_mut() {
+            if e.berjalan() {
+                email::terima_baris(e, b);
+            }
+        }
         let t = b.trim();
         if t.is_empty() || t.starts_with("==") {
             return;
@@ -608,6 +640,11 @@ impl App {
         let Some(a) = self.aksi.take() else { return };
         self.url_login = None;
         if a.dibatalkan {
+            if let Setelah::Email { periksa } = a.setelah {
+                if let Some(e) = self.email_mut() {
+                    e.tahap = email::Tahap::Selesai { periksa, kode: -1 };
+                }
+            }
             self.salin_setelah_uji = false;
             self.set_pesan("Dibatalkan.", REDUP);
             self.segarkan_status();
@@ -646,6 +683,7 @@ impl App {
             Setelah::Verifikasi => self.selesai_verifikasi(kode, &h),
             Setelah::Pindahkan => self.selesai_pindahkan(kode, &h),
             Setelah::AkunPenyedia { nama, kunci } => self.selesai_akun_penyedia(kode, &h, &nama, &kunci),
+            Setelah::Email { periksa } => self.selesai_email(kode, h, periksa),
             Setelah::Jadwal { ok } => {
                 if kode == 0 {
                     self.set_pesan(&ok, HIJAU);
@@ -915,6 +953,26 @@ impl App {
         self.tanya("Pindahkan", isi, "Lanjut", true, Konfirmasi::Pindahkan1);
     }
 
+    /// Migrasi email selesai: hasil per folder ke dialog (terbuka atau di latar), ringkasan ke bilah status.
+    fn selesai_email(&mut self, kode: i32, h: Value, periksa: bool) {
+        let n = |k: &str| h.get(k).and_then(Value::as_i64).unwrap_or(0);
+        let galat = teks(h.get("Galat"));
+        let (pesan, warna) = if !galat.is_empty() {
+            (format!("Migrasi email gagal: {galat}"), MERAH)
+        } else if periksa {
+            (format!("Pemeriksaan email selesai: {} email akan disalin.", angka(n("Baru"))), HIJAU)
+        } else if kode == 0 {
+            (format!("Migrasi email selesai: {} email disalin.", angka(n("Disalin"))), HIJAU)
+        } else {
+            (format!("Migrasi email belum tuntas: {} disalin, {} gagal.", angka(n("Disalin")), angka(n("Gagal"))), KUNING)
+        };
+        self.set_pesan(&pesan, warna);
+        if let Some(e) = self.email_mut() {
+            e.hasil = Some(h);
+            e.tahap = email::Tahap::Selesai { periksa, kode };
+        }
+    }
+
     fn selesai_pindahkan(&mut self, kode: i32, h: &Value) {
         self.bisa_pindahkan = None;
         self.muat_panel(DARI, true);
@@ -1123,6 +1181,23 @@ impl App {
     fn tangani_dialog(&mut self, h: Hasil) {
         match h {
             Hasil::Batal => {}
+            Hasil::EmailMulai { periksa, args, rahasia } => {
+                let judul = if periksa { "Memeriksa migrasi email" } else { "Migrasi email" };
+                self.jalankan_aksi_masukan(judul, args, Some(rahasia), Setelah::Email { periksa });
+                let mulai = self.aksi.is_some();
+                if let Some(e) = self.email_mut() {
+                    if mulai {
+                        e.tahap = email::Tahap::Jalan { periksa };
+                        e.progres = None;
+                        e.hasil = None;
+                        e.baris = String::new();
+                        e.pesan = None;
+                    } else {
+                        e.pesan = Some((format!("{MESIN} tidak bisa dijalankan; lihat log aktivitas."), MERAH));
+                    }
+                }
+            }
+            Hasil::EmailHenti => self.klik_batal(),
             Hasil::BatalSharePoint => self.set_pesan("Situs SharePoint belum dipilih; akun ini belum bisa dipakai.", KUNING),
             Hasil::Ya(k) => self.konfirmasi(k),
             Hasil::AkunBaru { jenis, label, izin_penuh } => self.hubungkan_baru(&jenis, &label, izin_penuh),
@@ -2624,6 +2699,7 @@ impl App {
         let mut bantuan = false;
         let mut jadwal = false;
         let mut riwayat_ = false;
+        let mut email_ = false;
         egui::SidePanel::left("lokasi")
             .exact_width(lebar)
             .resizable(false)
@@ -2633,6 +2709,8 @@ impl App {
                 egui::TopBottomPanel::bottom("lokasi-bawah")
                     .frame(Frame::new().fill(LATAR2).inner_margin(Margin { left: 0, right: 0, top: 6, bottom: 0 }))
                     .show_inside(ui, |ui| {
+                        let r = baris_lokasi(ui, "pengaturan", ik::EMAIL, "Migrasi email", "", REDUP, None, "", false, true);
+                        email_ = r.baris.on_hover_text("Pindahkan semua email dari Gmail, Outlook, atau server lain ke server email Anda.").clicked();
                         let r = baris_lokasi(ui, "pengaturan", ik::RIWAYAT, "Riwayat & laporan", "", REDUP, None, "", false, true);
                         riwayat_ = r.baris.on_hover_text("Semua penyalinan, verifikasi, dan pemindahan; laporan CSV dan siap cetak untuk audit.").clicked();
                         let r = baris_lokasi(ui, "pengaturan", ik::JADWAL, "Jadwal backup", "", REDUP, None, "", false, true);
@@ -2813,6 +2891,9 @@ impl App {
         }
         if riwayat_ {
             self.buka_riwayat(riwayat::Saring::Semua, None);
+        }
+        if email_ {
+            self.buka_email();
         }
     }
 
@@ -3371,13 +3452,30 @@ impl App {
 
     fn tampil_dialog(&mut self, ctx: &egui::Context) {
         let Some(mut d) = self.dialog.take() else { return };
+        if let Dialog::Email(e) = &mut d {
+            e.sibuk = self.aksi.is_some() && !e.berjalan();
+        }
         let hasil = {
             let mut p = Pemuat { tx: &self.tx, ctx: &self.ctx, gen: &mut self.gen };
             dialog::tampil(ctx, &mut d, &mut p)
         };
         match hasil {
             None => self.dialog = Some(d),
-            Some(h) => self.tangani_dialog(h),
+            // Dialog Migrasi email tetap terbuka saat migrasi dimulai/dihentikan.
+            Some(h @ (Hasil::EmailMulai { .. } | Hasil::EmailHenti)) => {
+                self.dialog = Some(d);
+                self.tangani_dialog(h);
+            }
+            Some(h) => {
+                // Ditutup saat masih berjalan: simpan agar progres & hasilnya bisa dilihat lagi.
+                if let Dialog::Email(mut e) = d {
+                    if e.berjalan() {
+                        e.lupakan_sandi();
+                        self.email_latar = Some(e);
+                    }
+                }
+                self.tangani_dialog(h);
+            }
         }
     }
 
@@ -3438,6 +3536,14 @@ impl App {
                 }));
             }
             "riwayat" => self.buka_riwayat(riwayat::Saring::Semua, None),
+            "email" => self.buka_email(),
+            "email-hasil" => {
+                self.buka_email();
+                if let Some(Dialog::Email(e)) = &mut self.dialog {
+                    e.hasil = Some(email::contoh_hasil());
+                    e.tahap = email::Tahap::Selesai { periksa: false, kode: 0 };
+                }
+            }
             "pindahkan" => {
                 self.bisa_pindahkan = Some(rute_contoh(128, 2));
                 self.verifikasi = (format!("{CENTANG}  Verifikasi: semua 128 file sudah ada di tujuan (contoh)."), HIJAU);

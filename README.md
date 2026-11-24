@@ -28,6 +28,8 @@ memilih **Pindahkan** setelah verifikasi, dan itu pun masuk ke Recycle Bin / Sam
   menghapus dari sumber hanya file yang terbukti sama.
 - **Jadwal backup** lewat Task Scheduler Windows.
 - **Riwayat & laporan**: CSV dan laporan siap cetak berisi status setiap file, untuk audit.
+- **Migrasi email**: pindahkan semua folder email dari Gmail, Outlook/Microsoft 365, atau server IMAP lain
+  ke server email sendiri, lengkap dengan status baca, bintang, dan tanggal asli.
 - **Baris perintah** (`pindah.exe`) untuk semua fitur di atas.
 
 Ditulis dalam **Rust** (jendela memakai egui), tanpa PowerShell, jadi tetap jalan di komputer
@@ -41,7 +43,7 @@ pengaturan lama langsung terbaca.
   [Cara kerja penyalinan](#cara-kerja-penyalinan)
 - [Layanan yang didukung](#layanan-yang-didukung) · [Filter file](#filter-file) ·
   [Riwayat & laporan](#riwayat--laporan) · [Pindahkan](#pindahkan-hapus-sumber-setelah-verifikasi) ·
-  [Jadwal backup](#jadwal-backup-otomatis)
+  [Jadwal backup](#jadwal-backup-otomatis) · [Migrasi email](#migrasi-email)
 - [SharePoint](#sharepoint) · [Izin akun](#izin-akun) ·
   [Client ID Google](#penyalinan-macet-pakai-client-id-google-sendiri) ·
   [Verifikasi](#verifikasi-seberapa-teliti) · [Batasan](#batasan) · [Privasi](#privasi)
@@ -286,8 +288,66 @@ menghapus tugas Windows milik folder aplikasi itu, tetapi `jadwal.json` tetap ad
 dipasang lagi, jadwal tampil "tugas Windows hilang" dan cukup diklik *Aktifkan*. Jadwal hanya
 berjalan selama Anda masuk ke Windows (layar terkunci tidak apa-apa).
 
-## SharePoint
+## Migrasi email
 
+Memindahkan semua email dari **Gmail**, **Outlook/Microsoft 365**, atau server IMAP lain ke **server
+email sendiri** (cPanel, Plesk, Zimbra, Dovecot, server email dinas). Buka *Migrasi email* di dasar
+daftar kiri:
+
+1. **Dari**: pilih layanan lalu isi alamat email lama.
+   - Gmail: pakai **sandi aplikasi** ([myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords);
+     akun harus memakai verifikasi 2 langkah), atau **Login Google di browser** (memakai client ID
+     Google di *Pengaturan*; akunnya harus terdaftar sebagai pengguna uji di project Google Cloud itu).
+   - Outlook/Microsoft 365: login Microsoft di browser; butuh client ID Azure (lihat di bawah).
+   - Server IMAP lain: server, port, keamanan, pengguna, dan kata sandi.
+2. **Ke**: server IMAP baru (mis. `mail.kantor.go.id`, port 993, SSL/TLS), nama pengguna (biasanya
+   alamat email lengkap), dan kata sandi.
+3. **Periksa** menguji login kedua server dan menghitung email yang akan disalin; **Mulai migrasi**
+   menyalinnya. Progres per folder tampil di dialog, dan hasilnya tercatat di *Riwayat & laporan*.
+
+Yang terjadi saat migrasi:
+
+- Semua folder ikut, termasuk subfolder, status dibaca/belum, bintang, sudah dibalas, dan tanggal
+  terima aslinya. Folder khusus masuk ke padanannya di server baru (Sent Mail / Sent Items → Sent,
+  Deleted Items → Trash, Drafts → Drafts), termasuk server bergaya cPanel yang foldernya berawalan `INBOX.`.
+- Email di akun lama **tidak diubah, tidak ditandai dibaca, dan tidak dihapus** (dibuka baca-saja).
+- Email yang sudah ada di tujuan (Message-ID sama) dilewati. Jadi migrasi **aman dijalankan ulang**:
+  bila terputus atau dihentikan, jalankan lagi dan hanya sisanya yang disalin.
+- Gmail: label menjadi folder. Email arsip tanpa label (hanya ada di *Semua Email*) disalin ke folder
+  Archive; *Berbintang* dan *Penting* tidak disalin terpisah karena tandanya ikut di setiap email.
+  Gmail membatasi unduhan IMAP sekitar 2,5 GB per hari; kotak surat yang lebih besar dilanjutkan esoknya.
+- Sampah dan Spam tidak disalin kecuali dicentang. Folder Outlook yang bukan email (Kalender, Kontak,
+  Tugas, Catatan) dilewati.
+- Kata sandi hanya dikirim ke server email masing-masing dan **tidak disimpan**. Login Google/Microsoft
+  memakai token yang hanya ada di memori selama migrasi berjalan.
+- Server email di jaringan kantor yang memakai sertifikat buatan sendiri: centang
+  *Terima sertifikat swatanda* (biarkan mati untuk server di internet).
+
+Lewat baris perintah (kata sandi lewat stdin, atau diketik tanpa tampil):
+
+```powershell
+.\pindah.exe email -Sumber gmail:nama@gmail.com -Tujuan imap://nama@kantor.go.id@mail.kantor.go.id -HanyaPeriksa
+.\pindah.exe email -Sumber outlook:nama@outlook.com -Tujuan imap://nama@mail.server.id -Ya
+```
+
+### Outlook: butuh client ID Azure
+
+Microsoft tidak lagi menerima kata sandi untuk IMAP, jadi LELEMOVE login lewat aplikasi Azure milik
+Anda sendiri (gratis, cukup dibuat sekali):
+
+1. Buka [portal.azure.com](https://portal.azure.com) > *Microsoft Entra ID* > *App registrations* > *New registration*.
+2. Name: `LELEMOVE`. Supported account types: *Accounts in any organizational directory and personal
+   Microsoft accounts* (atau hanya organisasi Anda, untuk Microsoft 365 kantor).
+3. Redirect URI: platform *Public client/native (mobile & desktop)*, isi `http://localhost`, lalu *Register*.
+4. *API permissions* > *Add a permission* > *Microsoft Graph* > *Delegated permissions*: centang
+   `IMAP.AccessAsUser.All` dan `offline_access`. Di Microsoft 365 kantor, admin mungkin perlu memberi
+   persetujuan (*Grant admin consent*).
+5. Salin *Application (client) ID* ke isian *Client ID* di dialog Migrasi email. ID ini disimpan untuk
+   migrasi berikutnya (bukan rahasia).
+
+Pastikan IMAP aktif di akun Outlook.com: *Pengaturan > Email > Teruskan dan IMAP*.
+
+## SharePoint
 Klik **Tambah akun > SharePoint**, login dengan akun Microsoft kantor/sekolah, lalu cari situsnya. Anda
 bisa mengetik namanya (misalnya "keuangan") atau menempel alamatnya dari browser
 (`https://namatenant.sharepoint.com/sites/NamaSitus`). Pilih situs dan **pustaka dokumennya**
@@ -519,12 +579,17 @@ rust/                          kode sumber versi 2 (satu crate Rust)
   src/mesin/penyedia.rs        daftar layanan: backend rclone, isian, login, tempat sampah, host API
   src/mesin/filter.rs          filter file -> aturan --filter / --max-age rclone
   src/mesin/riwayat.rs         riwayat.jsonl, CSV, laporan HTML siap cetak
+  src/mesin/imap.rs            klien IMAP kecil (TLS sistem lewat native-tls, PLAIN/XOAUTH2, LIST, FETCH, APPEND)
+  src/mesin/email.rs           migrasi email: peta folder (Gmail/Outlook/cPanel), cocok Message-ID, sambung ulang
+  src/mesin/oauth.rs           login OAuth Google/Microsoft untuk IMAP (PKCE, pengalihan ke localhost)
+  src/mesin/kode.rs            base64, SHA-256, percent-encoding (tanpa crate tambahan)
   src/bin/pindah-drive/        LELEMOVE.exe: jendela aplikasi (egui) + dialog
   src/bin/pindah-drive/info.rs dialog Bantuan & info (tanya jawab, ketentuan, privasi, atribusi, tentang)
   src/bin/pindah-drive/jadwal.rs dialog Jadwal backup (daftar + isian)
   src/bin/pindah-drive/filter.rs dialog Filter file
   src/bin/pindah-drive/riwayat.rs dialog Riwayat & laporan
   src/bin/pindah-drive/layanan.rs dialog Tambah akun layanan lain, isian, pertanyaan lanjutan, impor
+  src/bin/pindah-drive/email.rs dialog Migrasi email (isian, progres, hasil per folder)
   src/bin/setup.rs             installer Windows; tanpa muatan menjadi uninstall.exe
   src/bin/tanam-ikon.rs        alat build Windows: menanam ikon & manifest (UpdateResourceW)
                                (setup/main.rs dan tanam-ikon/main.rs: pembungkus, kosong di macOS)

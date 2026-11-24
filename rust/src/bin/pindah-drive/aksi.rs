@@ -20,6 +20,8 @@ pub enum Kabar {
     Baris(String),
     /// Baris "##HASIL {json}" dari aksi yang berjalan.
     Hasil(Value),
+    /// Baris "##PROGRES {json}" (migrasi email).
+    Progres(Value),
     AksiSelesai(i32),
     Status { rclone: Option<PathBuf>, versi: String, akun: Vec<Akun>, client_bawaan: bool },
     Sambungan(String, Sambungan),
@@ -62,6 +64,8 @@ pub enum Setelah {
     Pindahkan,
     /// Menghubungkan akun layanan lain: bisa berakhir dengan pertanyaan lanjutan dari rclone.
     AkunPenyedia { nama: String, kunci: String },
+    /// Migrasi email (`periksa`: hanya memeriksa).
+    Email { periksa: bool },
 }
 
 pub struct Aksi {
@@ -77,12 +81,18 @@ fn baca_baris<R: Read + Send + 'static>(r: R, tx: Sender<Kabar>, ctx: egui::Cont
         for b in BufReader::new(r).split(b'\n') {
             let Ok(b) = b else { break };
             let s = String::from_utf8_lossy(&b).trim_end_matches('\r').to_string();
-            let kabar = match s.strip_prefix("##HASIL ") {
-                Some(j) => match serde_json::from_str(j) {
+            let kabar = if let Some(j) = s.strip_prefix("##HASIL ") {
+                match serde_json::from_str(j) {
                     Ok(v) => Kabar::Hasil(v),
                     Err(_) => continue,
-                },
-                None => Kabar::Baris(s),
+                }
+            } else if let Some(j) = s.strip_prefix("##PROGRES ") {
+                match serde_json::from_str(j) {
+                    Ok(v) => Kabar::Progres(v),
+                    Err(_) => continue,
+                }
+            } else {
+                Kabar::Baris(s)
             };
             if tx.send(kabar).is_err() {
                 break;
