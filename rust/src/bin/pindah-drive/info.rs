@@ -182,7 +182,7 @@ const LAYANAN: &[Komponen] = &[
     Komponen {
         nama: "Microsoft Graph API",
         lisensi: "Microsoft APIs Terms of Use",
-        peran: "Akses OneDrive dan SharePoint.",
+        peran: "Akses OneDrive dan SharePoint. Layanan lain (Dropbox, Box, pCloud, MEGA, S3, WebDAV, SFTP, dll.) diakses lewat backend rclone dan tunduk pada ketentuan penyedianya masing-masing.",
         url: "https://learn.microsoft.com/legal/microsoft-apis/terms-of-use",
     },
 ];

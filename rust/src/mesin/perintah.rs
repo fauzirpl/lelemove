@@ -17,13 +17,14 @@ use super::jadwal;
 use super::riwayat::{self, Catatan};
 use super::job::*;
 use super::lanjut;
+use super::penyedia::{self, JenisKolom, Penyedia};
 use super::rclone::{self, cari_rclone, daftar_remote, panggil, token_kedaluwarsa, Mode};
 use super::rute::*;
 use crate::{notifikasi, v, win};
 
 pub const PERINTAH: &[&str] = &[
     "menu", "cek", "akun", "pasang", "hubungkan", "lepas", "bawaan", "klien", "situs", "pustaka", "periksa", "uji",
-    "salin", "status", "berhenti", "verifikasi", "pindahkan", "jadwal", "riwayat", "bantuan",
+    "salin", "status", "berhenti", "verifikasi", "pindahkan", "jadwal", "riwayat", "penyedia", "impor", "bantuan",
 ];
 
 static RE_FS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"file system for "([^":]+):"#).unwrap());
@@ -99,6 +100,14 @@ pub struct Opsi {
     pub jumlah: Option<String>,
     pub csv: Option<String>,
     pub laporan: Option<String>,
+    /// hubungkan (penyedia selain Google/Microsoft): -Opsi kunci=nilai (boleh berulang) untuk isian
+    /// yang tidak rahasia; -RahasiaStdin = isian rahasia dikirim sebagai JSON lewat stdin.
+    pub opsi_rclone: Vec<(String, String)>,
+    pub rahasia_stdin: bool,
+    /// hubungkan -Lanjut -State S [-Jawab X]: menjawab pertanyaan lanjutan rclone (mis. kode 2FA).
+    pub lanjut: bool,
+    pub state: Option<String>,
+    pub jawab: Option<String>,
 }
 
 impl Default for Opsi {
@@ -143,6 +152,11 @@ impl Default for Opsi {
             jumlah: None,
             csv: None,
             laporan: None,
+            opsi_rclone: Vec::new(),
+            rahasia_stdin: false,
+            lanjut: false,
+            state: None,
+            jawab: None,
         }
     }
 }
@@ -174,6 +188,8 @@ pub fn urai_argumen<I: IntoIterator<Item = String>>(args: I) -> Result<Opsi, Str
                 "nonaktifkan" => o.nonaktifkan = true,
                 "tanpaverifikasi" => o.tanpa_verifikasi = true,
                 "tanpafilter" => o.tanpa_filter = true,
+                "rahasiastdin" => o.rahasia_stdin = true,
+                "lanjut" => o.lanjut = true,
                 "mesin" => o.mesin = true,
                 "h" | "help" | "?" | "bantuan" => o.perintah = "bantuan".into(),
                 _ => {
@@ -209,6 +225,14 @@ pub fn urai_argumen<I: IntoIterator<Item = String>>(args: I) -> Result<Opsi, Str
                         "jumlah" => o.jumlah = isi,
                         "csv" => o.csv = isi,
                         "laporan" => o.laporan = isi,
+                        "opsi" => {
+                            let (k, v) = nilai
+                                .split_once('=')
+                                .ok_or_else(|| format!("-Opsi harus berbentuk kunci=nilai: {nilai}"))?;
+                            o.opsi_rclone.push((k.trim().to_string(), v.to_string()));
+                        }
+                        "state" => o.state = isi,
+                        "jawab" => o.jawab = Some(nilai),
                         _ => return Err(format!("Opsi tidak dikenal: {a}")),
                     }
                 }
@@ -223,8 +247,8 @@ pub fn urai_argumen<I: IntoIterator<Item = String>>(args: I) -> Result<Opsi, Str
     if !PERINTAH.contains(&o.perintah.as_str()) {
         return Err(format!("Perintah tidak dikenal: {}", o.perintah));
     }
-    if !["", "google", "onedrive", "sharepoint"].contains(&o.jenis.as_str()) {
-        return Err(format!("Jenis akun tidak dikenal: {}", o.jenis));
+    if !o.jenis.is_empty() && penyedia::cari(&o.jenis).is_none() {
+        return Err(format!("Jenis akun tidak dikenal: {}. Lihat daftarnya: pindah penyedia", o.jenis));
     }
     Ok(o)
 }
@@ -393,11 +417,11 @@ fn tulis_baris_log(log: &str, t: &str) {
 
 /// Menunggu paling sedikit `minimal`, lalu sampai semua `host` bisa dihubungi lagi (diuji tiap
 /// 15 detik). false bila internet tidak kembali dalam TUNGGU_JARINGAN_MAKS.
-fn tunggu_jaringan(minimal: std::time::Duration, host: &[&str]) -> bool {
+fn tunggu_jaringan(minimal: std::time::Duration, host: &[(String, u16)]) -> bool {
     let mulai = std::time::Instant::now();
     std::thread::sleep(minimal);
     loop {
-        if host.iter().all(|h| lanjut::bisa_dihubungi(h)) {
+        if host.iter().all(|(h, p)| lanjut::bisa_dihubungi(h, *p)) {
             return true;
         }
         if mulai.elapsed() >= lanjut::TUNGGU_JARINGAN_MAKS {
@@ -441,11 +465,13 @@ pub struct Mesin {
     dari_jadwal: bool,
     /// Nama jadwal yang sedang dijalankan (dicatat di riwayat).
     nama_jadwal: String,
+    /// Isian rahasia dari stdin (-RahasiaStdin), dibaca sekali.
+    rahasia: Option<Map<String, Value>>,
 }
 
 impl Mesin {
     pub fn baru(o: Opsi) -> Self {
-        Mesin { o, hasil: Map::new(), dari_jadwal: false, nama_jadwal: String::new() }
+        Mesin { o, hasil: Map::new(), dari_jadwal: false, nama_jadwal: String::new(), rahasia: None }
     }
 
     /// Filter file untuk perintah ini: yang tersimpan, atau dari -Sertakan/-Lewati/-Sejak
@@ -536,6 +562,8 @@ impl Mesin {
             "verifikasi" => self.verifikasi(),
             "pindahkan" => self.pindahkan(),
             "riwayat" => self.riwayat(),
+            "penyedia" => self.daftar_penyedia(),
+            "impor" => self.impor(),
             _ => {
                 tampilkan_bantuan();
                 0
@@ -740,6 +768,9 @@ impl Mesin {
             return 1;
         }
         let nama = nama_remote(&self.o.akun);
+        if self.o.lanjut {
+            return self.jawab_konfig(&nama);
+        }
         let ada = daftar_remote().contains(&nama);
         let mut konf: Option<Konfig> = None;
         let mut jenis = self.o.jenis.clone();
@@ -755,10 +786,13 @@ impl Mesin {
         if jenis.is_empty() {
             jenis = jenis_dari_nama(&nama).into();
         }
-        if !["google", "onedrive", "sharepoint"].contains(&jenis.as_str()) {
-            gagal(&format!("Jenis akun '{nama}' tidak dikenal. Tambahkan -Jenis google, onedrive, atau sharepoint."));
-            return 1;
+        if jenis.is_empty() && ada {
+            jenis = jenis_konfig(&nama);
         }
+        let Some(p) = penyedia::cari(&jenis) else {
+            gagal(&format!("Jenis akun '{nama}' tidak dikenal. Tambahkan -Jenis <jenis>; lihat: pindah penyedia"));
+            return 1;
+        };
         self.catat("Akun", nama.clone());
         let mut label = self.o.label.clone().unwrap_or_default();
         if label.is_empty() {
@@ -766,6 +800,9 @@ impl Mesin {
         }
         if label.is_empty() {
             label = label_bawaan(&nama, &jenis);
+        }
+        if !p.khusus {
+            return self.hubungkan_penyedia(&nama, p, ada, &label);
         }
 
         let mut pesan: Vec<String> = Vec::new();
@@ -913,6 +950,297 @@ impl Mesin {
             info(&b);
         }
         1
+    }
+
+    // -------------------------------------------------------------- penyedia lain
+
+    /// Isian rahasia dari stdin (-RahasiaStdin): objek JSON {"pass": "...", "Jawab": "..."}.
+    /// Dibaca sekali; tidak pernah dicetak.
+    fn baca_rahasia(&mut self) -> Map<String, Value> {
+        if !self.o.rahasia_stdin {
+            return Map::new();
+        }
+        if self.rahasia.is_none() {
+            use std::io::Read;
+            let mut s = String::new();
+            let _ = std::io::stdin().read_to_string(&mut s);
+            self.rahasia = Some(serde_json::from_str(s.trim_start_matches('\u{feff}')).unwrap_or_default());
+        }
+        self.rahasia.clone().unwrap_or_default()
+    }
+
+    /// Penyedia umum (penyedia.rs): login lewat browser, atau isian kredensial lalu pertanyaan
+    /// lanjutan dari rclone bila ada (mis. kode 2FA). Kata sandi diobfuskasi lewat stdin rclone
+    /// sebelum masuk argumen `config create`.
+    fn hubungkan_penyedia(&mut self, nama: &str, p: &'static Penyedia, ada: bool, label: &str) -> i32 {
+        judul(&format!("Menghubungkan {}: {label}", p.nama));
+        let isian_baru = !self.o.opsi_rclone.is_empty() || self.o.rahasia_stdin;
+        if ada && !self.o.ulang && !isian_baru {
+            match self.uji_akses(nama) {
+                Ok(()) => {
+                    ok("Sudah terhubung dan bisa diakses.");
+                    if self.o.label.is_some() {
+                        simpan_meta_akun(nama, &[("Label", label)], false);
+                    }
+                    return 0;
+                }
+                Err(e) => {
+                    awas(&format!("Koneksi tersimpan tidak bisa dipakai: {e}"));
+                    if !p.oauth {
+                        info("Isi ulang datanya: Login ulang di aplikasi, atau jalankan hubungkan lagi dengan -Opsi.");
+                        return 1;
+                    }
+                }
+            }
+        }
+        let rahasia = self.baca_rahasia();
+        let mut arg = v!["config", "create", nama, p.backend];
+        for (k, v) in p.tetap {
+            arg.push(format!("{k}={v}"));
+        }
+        for k in p.kolom {
+            let dari_opsi = self.o.opsi_rclone.iter().find(|(x, _)| x == k.kunci).map(|(_, v)| v.clone());
+            let mut nilai = dari_opsi.unwrap_or_else(|| teks(rahasia.get(k.kunci)));
+            if !k.tersamar() {
+                nilai = nilai.trim().to_string();
+            }
+            if nilai.is_empty() {
+                nilai = k.bawaan.to_string();
+            }
+            if nilai.is_empty() {
+                if k.wajib {
+                    gagal(&format!("Isi \"{}\".", k.label));
+                    return 1;
+                }
+                continue;
+            }
+            if k.jenis == JenisKolom::Rahasia {
+                match rclone::obscure(&nilai) {
+                    Ok(o) => nilai = o,
+                    Err(e) => {
+                        gagal(&e);
+                        return 1;
+                    }
+                }
+            }
+            arg.push(format!("{}={nilai}", k.kunci));
+        }
+        // Opsi lanjutan lain dari -Opsi (mis. no_check_certificate=true untuk server uji).
+        for (k, v) in &self.o.opsi_rclone {
+            if !p.kolom.iter().any(|c| c.kunci == k) && !p.tetap.iter().any(|(t, _)| t == k) {
+                arg.push(format!("{k}={v}"));
+            }
+        }
+        if ada {
+            // Hanya menghapus entri koneksi di rclone.conf; tidak menyentuh file apa pun.
+            let _ = panggil(&v!["config", "delete", nama], Mode::Tangkap);
+        }
+        simpan_meta_akun(nama, &[("Label", label), ("Jenis", p.kunci)], false);
+        if p.oauth {
+            info("Browser akan terbuka. Login ke akun yang dimaksud, lalu izinkan akses rclone.");
+            info("Setelah browser menampilkan \"Success!\", kembali ke jendela ini.");
+            polos("");
+            // stdout dibuang supaya token login tidak tercetak di layar/log.
+            let h = panggil(&arg, Mode::BuangStdout);
+            if h.kode != 0 {
+                gagal(&format!("Login tidak selesai (kode {}).", h.kode));
+                self.hapus_akun_gagal(nama, ada);
+                return 1;
+            }
+            return self.selesai_hubungkan(nama, ada);
+        }
+        arg.extend(v!["--non-interactive", "--no-obscure"]);
+        let h = panggil(&arg, Mode::Tangkap);
+        self.langkah_lanjut(nama, ada, &h.out, &h.err)
+    }
+
+    /// Jawaban `config create/update --non-interactive`: selesai, galat, atau pertanyaan berikutnya.
+    /// Pertanyaan dicatat sebagai "Tanya" (dibaca jendela) dan kode keluar 10.
+    fn langkah_lanjut(&mut self, nama: &str, ada: bool, out: &str, err: &str) -> i32 {
+        let j: Value = serde_json::from_str(out.trim()).unwrap_or(Value::Null);
+        if j.is_null() {
+            gagal("rclone tidak memberi jawaban konfigurasi yang dikenali.");
+            for b in err.lines().map(str::trim).filter(|b| !b.is_empty() && !b.contains("not found - using defaults")).take(3) {
+                info(b);
+            }
+            self.hapus_akun_gagal(nama, ada);
+            return 1;
+        }
+        let e = teks(j.get("Error"));
+        let state = teks(j.get("State"));
+        let opsi = j.get("Option").filter(|o| !o.is_null());
+        if !e.is_empty() && opsi.is_none() {
+            gagal(&e);
+            self.hapus_akun_gagal(nama, ada);
+            return 1;
+        }
+        if let (false, Some(o)) = (state.is_empty(), opsi) {
+            let bantuan = teks(o.get("Help"));
+            awas(&format!("rclone bertanya: {}", bantuan.lines().next().unwrap_or("")));
+            if !e.is_empty() {
+                info(&format!("Jawaban sebelumnya ditolak: {e}"));
+            }
+            self.catat(
+                "Tanya",
+                json!({
+                    "Akun": nama,
+                    "State": state,
+                    "Nama": teks(o.get("Name")),
+                    "Bantuan": bantuan,
+                    "Bawaan": teks(o.get("DefaultStr")),
+                    "Rahasia": o.get("IsPassword") == Some(&Value::Bool(true)),
+                    "Wajib": o.get("Required") == Some(&Value::Bool(true)),
+                    "Galat": e,
+                    "Pilihan": contoh_pilihan(&j).into_iter().map(|(v, h)| json!({"Nilai": v, "Ket": h})).collect::<Vec<_>>(),
+                    "Baru": !ada,
+                }),
+            );
+            info(&format!("Jawab dengan: pindah hubungkan -Akun {nama} -Lanjut -State \"{state}\" -Jawab <jawaban>"));
+            return 10;
+        }
+        self.selesai_hubungkan(nama, ada)
+    }
+
+    /// -Lanjut: menjawab satu pertanyaan konfigurasi rclone (jawaban rahasia lewat stdin "Jawab").
+    fn jawab_konfig(&mut self, nama: &str) -> i32 {
+        let Some(state) = self.o.state.clone() else {
+            gagal("Tambahkan -State dari pertanyaan sebelumnya.");
+            return 1;
+        };
+        let rahasia = self.baca_rahasia();
+        let mut jawab = self.o.jawab.clone().unwrap_or_else(|| teks(rahasia.get("Jawab")));
+        // Jawaban kata sandi diobfuskasi dulu; rclone mengenali dan menyimpannya apa adanya.
+        if rahasia.get("Rahasia") == Some(&Value::Bool(true)) && !jawab.is_empty() {
+            match rclone::obscure(&jawab) {
+                Ok(o) => jawab = o,
+                Err(e) => {
+                    gagal(&e);
+                    return 1;
+                }
+            }
+        }
+        self.catat("Akun", nama);
+        let baru = teks(rahasia.get("Baru")) == "true" || rahasia.get("Baru") == Some(&Value::Bool(true));
+        let h = panggil(
+            &v!["config", "update", nama, "--continue", "--non-interactive", "--no-obscure", "--state", state, "--result", jawab],
+            Mode::Tangkap,
+        );
+        self.langkah_lanjut(nama, !baru, &h.out, &h.err)
+    }
+
+    /// Akun baru yang gagal tersambung dihapus lagi supaya tidak menumpuk akun rusak.
+    fn hapus_akun_gagal(&mut self, nama: &str, ada: bool) {
+        if !ada {
+            let _ = panggil(&v!["config", "delete", nama], Mode::Tangkap);
+            simpan_meta_akun(nama, &[], true);
+        }
+    }
+
+    /// Uji akses ringan: daftar folder teratas.
+    fn uji_akses(&self, nama: &str) -> Result<(), String> {
+        let h = panggil(
+            &v!["lsf", format!("{nama}:"), "--max-depth", "1", "--dirs-only", "--contimeout", "20s", "--timeout", "40s", "--low-level-retries", "2"],
+            Mode::Tangkap,
+        );
+        if h.kode == 0 {
+            return Ok(());
+        }
+        Err(h.galat_terakhir(1).join(" "))
+    }
+
+    fn selesai_hubungkan(&mut self, nama: &str, ada: bool) -> i32 {
+        match self.uji_akses(nama) {
+            Ok(()) => {
+                ok("Terhubung.");
+                0
+            }
+            Err(e) => {
+                let e_kecil = e.to_lowercase();
+                // Kunci object storage yang tidak boleh melihat daftar bucket tetap sah dipakai.
+                // Kunci/secret yang salah juga 403, tetapi dengan kode galat yang lain.
+                let kunci_salah = ["signaturedoesnotmatch", "invalidaccesskeyid", "invalidclienttokenid", "401", "unauthorized", "authenticationfailed"]
+                    .iter()
+                    .any(|t| e_kecil.contains(t));
+                let terbatas = !kunci_salah && ["accessdenied", "access denied"].iter().any(|t| e_kecil.contains(t));
+                if terbatas {
+                    awas("Tersambung, tetapi akun ini tidak boleh melihat daftar folder teratas.");
+                    info("Ketik nama bucket/folder langsung di bilah alamat panel, mis. nama-bucket/arsip.");
+                    return 0;
+                }
+                gagal(&format!("Tersimpan tetapi akses gagal: {e}"));
+                self.hapus_akun_gagal(nama, ada);
+                1
+            }
+        }
+    }
+
+    /// Daftar penyedia yang bisa ditambahkan (dan opsi isiannya).
+    fn daftar_penyedia(&mut self) -> i32 {
+        judul("Penyedia yang bisa ditambahkan");
+        for kel in [penyedia::Kelompok::Cloud, penyedia::Kelompok::Server, penyedia::Kelompok::Objek] {
+            info("");
+            ok(kel.judul());
+            for p in penyedia::SEMUA.iter().filter(|p| p.kelompok == kel) {
+                let login = if p.oauth {
+                    "login di browser".to_string()
+                } else {
+                    p.kolom
+                        .iter()
+                        .map(|k| {
+                            let r = if k.tersamar() { " (rahasia)" } else { "" };
+                            format!("{}{}{r}", k.kunci, if k.wajib { "*" } else { "" })
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                };
+                let beta = if p.beta { " [beta]" } else { "" };
+                info(&format!("  -Jenis {:<11} {}{beta}: {login}", p.kunci, p.nama));
+            }
+        }
+        info("");
+        info("Contoh: pindah hubungkan -Akun pd-sftp -Jenis sftp -Opsi host=nas.kantor -Opsi user=admin -RahasiaStdin");
+        info("        (isian rahasia lewat stdin sebagai JSON: {\"pass\": \"...\"})");
+        info("Remote rclone yang sudah ada: pindah impor [-Akun <nama>]");
+        let semua: Vec<Value> = penyedia::SEMUA
+            .iter()
+            .map(|p| json!({"Jenis": p.kunci, "Nama": p.nama, "Backend": p.backend, "Oauth": p.oauth, "Beta": p.beta}))
+            .collect();
+        self.catat("Penyedia", semua);
+        0
+    }
+
+    /// Memakai remote rclone yang sudah ada (dibuat di luar LELEMOVE). Tanpa -Akun: daftar calon.
+    fn impor(&mut self) -> i32 {
+        if !self.wajib_rclone() {
+            return 1;
+        }
+        let calon = remote_luar();
+        // -Akun bawaan Opsi adalah "google": berarti tidak diisi.
+        let nama = if self.o.akun == "google" { String::new() } else { self.o.akun.trim_end_matches(':').to_string() };
+        if nama.is_empty() || !calon.iter().any(|(n, _)| *n == nama) {
+            judul("Remote rclone yang bisa dipakai");
+            if calon.is_empty() {
+                info("Tidak ada. Buat dulu dengan: rclone config");
+            }
+            for (n, t) in &calon {
+                info(&format!("  {n}  ({t})"));
+            }
+            self.catat("Calon", calon.iter().map(|(n, t)| json!({"Nama": n, "Backend": t})).collect::<Vec<_>>());
+            if !nama.is_empty() {
+                gagal(&format!("Remote '{nama}' tidak ada atau sudah dipakai."));
+                return 1;
+            }
+            return 0;
+        }
+        let jenis = jenis_konfig(&nama);
+        let label = self.o.label.clone().unwrap_or_else(|| label_bawaan(&nama, &jenis));
+        simpan_meta_akun(&nama, &[("Label", &label), ("Jenis", &jenis), ("Impor", "1")], false);
+        self.catat("Akun", nama.clone());
+        match self.uji_akses(&nama) {
+            Ok(()) => ok(&format!("Remote {nama} ({}) dipakai sebagai akun \"{label}\".", nama_layanan(&jenis))),
+            Err(e) => awas(&format!("Remote {nama} dipakai, tetapi belum bisa diakses: {e}")),
+        }
+        0
     }
 
     /// Akun OneDrive bisnis punya beberapa "drive" (pustaka SharePoint), dan rclone memilih yang
@@ -1450,10 +1778,16 @@ impl Mesin {
         if !self.konfirmasi(&format!("Lepas akun {nama} dari LELEMOVE? File di cloud tidak terhapus.")) {
             return 1;
         }
+        // Remote impor milik pengguna: hanya berhenti dipakai, remote rclone-nya dibiarkan.
+        if meta(&nama, "Impor") == "1" {
+            simpan_meta_akun(&nama, &[], true);
+            ok(&format!("Remote {nama} tidak dipakai lagi oleh LELEMOVE (remote rclone-nya tetap ada)."));
+            return 0;
+        }
         let _ = panggil(&v!["config", "delete", &nama], Mode::Tangkap);
         simpan_meta_akun(&nama, &[], true);
         ok(&format!("Akun {nama} dilepas."));
-        info("Untuk mencabut izin sepenuhnya, hapus akses \"rclone\" di pengaturan keamanan akun Google/Microsoft Anda.");
+        info("Untuk mencabut izin sepenuhnya, hapus akses \"rclone\" di pengaturan keamanan akun layanan itu.");
         0
     }
 
@@ -1582,7 +1916,17 @@ impl Mesin {
         let (mut total, mut terpakai, mut bebas): (i64, i64, i64) = (0, 0, -1);
         if !rem_t.is_empty() {
             let h = panggil(&v!["about", format!("{rem_t}:"), "--json"], Mode::Tangkap);
-            if h.kode != 0 {
+            // FTP, SFTP tertentu, S3, B2, Azure: tidak ada info kuota. Bukan galat; pastikan saja tujuan bisa dibuka.
+            let tanpa_kuota = h.kode != 0 && tanpa_about(&h.err);
+            if tanpa_kuota {
+                if let Err(e) = self.uji_akses(&rem_t) {
+                    if !e.to_lowercase().contains("accessdenied") && !e.contains("403") {
+                        gagal(&format!("Tujuan tidak bisa dibuka: {e}"));
+                        self.catat("TujuanGalat", true);
+                        return 1;
+                    }
+                }
+            } else if h.kode != 0 {
                 gagal("Tidak bisa membaca kuota akun tujuan.");
                 info(h.err.trim());
                 self.catat("TujuanGalat", true);
@@ -2242,10 +2586,17 @@ impl Mesin {
         }
         let tempat = if lokal {
             "Recycle Bin Windows"
-        } else if jenis_dari_nama(&remote_dari(&src)) == "google" {
-            "Sampah Google Drive"
         } else {
-            "Recycle bin OneDrive/SharePoint"
+            let p = penyedia::cari(jenis_dari_nama(&remote_dari(&src)));
+            match p.and_then(|p| p.sampah) {
+                Some(s) => s,
+                None => {
+                    let n = p.map_or("Layanan ini", |p| p.nama);
+                    gagal(&format!("{n} tidak punya tempat sampah: file yang dihapus akan hilang permanen."));
+                    info("LELEMOVE tidak menghapus di sana. Hapus sendiri bila sudah yakin.");
+                    return 1;
+                }
+            }
         };
         let mulai = sekarang_iso();
 
@@ -2638,7 +2989,7 @@ impl Mesin {
 
 pub fn tampilkan_bantuan() {
     polos(&format!(
-        "LELEMOVE {}: salin file antar OneDrive, SharePoint, Google Drive, dan folder komputer (rclone).",
+        "LELEMOVE {}: salin file antar Google Drive, OneDrive, SharePoint, Dropbox, NAS, S3, layanan rclone lain, dan folder komputer.",
         crate::VERSI
     ));
     polos("");
@@ -2667,6 +3018,11 @@ pub fn tampilkan_bantuan() {
     polos("  verifikasi                  cocokkan isi sumber dan tujuan");
     polos("  pindahkan [-Ya]             verifikasi ulang, lalu hapus dari SUMBER file yang terbukti sama");
     polos("                              (ke Recycle Bin / Sampah; file yang tidak cocok tidak disentuh)");
+    polos("  penyedia                    daftar layanan yang bisa ditambahkan (Dropbox, NAS, S3, ...)");
+    polos("  hubungkan -Akun pd-<x> -Jenis <jenis> [-Opsi kunci=nilai ...] [-RahasiaStdin]");
+    polos("            akun selain Google/Microsoft; rahasia dikirim sebagai JSON lewat stdin");
+    polos("  hubungkan -Akun <nama> -Lanjut -State S -Jawab X   jawab pertanyaan lanjutan (mis. kode 2FA)");
+    polos("  impor [-Akun <remote>] [-Label X]   pakai remote rclone yang sudah ada");
     polos("  riwayat [-Jumlah 50]        riwayat salin, verifikasi, pindahkan");
     polos("          [-Csv x.csv | -Laporan x.html]   ekspor semua riwayat");
     polos("          -Id <id> [-Csv x.csv | -Laporan x.html]   laporan per file satu verifikasi");

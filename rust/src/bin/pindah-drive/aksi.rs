@@ -34,6 +34,8 @@ pub enum Kabar {
     Jadwal { gen: u64, daftar: Vec<(Jadwal, bool, bool)> },
     /// Isi riwayat.jsonl (terbaru dulu).
     Riwayat { gen: u64, daftar: Vec<Catatan> },
+    /// Remote rclone di luar LELEMOVE: (nama, backend).
+    Impor { gen: u64, calon: Vec<(String, String)> },
 }
 
 /// Isi satu folder di panel Dari/Ke (hanya subfolder; yang disalin selalu seluruh isi folder).
@@ -60,6 +62,8 @@ pub enum Setelah {
     Jadwal { ok: String },
     /// Pindahkan (hapus dari sumber file yang terverifikasi).
     Pindahkan,
+    /// Menghubungkan akun layanan lain: bisa berakhir dengan pertanyaan lanjutan dari rclone.
+    AkunPenyedia { nama: String, kunci: String },
 }
 
 pub struct Aksi {
@@ -92,15 +96,21 @@ fn baca_baris<R: Read + Send + 'static>(r: R, tx: Sender<Kabar>, ctx: egui::Cont
 
 /// Menjalankan `pindah.exe <args> -Mesin`. Hasilnya datang sebagai Kabar::Baris/Hasil, lalu
 /// Kabar::AksiSelesai setelah semua keluaran terbaca.
-pub fn mulai(exe: &Path, args: &[String], tx: Sender<Kabar>, ctx: egui::Context) -> std::io::Result<u32> {
+/// Dengan `masukan` (mis. JSON isian rahasia), masukan dikirim lewat stdin lalu ditutup.
+/// Tanpa masukan, stdin kosong: proses anak tidak pernah menunggu ketikan.
+pub fn mulai_masukan(exe: &Path, args: &[String], masukan: Option<String>, tx: Sender<Kabar>, ctx: egui::Context) -> std::io::Result<u32> {
+    use std::io::Write;
     let mut anak = Command::new(exe)
         .args(args)
         .arg("-Mesin")
-        .stdin(Stdio::null()) // proses anak tidak pernah menunggu ketikan
+        .stdin(if masukan.is_some() { Stdio::piped() } else { Stdio::null() })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .creation_flags(CREATE_NO_WINDOW)
         .spawn()?;
+    if let (Some(m), Some(mut s)) = (masukan, anak.stdin.take()) {
+        let _ = s.write_all(m.as_bytes());
+    }
     let pid = anak.id();
     let out = anak.stdout.take().unwrap();
     let err = anak.stderr.take().unwrap();

@@ -1,6 +1,6 @@
 ---
 name: pindah-drive
-description: Menyalin atau memindahkan file antar OneDrive, SharePoint, Google Drive, dan folder komputer (ke arah mana pun, termasuk antar akun) di Windows memakai rclone lewat pindah.exe. Gunakan ketika pengguna ingin memindahkan, menyalin, migrasi, atau membackup file antar layanan cloud, menambah/melepas akun, memantau progres, menangani penyalinan yang macet atau login yang kedaluwarsa, atau memverifikasi bahwa semua file sudah sampai.
+description: Menyalin atau memindahkan file antar OneDrive, SharePoint, Google Drive, Dropbox, NAS/Nextcloud/SFTP, object storage S3, dan folder komputer (ke arah mana pun, termasuk antar akun) di Windows memakai rclone lewat pindah.exe. Gunakan ketika pengguna ingin memindahkan, menyalin, migrasi, atau membackup file antar layanan cloud, menambah/melepas akun, memantau progres, menangani penyalinan yang macet atau login yang kedaluwarsa, atau memverifikasi bahwa semua file sudah sampai.
 ---
 
 # LELEMOVE (versi 2, Rust)
@@ -58,6 +58,15 @@ jadi progres penyalinan yang dimulai dari sini juga tampil di sana, dan sebalikn
   jendela: Pengaturan > Client ID Google). Cek dengan `klien`; pengguna menyimpannya sendiri
   lewat jendela atau `klien -ClientId X -ClientSecret Y`, lalu akun lama login ulang dengan
   `hubungkan -Akun <nama> -ClientAplikasi -Ya` (browser terbuka; minta izin dulu).
+- **Layanan lain** (Dropbox, Box, pCloud, MEGA, iCloud, Nextcloud, SMB/NAS, SFTP, FTP, S3, R2,
+  B2, Azure, dll.): lihat `penyedia` untuk `-Jenis` dan isiannya. Yang ber-login browser cukup
+  `hubungkan -Akun <pd-x> -Jenis <jenis>`. Yang berisian butuh kata sandi/secret: **jangan
+  pernah memintanya di chat atau mengetiknya**. Arahkan pengguna ke jendela LELEMOVE (Tambah akun
+  > Layanan lain), atau berikan perintah `... -Opsi host=... -RahasiaStdin` untuk dijalankan
+  pengguna sendiri dengan JSON rahasia lewat stdin. Kode keluar 10 = rclone bertanya lagi (mis.
+  kode 2FA); `##HASIL` berisi `Tanya.State`, dijawab dengan `hubungkan -Akun X -Lanjut -State S
+  -Jawab <jawaban pengguna>`. Remote rclone milik pengguna: `impor -Akun <nama>` (lepas tidak
+  menghapusnya). `pindahkan` hanya untuk layanan bertempat sampah (lihat README).
 - SharePoint: `hubungkan -Akun pd-sharepoint -Jenis sharepoint` (login), `situs -Akun
   pd-sharepoint -Cari <kata>`, `pustaka -Akun pd-sharepoint -SitusId <Id>`, lalu
   `pustaka -Akun pd-sharepoint -Pustaka <Id> -SitusNama X -PustakaNama Y`. Sebelum pustaka

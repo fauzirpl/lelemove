@@ -10,7 +10,8 @@ use std::net::{TcpStream, ToSocketAddrs};
 use std::path::Path;
 use std::time::Duration;
 
-use super::akun::{jenis_dari_nama, remote_dari};
+use super::akun::{jenis_dari_nama, opsi_konfig, remote_dari};
+use super::penyedia;
 use super::dasar::waktu_lokal;
 use super::rclone::{galat_jaringan, token_kedaluwarsa};
 
@@ -75,25 +76,45 @@ pub fn putuskan(kode: i32, potongan: &str) -> Putusan {
     }
 }
 
-/// Server yang harus bisa dihubungi agar penyalinan bisa dilanjutkan.
-pub fn host_rute(src: &str, dst: &str) -> Vec<&'static str> {
-    let mut h = Vec::new();
+/// Server (host, port) yang harus bisa dihubungi agar penyalinan bisa dilanjutkan. Layanan cloud:
+/// host API tetap dari penyedia.rs. Server sendiri (NAS, SFTP, Nextcloud, S3 lain): dari
+/// konfigurasi akunnya (url / host / endpoint, port).
+pub fn host_rute(src: &str, dst: &str) -> Vec<(String, u16)> {
+    let mut h: Vec<(String, u16)> = Vec::new();
     for j in [src, dst] {
-        let host = match jenis_dari_nama(&remote_dari(j)) {
-            "google" => "www.googleapis.com",
-            "onedrive" | "sharepoint" => "graph.microsoft.com",
-            _ => continue,
+        let rem = remote_dari(j);
+        if rem.is_empty() {
+            continue;
+        }
+        let Some(p) = penyedia::cari(jenis_dari_nama(&rem)) else { continue };
+        let host = match p.host {
+            Some(h) => Some((h.to_string(), 443)),
+            None => host_konfig(&rem, p.backend),
         };
-        if !h.contains(&host) {
-            h.push(host);
+        if let Some(x) = host {
+            if !h.contains(&x) {
+                h.push(x);
+            }
         }
     }
     h
 }
 
-/// DNS + sambungan TCP ke port 443 (tanpa mengirim apa pun).
-pub fn bisa_dihubungi(host: &str) -> bool {
-    match (host, 443).to_socket_addrs() {
+fn host_konfig(remote: &str, backend: &str) -> Option<(String, u16)> {
+    let o = opsi_konfig(remote, &["url", "host", "endpoint", "port"]);
+    let ambil = |k: &str| o.iter().find(|(x, _)| x == k).map(|(_, v)| v.clone());
+    let alamat = ambil("url").or_else(|| ambil("host")).or_else(|| ambil("endpoint"))?;
+    let (host, port_alamat) = penyedia::host_dari_alamat(&alamat)?;
+    let skema_http = alamat.starts_with("http://");
+    let port = port_alamat
+        .or_else(|| ambil("port").and_then(|p| p.parse().ok()))
+        .unwrap_or(if skema_http { 80 } else { penyedia::port_bawaan(backend) });
+    Some((host, port))
+}
+
+/// DNS + sambungan TCP ke `port` (tanpa mengirim apa pun).
+pub fn bisa_dihubungi(host: &str, port: u16) -> bool {
+    match (host, port).to_socket_addrs() {
         Ok(alamat) => alamat.take(3).any(|a| TcpStream::connect_timeout(&a, Duration::from_secs(5)).is_ok()),
         Err(_) => false,
     }
@@ -146,8 +167,10 @@ mod uji {
 
     #[test]
     fn host() {
-        assert_eq!(host_rute("pd-onedrive:Kerja", "pd-gdrive:Arsip"), vec!["graph.microsoft.com", "www.googleapis.com"]);
-        assert_eq!(host_rute("D:\\Data", "pd-sharepoint:Dok"), vec!["graph.microsoft.com"]);
+        let h = |s: &str| (s.to_string(), 443u16);
+        assert_eq!(host_rute("pd-onedrive:Kerja", "pd-gdrive:Arsip"), vec![h("graph.microsoft.com"), h("www.googleapis.com")]);
+        assert_eq!(host_rute("D:\\Data", "pd-sharepoint:Dok"), vec![h("graph.microsoft.com")]);
+        assert_eq!(host_rute("pd-dropbox-2:A", "pd-b2:arsip/x"), vec![h("api.dropboxapi.com"), h("api.backblazeb2.com")]);
         assert!(host_rute("D:\\Data", "E:\\Salinan").is_empty());
     }
 

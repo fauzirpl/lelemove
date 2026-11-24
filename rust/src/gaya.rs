@@ -88,12 +88,15 @@ pub fn ikon(c: char, ukuran: f32, warna: Color32) -> RichText {
 
 /// Warna petak lokasi (latar, glyph) per jenis: "google", "onedrive", "sharepoint", selain itu komputer.
 pub fn warna_jenis(jenis: &str) -> (Color32, Color32) {
-    match jenis {
-        "google" => (Color32::from_rgb(0xE4, 0xF3, 0xE8), Color32::from_rgb(0x1E, 0x7E, 0x3E)),
-        "onedrive" => (Color32::from_rgb(0xE3, 0xEF, 0xFB), Color32::from_rgb(0x0B, 0x5C, 0xAD)),
-        "sharepoint" => (Color32::from_rgb(0xDF, 0xF2, 0xF1), Color32::from_rgb(0x0B, 0x6E, 0x6A)),
-        "sinkron" => (Color32::from_rgb(0xE3, 0xEF, 0xFB), Color32::from_rgb(0x0B, 0x5C, 0xAD)),
-        _ => (JALUR, Color32::from_rgb(0x3B, 0x44, 0x4F)),
+    if jenis == "sinkron" {
+        return (Color32::from_rgb(0xE3, 0xEF, 0xFB), Color32::from_rgb(0x0B, 0x5C, 0xAD));
+    }
+    match crate::mesin::penyedia::cari(jenis) {
+        Some(p) => {
+            let w = p.warna;
+            (Color32::from_rgb(w[0], w[1], w[2]), Color32::from_rgb(w[3], w[4], w[5]))
+        }
+        None => (JALUR, Color32::from_rgb(0x3B, 0x44, 0x4F)),
     }
 }
 
@@ -109,7 +112,14 @@ pub fn petak_lukis(p: &egui::Painter, r: egui::Rect, jenis: &str, glyph: char, t
     let sisi = r.width();
     let (bg, fg) = warna_jenis(jenis);
     p.rect_filled(r, CornerRadius::same((sisi * 0.24) as u8), bg);
-    p.text(r.center(), Align2::CENTER_CENTER, glyph, FontId::new(sisi * 0.56, keluarga_ikon()), fg);
+    // Layanan selain Google/Microsoft: inisial ("Db", "S3", "SMB") alih-alih ikon awan.
+    let huruf = crate::mesin::penyedia::cari(jenis).map_or("", |x| x.huruf);
+    if huruf.is_empty() {
+        p.text(r.center(), Align2::CENTER_CENTER, glyph, FontId::new(sisi * 0.56, keluarga_ikon()), fg);
+    } else {
+        let ukuran = if huruf.chars().count() >= 3 { 0.32 } else { 0.42 };
+        p.text(r.center(), Align2::CENTER_CENTER, huruf, FontId::new(sisi * ukuran, tebal()), fg);
+    }
     if let Some(w) = titik {
         let c = r.right_bottom() - vec2(1.0, 1.0);
         p.circle(c, (sisi * 0.15).max(4.0), w, Stroke::new(2.0_f32, latar));

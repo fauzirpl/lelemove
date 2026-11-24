@@ -120,6 +120,47 @@ pub fn panggil<S: AsRef<OsStr>>(args: &[S], mode: Mode) -> Hasil {
     }
 }
 
+/// Seperti `panggil` (Mode::Tangkap), dengan `masukan` dikirim lewat stdin.
+pub fn panggil_masukan<S: AsRef<OsStr>>(args: &[S], masukan: &str) -> Hasil {
+    use std::io::Write;
+    let Some(rc) = cari_rclone() else {
+        return Hasil { kode: -1, out: String::new(), err: "rclone tidak ditemukan".into() };
+    };
+    let anak = Command::new(rc)
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .creation_flags(win::bendera_anak())
+        .spawn();
+    let mut anak = match anak {
+        Ok(a) => a,
+        Err(e) => return Hasil { kode: -1, out: String::new(), err: e.to_string() },
+    };
+    if let Some(mut s) = anak.stdin.take() {
+        let _ = s.write_all(masukan.as_bytes());
+    } // stdin ditutup di sini
+    match anak.wait_with_output() {
+        Ok(o) => Hasil {
+            kode: o.status.code().unwrap_or(1),
+            out: String::from_utf8_lossy(&o.stdout).into_owned(),
+            err: String::from_utf8_lossy(&o.stderr).into_owned(),
+        },
+        Err(e) => Hasil { kode: -1, out: String::new(), err: e.to_string() },
+    }
+}
+
+/// Kata sandi -> bentuk terobfuskasi rclone (seperti yang disimpan di rclone.conf). Kata sandi
+/// dikirim lewat stdin, jadi tidak pernah muncul polos di argumen proses mana pun.
+pub fn obscure(rahasia: &str) -> Result<String, String> {
+    let h = panggil_masukan(&["obscure", "-"], &format!("{rahasia}\n"));
+    let o = h.out.trim().to_string();
+    if h.kode != 0 || o.is_empty() {
+        return Err(format!("rclone obscure gagal: {}", h.err.trim()));
+    }
+    Ok(o)
+}
+
 /// rclone yang berjalan lama (salin); keluaran ke konsol/log-file.
 pub fn mulai<S: AsRef<OsStr>>(args: &[S]) -> std::io::Result<Child> {
     let rc = cari_rclone().ok_or_else(|| std::io::Error::other("rclone tidak ditemukan"))?;

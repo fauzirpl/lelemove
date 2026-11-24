@@ -15,6 +15,7 @@ pub mod filter;
 pub mod jadwal;
 pub mod job;
 pub mod lanjut;
+pub mod penyedia;
 pub mod perintah;
 pub mod rclone;
 pub mod riwayat;

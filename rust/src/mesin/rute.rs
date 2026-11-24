@@ -4,7 +4,7 @@ use serde_json::{Map, Value};
 use std::os::windows::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
-use super::akun::{jenis_dari_nama, remote_dari};
+use super::akun::{jenis_dari_nama, nama_layanan, remote_dari};
 use super::dasar::{baca_objek, cocok_kecualian, jalur, teks, tulis_json, ATRIBUT_HANYA_CLOUD, REMOTE_GOOGLE};
 use super::rclone::{panggil, Mode};
 use crate::{v, win};
@@ -100,10 +100,11 @@ pub fn tujuan_bawaan(src: &str, remote_tujuan: &str) -> String {
         isi.trim_matches('/').rsplit('/').next().unwrap_or("").to_string()
     };
     let rem_s = remote_dari(src);
-    let asal = if !rem_s.is_empty() && jenis_dari_nama(&rem_s) == "google" {
-        "Google Drive"
-    } else if !rem_s.is_empty() && jenis_dari_nama(&rem_s) == "sharepoint" {
-        "SharePoint"
+    let asal = if !rem_s.is_empty() {
+        match nama_layanan(jenis_dari_nama(&rem_s)) {
+            "Akun" => rem_s.as_str(),
+            n => n,
+        }
     } else if adalah_lokal(src) && !di_onedrive(src) {
         "Komputer"
     } else {
@@ -373,5 +374,7 @@ mod uji {
         assert_eq!(tujuan_bawaan("pd-onedrive:Kerja/DLH", "pd-gdrive"), "pd-gdrive:Pindahan OneDrive/DLH");
         assert_eq!(tujuan_bawaan("pd-gdrive:", "pd-onedrive"), "pd-onedrive:Pindahan Google Drive/Google Drive");
         assert_eq!(tujuan_bawaan("pd-sharepoint:Arsip", "pd-gdrive"), "pd-gdrive:Pindahan SharePoint/Arsip");
+        assert_eq!(tujuan_bawaan("pd-dropbox:Kerja", "pd-gdrive"), "pd-gdrive:Pindahan Dropbox/Kerja");
+        assert_eq!(tujuan_bawaan("pd-s3:bucket-a/arsip", "pd-onedrive"), "pd-onedrive:Pindahan Amazon S3/arsip");
     }
 }

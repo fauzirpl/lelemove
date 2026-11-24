@@ -8,17 +8,18 @@ LELEMOVE berjalan sepenuhnya di komputer Anda. Tidak ada server LELEMOVE, tidak 
 
 ## Data yang diakses
 
-- File dan folder di akun Google Drive, OneDrive, atau SharePoint yang Anda hubungkan, dan folder komputer yang Anda pilih.
+- File dan folder di akun yang Anda hubungkan (Google Drive, OneDrive, SharePoint, Dropbox, server NAS/Nextcloud/SFTP, object storage S3, dan layanan lain), serta folder komputer yang Anda pilih.
 - Data itu dibaca dan ditulis hanya untuk menjalankan perintah Anda: menelusuri folder, memeriksa ukuran dan kuota, menyalin, dan mencocokkan hasil salinan.
 - Isi file tidak dianalisis, tidak dipakai untuk tujuan lain, dan tidak dibagikan kepada pihak mana pun selain layanan tujuan yang Anda pilih.
 
 ## Ke mana data mengalir
 
-Data mengalir langsung antara komputer Anda dan server Google atau Microsoft, lewat rclone yang berjalan di komputer Anda. Saat menyalin antar akun cloud, data melewati memori komputer Anda tanpa disimpan utuh ke disk.
+Data mengalir langsung antara komputer Anda dan server layanan yang Anda hubungkan (Google, Microsoft, Dropbox, server kantor Anda, dan sebagainya), lewat rclone yang berjalan di komputer Anda. Saat menyalin antar akun cloud, data melewati memori komputer Anda tanpa disimpan utuh ke disk.
 
 ## Data yang disimpan di komputer Anda
 
 - Token login akun cloud, disimpan oleh rclone di %APPDATA%\rclone\rclone.conf.
+- Untuk layanan yang memakai isian (NAS, Nextcloud, SFTP, FTP, S3, MEGA, dan sejenisnya): alamat server, nama pengguna, dan kata sandi atau kunci akses, juga di rclone.conf. Kata sandi disimpan terobfuskasi; ini menyamarkan, bukan enkripsi, sehingga siapa pun yang bisa membaca berkas itu bisa memulihkannya. Pakai kata sandi aplikasi atau kunci akses khusus bila layanannya menyediakan. Kata sandi dikirim ke rclone lewat jalur masukan proses, bukan lewat baris perintah. Kunci akses object storage (secret S3, key B2/Azure) disimpan apa adanya karena begitulah rclone memakainya.
 - Pengaturan, daftar akun, status penyalinan, dan log di %LOCALAPPDATA%\pindah-drive. Log memuat nama dan jalur file yang disalin, serta pesan galat. Log yang lebih tua dari 60 hari dihapus otomatis.
 - Client ID Google (bila dipasang) di %LOCALAPPDATA%\pindah-drive\client-google.json.
 - Jadwal backup (nama, folder sumber dan tujuan, jam, hasil terakhir) di %LOCALAPPDATA%\pindah-drive\jadwal.json, ditambah satu tugas Task Scheduler Windows per jadwal ("LELEMOVE - Backup ...") milik pengguna Windows Anda.
@@ -40,13 +41,13 @@ Untuk OneDrive dan SharePoint, LELEMOVE meminta izin membaca dan menulis file ya
 
 ## Mencabut akses dan menghapus data
 
-- Lepas akun: klik ⋯ > Lepas akun ini. Sambungan di komputer ini dihapus; file di cloud tidak tersentuh.
-- Cabut izin sepenuhnya: https://myaccount.google.com/permissions untuk Google, atau pengaturan aplikasi akun Microsoft Anda.
+- Lepas akun: klik ⋯ > Lepas akun ini. Sambungan di komputer ini dihapus; file di cloud tidak tersentuh. Untuk remote rclone yang Anda buat sendiri dan dipakai lewat "Pakai remote rclone yang sudah ada", LELEMOVE hanya berhenti memakainya; remote itu tetap ada di rclone.
+- Cabut izin sepenuhnya: https://myaccount.google.com/permissions untuk Google, pengaturan aplikasi akun Microsoft Anda, atau halaman aplikasi terhubung/kata sandi aplikasi di layanan lain.
 - Hapus data lokal: hapus folder %LOCALAPPDATA%\pindah-drive dan berkas %APPDATA%\rclone\rclone.conf setelah menghapus aplikasi.
 
 ## Layanan pihak ketiga
 
-File yang tersimpan di Google Drive, OneDrive, atau SharePoint tunduk pada kebijakan privasi Google dan Microsoft. LELEMOVE tidak mengendalikan bagaimana penyedia tersebut memproses data di layanannya.
+File yang tersimpan di layanan cloud tunduk pada kebijakan privasi penyedia masing-masing (Google, Microsoft, Dropbox, dan lainnya). LELEMOVE tidak mengendalikan bagaimana penyedia tersebut memproses data di layanannya.
 
 ## Perubahan
 

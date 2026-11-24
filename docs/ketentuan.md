@@ -8,7 +8,7 @@ Dengan memasang atau memakai LELEMOVE, Anda menyetujui ketentuan ini. Bila tidak
 
 ## Apa yang dilakukan LELEMOVE
 
-LELEMOVE adalah alat bantu di komputer Windows untuk menyalin file antar OneDrive, SharePoint, Google Drive, dan folder komputer, memakai program open source rclone. LELEMOVE menyalin dan mencocokkan file. Menyalin tidak mengubah atau menghapus file di sumber.
+LELEMOVE adalah alat bantu di komputer Windows untuk menyalin file antar layanan penyimpanan (Google Drive, OneDrive, SharePoint, Dropbox, server NAS dan Nextcloud, object storage S3, dan layanan lain yang didukung rclone) dan folder komputer, memakai program open source rclone. LELEMOVE menyalin dan mencocokkan file. Menyalin tidak mengubah atau menghapus file di sumber.
 
 LELEMOVE hanya menghapus file di sumber bila Anda sendiri memilih Pindahkan setelah verifikasi dan mengonfirmasinya dua kali. Saat itu LELEMOVE mencocokkan ulang setiap file dan hanya menghapus yang terbukti sama di tujuan, ke Recycle Bin Windows atau tempat sampah layanan cloud. LELEMOVE tidak pernah menghapus apa pun di tujuan.
 
@@ -34,7 +34,7 @@ Sejauh diizinkan hukum yang berlaku, pengembang LELEMOVE tidak bertanggung jawab
 
 ## Layanan pihak ketiga
 
-LELEMOVE memakai Google Drive API dan Microsoft Graph API atas nama Anda. Ketersediaan, batas, dan perubahan layanan tersebut sepenuhnya diatur oleh Google dan Microsoft. Pemakaian layanan itu tunduk pada ketentuan masing-masing penyedia.
+LELEMOVE memakai API layanan yang Anda hubungkan (antara lain Google Drive API, Microsoft Graph API, Dropbox API, dan protokol standar seperti WebDAV, SFTP, FTP, SMB, dan S3) atas nama Anda. Ketersediaan, batas, dan perubahan layanan tersebut sepenuhnya diatur oleh penyedianya. Pemakaian layanan itu tunduk pada ketentuan masing-masing penyedia. Dukungan untuk layanan yang ditandai beta (mis. iCloud Drive, Proton Drive) bergantung pada rclone dan bisa berhenti bekerja bila penyedianya mengubah layanannya.
 
 ## Komponen pihak ketiga
 

@@ -1,9 +1,10 @@
 ﻿# LELEMOVE
 
-Menyalin file antar **OneDrive**, **SharePoint**, **Google Drive**, dan **folder di komputer**,
-ke arah mana pun, memakai [rclone](https://rclone.org). Contohnya OneDrive → Google Drive,
-SharePoint → Google Drive, Google Drive → OneDrive, OneDrive kantor → OneDrive pribadi,
-Google Drive A → Google Drive B, atau cloud → komputer.
+Menyalin file antar **Google Drive**, **OneDrive**, **SharePoint**, **Dropbox**, **NAS/Nextcloud**,
+**object storage S3**, layanan lain yang didukung rclone, dan **folder di komputer**, ke arah mana
+pun, memakai [rclone](https://rclone.org). Contohnya OneDrive → Google Drive, SharePoint → NAS
+kantor, Dropbox → Google Drive, folder komputer → Backblaze B2, atau cloud → komputer.
+Lihat *Layanan yang didukung*.
 Menyalin tidak mengubah atau menghapus file di sumber. File di sumber hanya dihapus bila Anda sendiri
 memilih **Pindahkan** setelah verifikasi, dan itu pun masuk ke Recycle Bin / Sampah.
 
@@ -46,9 +47,9 @@ pertama dibuka; klik *More info* > *Run anyway*. Keaslian unduhan bisa dicek den
 Jendelanya mirip pengelola file dua panel: **daftar lokasi** di kiri, panel **Dari** (sumber)
 dan **Ke** (tujuan) berdampingan, toolbar di atas, dan bilah penyalinan di bawah.
 
-- **Akun.** Di daftar kiri, klik *Tambah akun* lalu pilih Google Drive, OneDrive, atau
-  SharePoint, beri nama (misalnya "Pribadi" atau "Kantor"), lalu login di browser yang terbuka.
-  Satu jenis boleh berisi lebih dari satu akun. Saat aplikasi dibuka, setiap akun diuji: titik
+- **Akun.** Di daftar kiri, klik *Tambah akun* lalu pilih Google Drive, OneDrive, SharePoint,
+  atau *Layanan lain* (Dropbox, NAS, S3, dan lainnya), beri nama (misalnya "Pribadi" atau
+  "Kantor"), lalu login di browser atau isi data loginnya. Satu jenis boleh berisi lebih dari satu akun. Saat aplikasi dibuka, setiap akun diuji: titik
   hijau di ikonnya berarti siap; **"login kedaluwarsa"** (merah) berarti perlu klik **Login
   ulang**; **"jaringan terputus"** (kuning) diuji ulang sendiri. Tombol **⋯** di tiap akun (atau
   klik kanan) berisi: buka di panel Dari/Ke, login ulang, beri izin penuh, dan lepas.
@@ -114,6 +115,43 @@ berikutnya; *Hentikan* tetap bisa dipakai. Notifikasi Windows muncul sekali saat
 kali putus. Di log tercatat baris `LELEMOVE: jaringan terputus ...` dan `... penyalinan
 dilanjutkan`. Matikan lewat *Pengaturan > Penyalinan* (`"LanjutOtomatis": false` di
 `pengaturan.json`); penyalinan dari konsol tanpa `-Latar` tidak pernah melanjutkan sendiri.
+
+## Layanan yang didukung
+
+*Tambah akun > Layanan lain* menampilkan semua layanan di bawah (bisa dicari). Kolom *Pindahkan*
+menyebut ke mana file pergi saat dihapus dari sumber; "–" berarti layanan tanpa tempat sampah,
+sehingga Pindahkan ditolak di sana.
+
+| Kelompok | Layanan | Login | Pindahkan |
+|---|---|---|---|
+| Cloud | Google Drive, OneDrive, SharePoint | Browser | Sampah / recycle bin |
+| Cloud | Dropbox, Box, pCloud, Yandex Disk | Browser | File terhapus / Sampah |
+| Cloud | HiDrive, Zoho WorkDrive (beta) | Browser | – |
+| Cloud | MEGA | Email + kata sandi (+ kode 2FA) | Rubbish Bin |
+| Cloud | Koofr | Email + kata sandi aplikasi | – |
+| Cloud | iCloud Drive (beta) | Apple ID + kata sandi, lalu kode 2FA | – |
+| Cloud | Proton Drive (beta) | Email + kata sandi (+ kode 2FA) | Sampah |
+| Cloud | Jottacloud (beta) | Token login dari situsnya (ditanyakan) | – |
+| Server & NAS | Nextcloud, ownCloud | Alamat WebDAV + kata sandi aplikasi | Sampah |
+| Server & NAS | WebDAV lain, SMB/NAS, SFTP, FTP/FTPS, Seafile | Alamat + pengguna + kata sandi | – |
+| Object storage | Amazon S3, Cloudflare R2, Wasabi, MinIO, DigitalOcean Spaces, S3 lain | Access key + secret (+ endpoint) | – |
+| Object storage | Backblaze B2 | Key ID + application key | Versi tersembunyi B2 |
+| Object storage | Azure Blob Storage | Nama storage account + access key | – |
+
+- **Layanan lain dari rclone** (lebih dari 70): *Buat lewat rclone config* membuka jendela
+  `rclone config`. Sesudahnya, *Pakai remote rclone yang sudah ada* memasukkannya ke LELEMOVE.
+  Remote seperti itu tetap milik Anda: *Lepas* hanya berhenti memakainya, tidak menghapusnya.
+- **Folder bersama yang sudah bisa dibuka di Explorer** (`\\server\share`) bisa langsung dipakai
+  lewat *Komputer ini*. Pilih *SMB/NAS* hanya bila perlu login dengan akun berbeda.
+- **Isian rahasia** (kata sandi, secret) dikirim dari jendela ke `pindah.exe` lewat stdin, lalu
+  diobfuskasi lewat `rclone obscure -` sebelum masuk `rclone config create`. Jadi kata sandi tidak
+  pernah tampil polos di argumen proses. Obfuskasi bukan enkripsi; pakai kata sandi aplikasi bila ada.
+- **Pertanyaan lanjutan** (kode 2FA iCloud, token Jottacloud, pilihan) datang dari mesin
+  konfigurasi rclone (`config create --non-interactive` → `config update --continue`) dan tampil
+  sebagai dialog. Akun baru yang gagal tersambung dihapus lagi.
+- Layanan tanpa info kuota (FTP, S3, B2, ...) tetap bisa diperiksa: kuotanya ditulis "tidak dilaporkan".
+- Saat jaringan putus, server sendiri (NAS, SFTP, Nextcloud, S3 lain) diuji ke host dan port dari
+  konfigurasi akunnya; layanan cloud ke server API-nya.
 
 ## Filter file
 
@@ -340,6 +378,12 @@ pindah salin -Latar -Ya -Sertakan "pdf,docx" -Lewati "*.tmp,Arsip Lama/" -Sejak 
 pindah salin -Latar -Ya -TanpaFilter                    # hapus filter
 pindah pindahkan                                        # verifikasi ulang + tampilkan berapa file yang akan dihapus
 pindah pindahkan -Ya                                    # hapus dari SUMBER file yang cocok (ke Recycle Bin/Sampah)
+pindah penyedia                                         # daftar layanan + isian masing-masing
+pindah hubungkan -Akun pd-dropbox -Jenis dropbox        # layanan ber-login browser
+'{"pass":"..."}' | pindah hubungkan -Akun pd-sftp -Jenis sftp -Opsi host=nas.kantor -Opsi user=admin -RahasiaStdin
+pindah hubungkan -Akun pd-icloud -Lanjut -State <S> -Jawab 123456   # jawab pertanyaan lanjutan (kode keluar 10 = ada pertanyaan)
+pindah impor                                            # remote rclone yang bisa dipakai
+pindah impor -Akun kantorku -Label "Server lama"        # pakai remote rclone yang sudah ada
 pindah riwayat [-Jumlah 50]                             # riwayat salin, verifikasi, pindahkan
 pindah riwayat -Csv riwayat.csv | -Laporan laporan.html # ekspor semua
 pindah riwayat -Id <id> -Laporan verifikasi.html        # laporan per file satu verifikasi (atau -Csv)
@@ -378,6 +422,7 @@ rust/                          kode sumber versi 2 (satu crate Rust)
   src/bin/pindah.rs            pindah.exe: baris perintah & menu teks
   src/mesin/lanjut.rs          lanjut otomatis saat jaringan putus (keputusan, jeda, uji sambungan)
   src/mesin/jadwal.rs          jadwal backup: jadwal.json, XML Task Scheduler, schtasks
+  src/mesin/penyedia.rs        daftar layanan: backend rclone, isian, login, tempat sampah, host API
   src/mesin/filter.rs          filter file -> aturan --filter / --max-age rclone
   src/mesin/riwayat.rs         riwayat.jsonl, CSV, laporan HTML siap cetak
   src/bin/pindah-drive/        LELEMOVE.exe: jendela aplikasi (egui) + dialog
@@ -385,6 +430,7 @@ rust/                          kode sumber versi 2 (satu crate Rust)
   src/bin/pindah-drive/jadwal.rs dialog Jadwal backup (daftar + isian)
   src/bin/pindah-drive/filter.rs dialog Filter file
   src/bin/pindah-drive/riwayat.rs dialog Riwayat & laporan
+  src/bin/pindah-drive/layanan.rs dialog Tambah akun layanan lain, isian, pertanyaan lanjutan, impor
   src/bin/setup.rs             installer; tanpa muatan menjadi uninstall.exe
   src/bin/tanam-ikon.rs        alat build: menanam ikon & manifest (UpdateResourceW)
   aset/app.manifest            asInvoker + Common Controls 6
@@ -428,6 +474,15 @@ komputer ini). Ikon memakai huruf Segoe MDL2 Assets bawaan Windows 10/11. Pratin
 untuk dokumentasi: `"LELEMOVE.exe" --pratinjau layar.png [--dialog client] [--log]
 [--lebar 760] [--tinggi 820]`; pakai `PINDAH_DRIVE_DATA=<folder sementara>` agar data asli
 tidak tersentuh.
+
+Untuk menguji layanan berisian tanpa akun sungguhan: jalankan server lokal dengan rclone dan pakai
+konfigurasi rclone terpisah (`RCLONE_CONFIG`), supaya `rclone.conf` asli tidak tersentuh:
+
+```powershell
+rclone serve webdav C:\uji\dav --addr 127.0.0.1:18081 --user uji --pass rahasia   # juga: serve sftp / ftp / s3 --auth-key AK,SK
+$env:RCLONE_CONFIG = "C:\uji\rclone-uji.conf"; $env:PINDAH_DRIVE_DATA = "C:\uji\data"
+'{"pass":"rahasia"}' | .\target\release\pindah.exe hubungkan -Akun pd-webdav -Jenis webdav -Opsi url=http://127.0.0.1:18081 -Opsi user=uji -RahasiaStdin
+```
 
 ### Membuat rilis
 

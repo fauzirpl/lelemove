@@ -125,6 +125,11 @@ pub enum Dialog {
     Filter(crate::filter::FilterIsian),
     /// Riwayat & laporan (lihat riwayat.rs).
     Riwayat(crate::riwayat::Riwayat),
+    /// Tambah akun layanan lain (lihat layanan.rs).
+    Pemilih(crate::layanan::Pemilih),
+    Kredensial(crate::layanan::Kredensial),
+    TanyaKonfig(crate::layanan::TanyaKonfig),
+    Impor(crate::layanan::Impor),
     AkunBaru(AkunBaru),
     ClientId(ClientId),
     Pengaturan(Pengaturan),
@@ -175,6 +180,18 @@ pub enum Hasil {
     JadwalHapus(String),
     JadwalLog(String),
     KembaliJadwal,
+    /// Tambah akun layanan lain: penyedia dipilih (kunci), buka impor, buka rclone config, kembali ke daftar.
+    PilihPenyedia(String),
+    BukaImpor,
+    RcloneConfig,
+    KembaliPemilih,
+    /// Isian kredensial siap: isian biasa lewat -Opsi, rahasia lewat stdin.
+    Kredensial { kunci: String, akun: Option<String>, label: String, opsi: Vec<(String, String)>, rahasia: Vec<(String, String)> },
+    /// Jawaban pertanyaan lanjutan rclone.
+    JawabKonfig { akun: String, state: String, jawab: String, rahasia: bool, baru: bool },
+    /// Pertanyaan lanjutan dibatalkan: akun baru yang setengah jadi dihapus.
+    BatalKonfig { akun: String, baru: bool },
+    Impor { nama: String, label: String },
     /// Filter file disimpan (kosong = hapus filter).
     FilterSimpan(pindah_drive::mesin::filter::Filter),
     /// Riwayat: buka laporan HTML / simpan CSV per file (id catatan), buka log, ekspor yang tampil.
@@ -429,6 +446,10 @@ pub fn tampil(ctx: &egui::Context, d: &mut Dialog, p: &mut Pemuat) -> Option<Has
         Dialog::Ketik(k) => ketik(ui, k),
         Dialog::Filter(f) => crate::filter::tampil(ui, f),
         Dialog::Riwayat(r) => crate::riwayat::tampil(ui, r),
+        Dialog::Pemilih(s) => crate::layanan::pemilih(ui, s),
+        Dialog::Kredensial(s) => crate::layanan::kredensial(ui, s),
+        Dialog::TanyaKonfig(s) => crate::layanan::tanya_konfig(ui, s),
+        Dialog::Impor(s) => crate::layanan::impor(ui, s),
         Dialog::AkunBaru(a) => akun_baru(ui, a),
         Dialog::ClientId(c) => client_id(ui, c),
         Dialog::Pengaturan(s) => pengaturan(ui, s),
@@ -447,6 +468,9 @@ pub fn tampil(ctx: &egui::Context, d: &mut Dialog, p: &mut Pemuat) -> Option<Has
             Dialog::SharePoint(_) => Hasil::BatalSharePoint,
             Dialog::ClientId(_) => Hasil::KembaliPengaturan,
             Dialog::JadwalIsian(_) => Hasil::KembaliJadwal,
+            Dialog::Kredensial(k) if k.akun.is_none() => Hasil::KembaliPemilih,
+            Dialog::Impor(_) => Hasil::KembaliPemilih,
+            Dialog::TanyaKonfig(t) => Hasil::BatalKonfig { akun: t.akun.clone(), baru: t.baru },
             _ => Hasil::Batal,
         });
     }

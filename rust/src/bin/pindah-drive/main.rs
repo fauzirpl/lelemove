@@ -17,6 +17,7 @@ mod dialog;
 mod filter;
 mod info;
 mod jadwal;
+mod layanan;
 mod riwayat;
 
 use eframe::egui::{
@@ -41,6 +42,7 @@ use pindah_drive::mesin::akun::{self, Akun, Sambungan};
 use pindah_drive::mesin::dasar::{angka, bil, format_ukuran as ukuran, jalur, ke_byte, teks, waktu_lokal, waktu_tampil};
 use pindah_drive::mesin::filter::{self as mf, Filter};
 use pindah_drive::mesin::jadwal as mj;
+use pindah_drive::mesin::penyedia as mp;
 use pindah_drive::mesin::riwayat as mr;
 use pindah_drive::mesin::job::{baca_job, baca_statistik, baris_error, job_berjalan};
 use pindah_drive::mesin::rclone;
@@ -140,12 +142,8 @@ fn gabung(remote: &str, path: &str) -> String {
 /// "Google Drive", "Google Drive 2", "OneDrive · Kantor"
 fn nama_lokasi(a: Option<&Akun>) -> String {
     let Some(a) = a else { return "Komputer ini".into() };
-    let dasar = match a.jenis.as_str() {
-        "google" => "Google Drive",
-        "sharepoint" => "SharePoint",
-        _ => "OneDrive",
-    };
-    if a.label.starts_with(dasar) {
+    let dasar = jenis_tampil(&a.jenis);
+    if a.label.starts_with(&dasar) || a.label == a.nama {
         a.label.clone()
     } else {
         format!("{dasar} {TITIK} {}", a.label)
@@ -250,6 +248,8 @@ struct App {
     /// Verifikasi terakhir: (file cocok, file lain, sumber, tujuan). Tautan "Pindahkan" ditawarkan
     /// selama panel Dari/Ke masih menunjuk rute yang sama.
     bisa_pindahkan: Option<(i64, i64, String, String)>,
+    /// Isian kredensial terakhir, dibuka lagi (dengan pesan galat) bila login gagal.
+    kredensial_terakhir: Option<layanan::Kredensial>,
 
     aksi: Option<Aksi>,
     url_login: Option<String>,
@@ -311,6 +311,7 @@ impl App {
             filter: mf::baca_filter(),
             verifikasi: kosong(),
             bisa_pindahkan: None,
+            kredensial_terakhir: None,
             aksi: None,
             url_login: None,
             pesan: ("Siap.".into(), REDUP),
@@ -450,6 +451,13 @@ impl App {
                         }
                     }
                 }
+                Kabar::Impor { gen, calon } => {
+                    if let Some(Dialog::Impor(d)) = &mut self.dialog {
+                        if d.gen == gen {
+                            d.calon = Some(calon);
+                        }
+                    }
+                }
                 Kabar::Riwayat { gen, daftar } => {
                     let baris: Vec<riwayat::Baris> = daftar
                         .into_iter()
@@ -562,10 +570,15 @@ impl App {
     // -------------------------------------------------------------- aksi (pindah.exe)
 
     fn jalankan_aksi(&mut self, judul: &str, args: Vec<String>, setelah: Setelah) {
+        self.jalankan_aksi_masukan(judul, args, None, setelah);
+    }
+
+    /// Aksi dengan masukan stdin (isian rahasia sebagai JSON; tidak pernah lewat argumen atau log).
+    fn jalankan_aksi_masukan(&mut self, judul: &str, args: Vec<String>, masukan: Option<String>, setelah: Setelah) {
         if self.aksi.is_some() {
             return;
         }
-        match aksi::mulai(&self.exe_mesin, &args, self.tx.clone(), self.ctx.clone()) {
+        match aksi::mulai_masukan(&self.exe_mesin, &args, masukan, self.tx.clone(), self.ctx.clone()) {
             Ok(pid) => {
                 self.aksi = Some(Aksi { judul: judul.into(), pid, hasil: None, setelah, dibatalkan: false });
                 self.tulis_log(&format!("--- {judul}"));
@@ -630,6 +643,7 @@ impl App {
             }
             Setelah::Verifikasi => self.selesai_verifikasi(kode, &h),
             Setelah::Pindahkan => self.selesai_pindahkan(kode, &h),
+            Setelah::AkunPenyedia { nama, kunci } => self.selesai_akun_penyedia(kode, &h, &nama, &kunci),
             Setelah::Jadwal { ok } => {
                 if kode == 0 {
                     self.set_pesan(&ok, HIJAU);
@@ -671,6 +685,129 @@ impl App {
             client_bawaan: self.ada_client_bawaan,
             fokus: true,
         }));
+    }
+
+    // -------------------------------------------------------------- layanan lain
+
+    fn buka_pemilih(&mut self) {
+        self.dialog = Some(Dialog::Pemilih(layanan::Pemilih::baru()));
+    }
+
+    /// Isian kredensial untuk akun baru (akun None) atau login ulang akun yang ada.
+    fn buka_kredensial(&mut self, kunci: &str, akun: Option<String>) {
+        let Some(p) = mp::cari(kunci) else { return };
+        let label = akun.as_ref().and_then(|n| self.akun_dari(n)).map(|a| a.label).unwrap_or_default();
+        let mut k = layanan::Kredensial::baru(p, akun.clone(), label);
+        // Login ulang: isian yang tidak rahasia diisi dari konfigurasi yang ada (rahasia diketik lagi).
+        if let Some(n) = &akun {
+            let kunci_biasa: Vec<&str> = p.kolom.iter().filter(|c| !c.tersamar()).map(|c| c.kunci).collect();
+            for (kk, v) in akun::opsi_konfig(n, &kunci_biasa) {
+                if let Some(i) = p.kolom.iter().position(|c| c.kunci == kk) {
+                    k.nilai[i] = v;
+                }
+            }
+        }
+        self.dialog = Some(Dialog::Kredensial(k));
+    }
+
+    fn hubungkan_kredensial(&mut self, kunci: &str, akun_lama: Option<String>, label: &str, opsi: Vec<(String, String)>, rahasia: Vec<(String, String)>) {
+        let Some(p) = mp::cari(kunci) else { return };
+        let nama = akun_lama.clone().unwrap_or_else(|| akun::remote_baru(kunci));
+        let mut a = v!["hubungkan", "-Akun", nama, "-Jenis", kunci, "-Ya"];
+        if !label.is_empty() {
+            a.extend(v!["-Label", label]);
+        }
+        if akun_lama.is_some() {
+            a.push("-Ulang".into());
+        }
+        for (k, v) in &opsi {
+            a.extend(v!["-Opsi", format!("{k}={v}")]);
+        }
+        // Rahasia lewat stdin sebagai JSON (selalu dikirim, walau kosong, supaya mesin tidak menunggu).
+        let mut m = serde_json::Map::new();
+        for (k, v) in rahasia {
+            m.insert(k, Value::String(v));
+        }
+        a.push("-RahasiaStdin".into());
+        let judul = if p.oauth { format!("Menunggu login {} di browser", p.nama) } else { format!("Menghubungkan {}", p.nama) };
+        self.jalankan_aksi_masukan(&judul, a, Some(Value::Object(m).to_string()), Setelah::AkunPenyedia { nama, kunci: kunci.into() });
+    }
+
+    fn selesai_akun_penyedia(&mut self, kode: i32, h: &Value, nama: &str, kunci: &str) {
+        let layanan_nama = mp::cari(kunci).map_or("Akun", |p| p.nama);
+        // rclone bertanya lagi (kode 2FA, token, pilihan): tampilkan pertanyaannya.
+        if let Some(t) = h.get("Tanya").filter(|t| !t.is_null()) {
+            let pilihan: Vec<(String, String)> = t
+                .get("Pilihan")
+                .and_then(Value::as_array)
+                .map(|a| a.iter().map(|x| (teks(x.get("Nilai")), teks(x.get("Ket")))).collect())
+                .unwrap_or_default();
+            let bawaan = teks(t.get("Bawaan"));
+            let galat = teks(t.get("Galat"));
+            self.set_pesan(&format!("{layanan_nama} meminta satu langkah lagi."), KUNING);
+            self.dialog = Some(Dialog::TanyaKonfig(layanan::TanyaKonfig {
+                akun: nama.to_string(),
+                layanan: layanan_nama.to_string(),
+                state: teks(t.get("State")),
+                bantuan: teks(t.get("Bantuan")),
+                rahasia: h_bool(t, "Rahasia", true),
+                jawab: if pilihan.iter().any(|(v, _)| *v == bawaan) { bawaan } else { String::new() },
+                pilihan,
+                baru: h_bool(t, "Baru", true),
+                galat: (!galat.is_empty()).then_some(galat),
+                fokus: true,
+            }));
+            return;
+        }
+        self.segarkan_status();
+        if kode == 0 {
+            self.kredensial_terakhir = None;
+            self.set_pesan(&format!("{layanan_nama} terhubung."), HIJAU);
+            return;
+        }
+        // Gagal: buka lagi isiannya dengan pesan galat terakhir dari pindah.exe.
+        let baris: Vec<&str> = self.log.lines().map(str::trim).filter(|b| !b.is_empty() && !b.starts_with("---")).collect();
+        let e = baris
+            .iter()
+            .rev()
+            .find(|b| b.starts_with("[GAGAL]"))
+            .or(baris.last())
+            .copied()
+            .unwrap_or("Lihat log aktivitas.")
+            .trim_start_matches("[GAGAL]")
+            .trim()
+            .to_string();
+        self.set_pesan(&format!("{layanan_nama} belum terhubung."), MERAH);
+        if let Some(mut k) = self.kredensial_terakhir.take() {
+            k.galat = Some(e);
+            self.dialog = Some(Dialog::Kredensial(k));
+        } else {
+            self.log_terbuka = true;
+        }
+    }
+
+    fn buka_impor(&mut self) {
+        self.gen += 1;
+        let gen = self.gen;
+        aksi::latar(&self.tx, &self.ctx, move || Kabar::Impor { gen, calon: akun::remote_luar() });
+        self.dialog = Some(Dialog::Impor(layanan::Impor { calon: None, gen, pilih: None, label: String::new() }));
+    }
+
+    /// Jendela konsol `rclone config` untuk layanan yang tidak ada di daftar (semua backend rclone).
+    fn buka_rclone_config(&mut self) {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
+        let Some(rc) = rclone::cari_rclone() else {
+            self.set_pesan("Pasang rclone dulu (tombol di daftar kiri).", MERAH);
+            return;
+        };
+        match std::process::Command::new(rc).arg("config").creation_flags(CREATE_NEW_CONSOLE).spawn() {
+            Ok(_) => {
+                self.set_pesan("Jendela rclone config terbuka. Setelah selesai, pilih Tambah akun > Layanan lain > Pakai remote rclone yang sudah ada.", TINTA);
+                self.tulis_log("--- rclone config dibuka di jendela terpisah");
+            }
+            Err(e) => self.set_pesan(&format!("rclone config tidak bisa dibuka: {e}"), MERAH),
+        }
     }
 
     /// Isi dialog Pengaturan dari keadaan saat ini (client ID aplikasi + akun Google).
@@ -862,6 +999,12 @@ impl App {
     fn akun_aksi(&mut self, nama: &str, aksi_akun: &str) {
         let label = nama_lokasi(self.akun_dari(nama).as_ref());
         let n = nama.to_string();
+        // Layanan berisian (NAS, S3, MEGA, ...): login ulang = isi ulang datanya.
+        let jenis = self.akun_dari(nama).map(|a| a.jenis).unwrap_or_default();
+        if aksi_akun == "ulang" && mp::cari(&jenis).is_some_and(|p| !p.khusus && !p.oauth) {
+            self.buka_kredensial(&jenis, Some(n));
+            return;
+        }
         match aksi_akun {
             "ulang" => self.tanya(
                 "Login ulang",
@@ -1030,6 +1173,59 @@ impl App {
                 );
             }
             Hasil::KembaliJadwal => self.buka_jadwal(None),
+            Hasil::KembaliPemilih => self.buka_pemilih(),
+            Hasil::PilihPenyedia(k) => match mp::cari(&k) {
+                Some(p) if p.khusus => self.klik_tambah(p.kunci),
+                Some(_) => self.buka_kredensial(&k, None),
+                None => {}
+            },
+            Hasil::BukaImpor => self.buka_impor(),
+            Hasil::RcloneConfig => self.buka_rclone_config(),
+            Hasil::Kredensial { kunci, akun, label, opsi, rahasia } => {
+                // Disimpan untuk dibuka lagi (dengan pesan galat) bila login gagal.
+                if let Some(p) = mp::cari(&kunci) {
+                    let mut k = layanan::Kredensial::baru(p, akun.clone(), label.clone());
+                    for (i, c) in p.kolom.iter().enumerate() {
+                        if let Some((_, v)) = opsi.iter().chain(rahasia.iter()).find(|(x, _)| x == c.kunci) {
+                            k.nilai[i] = v.clone();
+                        }
+                    }
+                    k.fokus = false;
+                    self.kredensial_terakhir = Some(k);
+                }
+                self.hubungkan_kredensial(&kunci, akun, &label, opsi, rahasia);
+            }
+            Hasil::JawabKonfig { akun: nama, state, jawab, rahasia, baru } => {
+                let kunci = akun::jenis_dari_nama(&nama).to_string();
+                let masukan = serde_json::json!({ "Jawab": jawab, "Rahasia": rahasia, "Baru": baru }).to_string();
+                self.jalankan_aksi_masukan(
+                    "Melanjutkan login",
+                    v!["hubungkan", "-Akun", nama, "-Lanjut", "-State", state, "-RahasiaStdin"],
+                    Some(masukan),
+                    Setelah::AkunPenyedia { nama, kunci },
+                );
+            }
+            Hasil::BatalKonfig { akun: nama, baru } => {
+                if baru {
+                    // Akun setengah jadi dihapus lagi (hanya entri rclone.conf, bukan file).
+                    self.jalankan_aksi(
+                        "Membatalkan akun baru",
+                        v!["lepas", "-Akun", nama, "-Ya"],
+                        Setelah::Akun { ok: "Penambahan akun dibatalkan.".into(), gagal: "Akun setengah jadi belum terhapus. Lihat log aktivitas.".into() },
+                    );
+                }
+            }
+            Hasil::Impor { nama, label } => {
+                let mut a = v!["impor", "-Akun", nama];
+                if !label.is_empty() {
+                    a.extend(v!["-Label", label]);
+                }
+                self.jalankan_aksi(
+                    "Memakai remote rclone",
+                    a,
+                    Setelah::Akun { ok: "Remote rclone dipakai sebagai akun.".into(), gagal: "Remote belum bisa dipakai. Lihat log aktivitas.".into() },
+                );
+            }
             Hasil::JadwalBaru => {
                 let kini = self.rute_kini();
                 let nama = kini.as_ref().map(|r| self.nama_jadwal_bawaan(&r.sumber)).unwrap_or_default();
@@ -2343,6 +2539,9 @@ impl App {
                 }
             }
         }
+        if a.impor {
+            detail.push(format!("remote rclone \"{}\" milik Anda (Lepas tidak menghapusnya)", a.nama));
+        }
         let mut singkat = if singkat.is_empty() { jenis.to_string() } else { format!("{jenis} {TITIK} {singkat}") };
         let mut tambahan = String::new();
         match s {
@@ -2552,7 +2751,7 @@ impl App {
                     }
                     if ada && self.status_siap && self.akun.is_empty() {
                         ui.add_space(2.0);
-                        ui.add(Label::new(kecil("Belum ada akun cloud. Tambahkan Google Drive, OneDrive, atau SharePoint.", REDUP)).wrap());
+                        ui.add(Label::new(kecil("Belum ada akun cloud. Tambahkan Google Drive, OneDrive, SharePoint, Dropbox, NAS, S3, dan lainnya.", REDUP)).wrap());
                         ui.add_space(4.0);
                     }
                     let r = baris_lokasi(ui, "tambah", ik::TAMBAH, "Tambah akun", "", REDUP, None, "", false, ada && self.aksi.is_none());
@@ -2561,11 +2760,15 @@ impl App {
                         ui.memory_mut(|m| m.toggle_popup(id_tambah));
                     }
                     popup_below_widget(ui, id_tambah, &r.baris, PopupCloseBehavior::CloseOnClick, |ui| {
-                        ui.set_width(220.0);
+                        ui.set_width(240.0);
                         for (jenis, t) in [("google", "Google Drive"), ("onedrive", "OneDrive"), ("sharepoint", "SharePoint")] {
                             if item_menu(ui, Some(ik::AWAN), t, TINTA).clicked() {
                                 tambah = Some(jenis);
                             }
+                        }
+                        ui.separator();
+                        if item_menu(ui, Some(ik::TAMBAH), &format!("Layanan lain (Dropbox, NAS, S3{ELIPSIS}){ELIPSIS}"), TINTA).clicked() {
+                            tambah = Some("lain");
                         }
                     });
                 });
@@ -2585,8 +2788,10 @@ impl App {
         if let Some((n, x)) = aksi_akun {
             self.akun_aksi(&n, x);
         }
-        if let Some(j) = tambah {
-            self.klik_tambah(j);
+        match tambah {
+            Some("lain") => self.buka_pemilih(),
+            Some(j) => self.klik_tambah(j),
+            None => {}
         }
         if atur {
             self.buka_pengaturan(None);
@@ -2640,14 +2845,14 @@ impl App {
     }
 
     /// Lokasi panel untuk kepala panel: (jenis petak, glyph, nama, jenis lokasi, titik status).
-    fn tampilan_lokasi(&self, sisi: usize) -> (String, char, String, &'static str, Option<Color32>) {
+    fn tampilan_lokasi(&self, sisi: usize) -> (String, char, String, String, Option<Color32>) {
         let lok = self.lok(sisi);
         let Some(a) = self.akun_dari(lok) else {
             // Di dalam folder OneDrive yang tersinkron: tampilkan sebagai folder OneDrive itu.
             if let Some(p) = self.pintasan_sisi(sisi).map(|i| &self.pintasan[i]).filter(|p| p.petak == "sinkron") {
-                return (p.petak.into(), p.glyph, p.nama.clone(), "Komputer ini", None);
+                return (p.petak.into(), p.glyph, p.nama.clone(), "Komputer ini".into(), None);
             }
-            return ("lokal".into(), ik::KOMPUTER, "Komputer ini".into(), "", None);
+            return ("lokal".into(), ik::KOMPUTER, "Komputer ini".into(), String::new(), None);
         };
         let titik = self.keterangan_akun(&a).2;
         (a.jenis.clone(), ik::AWAN, a.label.clone(), jenis_tampil(&a.jenis), Some(titik))
@@ -3204,6 +3409,23 @@ impl App {
             "jadwal" => self.buka_jadwal(None),
             "jadwal-baru" => self.tangani_dialog(Hasil::JadwalBaru),
             "filter" => self.dialog = Some(Dialog::Filter(filter::FilterIsian::dari(&self.filter))),
+            "layanan" => self.buka_pemilih(),
+            "impor" => self.buka_impor(),
+            _ if d.starts_with("kredensial:") => self.buka_kredensial(&d["kredensial:".len()..], None),
+            "tanya-konfig" => {
+                self.dialog = Some(Dialog::TanyaKonfig(layanan::TanyaKonfig {
+                    akun: "pd-icloud".into(),
+                    layanan: "iCloud Drive".into(),
+                    state: "2fa".into(),
+                    bantuan: "Two-factor authentication: please enter your 2FA code".into(),
+                    rahasia: false,
+                    pilihan: Vec::new(),
+                    jawab: String::new(),
+                    baru: true,
+                    galat: None,
+                    fokus: true,
+                }));
+            }
             "riwayat" => self.buka_riwayat(riwayat::Saring::Semua, None),
             "pindahkan" => {
                 self.bisa_pindahkan = Some(rute_contoh(128, 2));
@@ -3318,11 +3540,12 @@ fn ringkas_galat(e: &str) -> (&'static str, String) {
     ("Folder tidak bisa dibuka", format!("{t} (detail di log aktivitas)"))
 }
 
-fn jenis_tampil(j: &str) -> &'static str {
-    match j {
-        "google" => "Google Drive",
-        "sharepoint" => "SharePoint",
-        _ => "OneDrive",
+/// "Google Drive", "Dropbox", "Amazon S3"; remote impor dengan backend tak dikenal: nama backend-nya.
+fn jenis_tampil(j: &str) -> String {
+    match mp::cari(j) {
+        Some(p) => p.nama.to_string(),
+        None if j.is_empty() => "Akun".into(),
+        None => j.to_string(),
     }
 }
 
@@ -3489,13 +3712,17 @@ fn menu_akun(ui: &mut Ui, a: &Akun, pilih: &mut Option<&'static str>) {
     if a.jenis == "sharepoint" {
         item(ui, None, &format!("Pilih situs & pustaka{ELIPSIS}"), "situs", TINTA);
     }
-    item(ui, None, "Login ulang", "ulang", TINTA);
+    // Remote impor diatur lewat rclone sendiri; layanan berisian: isi ulang datanya.
+    if !a.impor {
+        let isian = mp::cari(&a.jenis).is_some_and(|p| !p.oauth);
+        item(ui, None, if isian { "Ubah data login\u{2026}" } else { "Login ulang" }, "ulang", TINTA);
+    }
     if a.jenis == "google" && a.scope != "drive" {
         item(ui, None, "Beri izin penuh (agar bisa jadi sumber)", "penuh", TINTA);
     }
     // Client ID Google diatur di Pengaturan (bilah alat), bukan per akun.
     ui.separator();
-    item(ui, None, "Lepas akun ini", "lepas", MERAH);
+    item(ui, None, if a.impor { "Berhenti memakai remote ini" } else { "Lepas akun ini" }, "lepas", MERAH);
 }
 
 /// Satu baris menu: glyph opsional + teks, latar muncul saat disorot.

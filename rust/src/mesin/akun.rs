@@ -1,10 +1,12 @@
-//! Akun cloud = remote rclone berawalan "pd-": pd-gdrive, pd-gdrive-2, pd-onedrive, pd-sharepoint, ...
-//! Nama tampilan, drive OneDrive, dan pustaka SharePoint disimpan di akun.json.
+//! Akun cloud = remote rclone berawalan "pd-": pd-gdrive, pd-gdrive-2, pd-onedrive, pd-dropbox, ...
+//! (lihat penyedia.rs), ditambah remote rclone yang sudah ada dan sengaja dipakai ("Impor").
+//! Nama tampilan, jenis, drive OneDrive, dan pustaka SharePoint disimpan di akun.json.
 
 use serde::Serialize;
 use serde_json::{Map, Value};
 
 use super::dasar::{baca_objek, jalur, teks, tulis_json, REMOTE_GOOGLE, REMOTE_ONEDRIVE, REMOTE_SHAREPOINT};
+use super::penyedia;
 use super::rclone::{self, daftar_remote, galat_jaringan, panggil, token_kedaluwarsa, Mode};
 use super::rute::adalah_lokal;
 use crate::v;
@@ -13,8 +15,12 @@ use crate::v;
 #[serde(rename_all = "PascalCase")]
 pub struct Akun {
     pub nama: String,
-    /// google | onedrive | sharepoint
+    /// Kunci penyedia (penyedia.rs): google, onedrive, sharepoint, dropbox, nextcloud, s3, ...
+    /// Remote impor dengan backend yang tidak dikenal: nama backend rclone-nya.
     pub jenis: String,
+    /// Remote rclone milik pengguna yang dipakai LELEMOVE (bukan dibuat LELEMOVE): "Lepas" hanya
+    /// menyembunyikannya, tidak menghapus remote itu.
+    pub impor: bool,
     pub label: String,
     pub drive: String,
     pub scope: String,
@@ -49,17 +55,21 @@ pub fn remote_dari(j: &str) -> String {
     }
 }
 
-/// Jenis ditebak dari nama (tanpa memanggil rclone): cukup untuk label & nama folder bawaan.
+/// Jenis ditebak dari nama (tanpa memanggil rclone): cukup untuk label, tempat sampah, dan nama
+/// folder bawaan. Remote impor: dari akun.json.
 pub fn jenis_dari_nama(remote: &str) -> &'static str {
-    if remote.starts_with("pd-gdrive") || remote.starts_with("pd-google") {
-        "google"
-    } else if remote.starts_with("pd-onedrive") {
-        "onedrive"
-    } else if remote.starts_with("pd-sharepoint") {
-        "sharepoint"
-    } else {
-        ""
+    if let Some(p) = penyedia::dari_nama(remote) {
+        return p.kunci;
     }
+    if remote.is_empty() {
+        return "";
+    }
+    penyedia::cari(&meta(remote, "Jenis")).map_or("", |p| p.kunci)
+}
+
+/// Nama layanan untuk ditampilkan: "Dropbox", "Amazon S3"; remote impor tak dikenal: "Akun".
+pub fn nama_layanan(jenis: &str) -> &'static str {
+    penyedia::cari(jenis).map_or("Akun", |p| p.nama)
 }
 
 pub fn baca_meta_akun() -> Map<String, Value> {
@@ -97,12 +107,11 @@ pub fn simpan_meta_akun(nama: &str, ubah: &[(&str, &str)], hapus: bool) {
 }
 
 pub fn label_bawaan(nama: &str, jenis: &str) -> String {
-    let dasar = match jenis {
-        "google" => "Google Drive",
-        "onedrive" => "OneDrive",
-        "sharepoint" => "SharePoint",
-        _ => "Akun",
-    };
+    let dasar = nama_layanan(jenis);
+    if dasar == "Akun" && !nama.starts_with("pd-") {
+        // Remote impor yang jenisnya tidak dikenal: pakai namanya sendiri.
+        return nama.to_string();
+    }
     match nama.rsplit_once('-') {
         Some((_, n)) if !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()) => format!("{dasar} {n}"),
         _ => dasar.to_string(),
@@ -158,7 +167,10 @@ pub fn daftar_akun() -> Vec<Akun> {
     let h = panggil(&["config", "dump"], Mode::Tangkap);
     let semua: Map<String, Value> = serde_json::from_str(&h.out).unwrap_or_default();
     for (nama, r) in semua {
-        if !nama.starts_with("pd-") {
+        let m = meta.get(&nama);
+        let ambil = |kunci: &str| teks(m.and_then(|m| m.get(kunci)));
+        let impor = ambil("Impor") == "1";
+        if !nama.starts_with("pd-") && !impor {
             continue;
         }
         let tipe = teks(r.get("type"));
@@ -169,13 +181,12 @@ pub fn daftar_akun() -> Vec<Akun> {
             client_sendiri: !client_id.is_empty(),
         };
         let client_aplikasi = !client_id.is_empty() && client_id == id_aplikasi;
-        let jenis = match tipe.as_str() {
-            "drive" => "google".to_string(),
-            "onedrive" if jenis_dari_nama(&nama) == "sharepoint" => "sharepoint".to_string(),
-            _ => tipe.clone(),
+        // Jenis: dari prefiks nama (remote buatan LELEMOVE), dari akun.json, atau dari isi konfigurasi.
+        let jenis = match penyedia::dari_nama(&nama).or_else(|| penyedia::cari(&ambil("Jenis"))) {
+            Some(p) if p.kunci == "sharepoint" || p.backend == tipe => p.kunci.to_string(),
+            _ => penyedia::dari_konfig(&tipe, &teks(r.get("provider")), &teks(r.get("vendor")))
+                .map_or_else(|| tipe.clone(), |p| p.kunci.to_string()),
         };
-        let m = meta.get(&nama);
-        let ambil = |kunci: &str| teks(m.and_then(|m| m.get(kunci)));
         let mut label = ambil("Label");
         let mut drive = ambil("Drive");
         if label.is_empty() {
@@ -197,6 +208,7 @@ pub fn daftar_akun() -> Vec<Akun> {
             drive_id,
             nama,
             jenis,
+            impor,
             label,
             drive,
             scope: k.scope,
@@ -256,12 +268,13 @@ pub fn id_pendek(id: &str) -> String {
     format!("{}\u{2026}", inti.chars().take(n).collect::<String>())
 }
 
-/// Nama remote baru yang belum terpakai: pd-gdrive, pd-gdrive-2, pd-gdrive-3, ...
+/// Nama remote baru yang belum terpakai: pd-gdrive, pd-gdrive-2, pd-dropbox, pd-dropbox-2, ...
 pub fn remote_baru(jenis: &str) -> String {
     let dasar = match jenis {
         "google" => REMOTE_GOOGLE,
         "sharepoint" => REMOTE_SHAREPOINT,
-        _ => REMOTE_ONEDRIVE,
+        "onedrive" => REMOTE_ONEDRIVE,
+        j => penyedia::cari(j).map_or(REMOTE_ONEDRIVE, |p| p.prefiks),
     };
     let ada = daftar_remote();
     if !ada.iter().any(|r| r == dasar) {
@@ -271,6 +284,45 @@ pub fn remote_baru(jenis: &str) -> String {
         .map(|i| format!("{dasar}-{i}"))
         .find(|n| !ada.contains(n))
         .unwrap_or_else(|| format!("{dasar}-{}", std::process::id()))
+}
+
+/// Galat rclone "layanan ini tidak mendukung about" (info kuota).
+pub fn tanpa_about(err: &str) -> bool {
+    let e = err.to_lowercase();
+    e.contains("doesn't support about") || e.contains("does not support about") || e.contains("about not supported")
+        || (e.contains("about") && e.contains("not supported"))
+}
+
+/// Remote rclone yang belum dipakai LELEMOVE: (nama, backend). Untuk "Remote rclone yang sudah ada".
+pub fn remote_luar() -> Vec<(String, String)> {
+    let meta = baca_meta_akun();
+    let h = panggil(&["config", "dump"], Mode::Tangkap);
+    let semua: Map<String, Value> = serde_json::from_str(&h.out).unwrap_or_default();
+    semua
+        .into_iter()
+        .filter(|(n, _)| !n.starts_with("pd-") && teks(meta.get(n).and_then(|m| m.get("Impor"))) != "1")
+        .map(|(n, r)| (n, teks(r.get("type"))))
+        .collect()
+}
+
+/// Jenis (kunci penyedia) untuk remote yang sudah ada, dari isi konfigurasinya.
+pub fn jenis_konfig(nama: &str) -> String {
+    let h = panggil(&["config", "dump"], Mode::Tangkap);
+    let semua: Map<String, Value> = serde_json::from_str(&h.out).unwrap_or_default();
+    let Some(r) = semua.get(nama) else { return String::new() };
+    let tipe = teks(r.get("type"));
+    penyedia::dari_konfig(&tipe, &teks(r.get("provider")), &teks(r.get("vendor"))).map_or(tipe, |p| p.kunci.to_string())
+}
+
+/// Nilai opsi konfigurasi yang tidak rahasia (url, host, port, endpoint) untuk menguji sambungan.
+pub fn opsi_konfig(nama: &str, kunci: &[&str]) -> Vec<(String, String)> {
+    let h = panggil(&v!["config", "redacted", format!("{nama}:")], Mode::Tangkap);
+    h.out
+        .lines()
+        .filter_map(|b| b.split_once('='))
+        .map(|(k, v)| (k.trim().to_string(), v.trim().to_string()))
+        .filter(|(k, v)| kunci.contains(&k.as_str()) && !v.is_empty() && v != "XXX")
+        .collect()
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -292,10 +344,17 @@ pub fn cek_sambungan(nama: &str) -> Sambungan {
         if jeda > 0 {
             std::thread::sleep(std::time::Duration::from_secs(jeda));
         }
-        let h = panggil(
+        let mut h = panggil(
             &v!["about", format!("{nama}:"), "--json", "--contimeout", "15s", "--timeout", "30s", "--low-level-retries", "2"],
             Mode::Tangkap,
         );
+        // FTP, S3, B2, dll. tidak melaporkan kuota: uji dengan membaca daftar folder teratas.
+        if h.kode != 0 && tanpa_about(&h.err) {
+            h = panggil(
+                &v!["lsf", format!("{nama}:"), "--max-depth", "1", "--contimeout", "15s", "--timeout", "30s", "--low-level-retries", "2"],
+                Mode::Tangkap,
+            );
+        }
         if h.kode == 0 {
             return Sambungan::Baik;
         }
