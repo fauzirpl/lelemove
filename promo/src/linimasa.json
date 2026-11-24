@@ -1,0 +1,63 @@
+{
+  "fps": 30,
+  "transisi": 15,
+  "total": 1618,
+  "adegan": [
+    {
+      "id": "pembuka",
+      "mulai": 0,
+      "durasi": 203,
+      "narasiMulai": 12,
+      "narasiAkhir": 178
+    },
+    {
+      "id": "logo",
+      "mulai": 188,
+      "durasi": 176,
+      "narasiMulai": 207,
+      "narasiAkhir": 339
+    },
+    {
+      "id": "layanan",
+      "mulai": 349,
+      "durasi": 272,
+      "narasiMulai": 368,
+      "narasiAkhir": 596
+    },
+    {
+      "id": "aplikasi",
+      "mulai": 606,
+      "durasi": 270,
+      "narasiMulai": 625,
+      "narasiAkhir": 816
+    },
+    {
+      "id": "aman",
+      "mulai": 861,
+      "durasi": 202,
+      "narasiMulai": 880,
+      "narasiAkhir": 1038
+    },
+    {
+      "id": "fitur",
+      "mulai": 1048,
+      "durasi": 240,
+      "narasiMulai": 1067,
+      "narasiAkhir": 1232
+    },
+    {
+      "id": "platform",
+      "mulai": 1273,
+      "durasi": 135,
+      "narasiMulai": 1292,
+      "narasiAkhir": 1383
+    },
+    {
+      "id": "penutup",
+      "mulai": 1393,
+      "durasi": 225,
+      "narasiMulai": 1412,
+      "narasiAkhir": 1565
+    }
+  ]
+}

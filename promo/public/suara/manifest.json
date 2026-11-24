@@ -1,0 +1,90 @@
+{
+  "pembuka": {
+    "sidik": "119a34d58d60023b",
+    "bicara": 6.269,
+    "mulaiSuara": 0,
+    "karakter": 84,
+    "terukur": {
+      "mulai": 0.11,
+      "akhir": 5.529999999999999,
+      "panjang": 6.269375
+    }
+  },
+  "logo": {
+    "sidik": "0d1201b1862d8f6d",
+    "bicara": 5.341,
+    "mulaiSuara": 0,
+    "karakter": 57,
+    "terukur": {
+      "mulai": 0.1,
+      "akhir": 4.39,
+      "panjang": 5.340625
+    }
+  },
+  "layanan": {
+    "sidik": "f335bd99fbcb7f58",
+    "bicara": 8.173,
+    "mulaiSuara": 0,
+    "karakter": 98,
+    "terukur": {
+      "mulai": 0.09,
+      "akhir": 7.58,
+      "panjang": 8.1734375
+    }
+  },
+  "aplikasi": {
+    "sidik": "4b4bba97bb41370a",
+    "bicara": 7.663,
+    "mulaiSuara": 0,
+    "karakter": 53,
+    "terukur": {
+      "mulai": 0.11,
+      "akhir": 6.34,
+      "panjang": 7.662625
+    }
+  },
+  "aman": {
+    "sidik": "0a25e95777db7bbb",
+    "bicara": 5.944,
+    "mulaiSuara": 0,
+    "karakter": 92,
+    "terukur": {
+      "mulai": 0.08,
+      "akhir": 5.25,
+      "panjang": 5.9443125
+    }
+  },
+  "fitur": {
+    "sidik": "08b2c4c53aa6a93b",
+    "bicara": 5.944,
+    "mulaiSuara": 0,
+    "karakter": 68,
+    "terukur": {
+      "mulai": 0.06,
+      "akhir": 5.47,
+      "panjang": 5.9443125
+    }
+  },
+  "platform": {
+    "sidik": "1173945fbf9dd145",
+    "bicara": 3.622,
+    "mulaiSuara": 0,
+    "karakter": 50,
+    "terukur": {
+      "mulai": 0.08,
+      "akhir": 3.02,
+      "panjang": 3.6223125
+    }
+  },
+  "penutup": {
+    "sidik": "f4de8c012738a256",
+    "bicara": 5.433,
+    "mulaiSuara": 0,
+    "karakter": 62,
+    "terukur": {
+      "mulai": 0.06,
+      "akhir": 5.09,
+      "panjang": 5.4335
+    }
+  }
+}

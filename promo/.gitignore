@@ -1,0 +1,13 @@
+node_modules
+dist
+.DS_Store
+.env
+
+# Ignore the output video from Git but not videos you import into src/.
+out
+
+# Berkas turunan, dibuat ulang tanpa biaya (lihat README.md):
+public/musik.wav
+public/suara/*.wav
+# Efek suara dari remotion.media tidak disebarkan ulang; unduh dengan alat/ambil-sfx.mjs.
+public/sfx/

@@ -1,0 +1,55 @@
+{
+  "catatan": "Naskah narasi video promosi. Ubah teks lalu jalankan: node alat/buat-suara.mjs (hanya adegan yang teksnya berubah yang dibuat ulang).",
+  "suara": "SCDJ1Fy4al0KS1awS6H9",
+  "namaSuara": "Satria - Optimistic, Neutral",
+  "model": "eleven_multilingual_v2",
+  "pengaturan": {
+    "stability": 0.45,
+    "similarity_boost": 0.8,
+    "style": 0.3,
+    "use_speaker_boost": true,
+    "speed": 1.1
+  },
+  "adegan": [
+    {
+      "id": "pembuka",
+      "dasar": 120,
+      "teks": "File kantor tersebar di mana-mana? Memindahkannya satu per satu, menghabiskan waktu."
+    },
+    {
+      "id": "logo",
+      "dasar": 150,
+      "teks": "Kenalkan, Lele Move: salin file antar cloud dan komputer."
+    },
+    {
+      "id": "layanan",
+      "dasar": 210,
+      "teks": "Google Drive, OneDrive, Dropbox, sampai NAS kantor. Dua puluh sembilan layanan, dari satu jendela."
+    },
+    {
+      "id": "aplikasi",
+      "dasar": 270,
+      "teks": "Caranya mudah: pilih Dari, pilih Ke, lalu klik Salin."
+    },
+    {
+      "id": "aman",
+      "dasar": 195,
+      "teks": "Ruang tujuan diperiksa dulu, lanjut sendiri saat internet putus, dan setiap file dicocokkan."
+    },
+    {
+      "id": "fitur",
+      "dasar": 240,
+      "teks": "Ada jadwal backup, filter file, laporan audit, sampai migrasi email."
+    },
+    {
+      "id": "platform",
+      "dasar": 135,
+      "teks": "Untuk Windows dan Mac. Gratis, dan sumber terbuka."
+    },
+    {
+      "id": "penutup",
+      "dasar": 225,
+      "teks": "Unduh gratis di GitHub. Lele Move, pindahkan file tanpa repot."
+    }
+  ]
+}

@@ -17,7 +17,7 @@ cloud → kompoeter.
 Menjalin tidak mengoebah atau menghapoes file di soember. File di soember hanja dihapoes bila Saoedara
 sendiri memilih **Pindahkan** setelah verifikasi, dan itoe poen masoek ke Recycle Bin / Sampah.
 
-**Film perkenalan** (54 detik, dengan soeara pentjerita):
+**Film perkenalan** (54 detik, dengan soeara pentjerita; soembernja di [`promo/`](promo/)):
 
 https://github.com/user-attachments/assets/e3d6832b-8cc2-4dd4-a695-b0be344245aa
 
