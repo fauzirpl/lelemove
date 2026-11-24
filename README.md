@@ -17,6 +17,10 @@ cloud → kompoeter.
 Menjalin tidak mengoebah atau menghapoes file di soember. File di soember hanja dihapoes bila Saoedara
 sendiri memilih **Pindahkan** setelah verifikasi, dan itoe poen masoek ke Recycle Bin / Sampah.
 
+**Film perkenalan** (54 detik, dengan soeara pentjerita):
+
+https://github.com/user-attachments/assets/e3d6832b-8cc2-4dd4-a695-b0be344245aa
+
 ![Djendela LELEMOVE: daftar lokasi dan akoen di kiri, panel Dari dan Ke, bilah penjalinan di bawah](aset/tangkapan-layar.png)
 
 **Oendoeh:** [halaman Releases](https://github.com/fauzirpl/lelemove/releases/latest): Windows 10/11
