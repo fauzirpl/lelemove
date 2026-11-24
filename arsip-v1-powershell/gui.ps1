@@ -595,7 +595,7 @@ function Buat-DialogSharePoint([string]$remote) {
     $t.Add_Tick({ Aman { SP-Tick } })
     $script:SP.Timer = $t
     $t.Start()
-    $d.UI.Status.Text = 'Contoh: ketik "pupr" atau tempel alamat situs, lalu tekan Enter.'
+    $d.UI.Status.Text = 'Contoh: ketik "keuangan" atau tempel alamat situs, lalu tekan Enter.'
     return $d
 }
 

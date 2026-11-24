@@ -307,7 +307,7 @@ impl SharePoint {
             pilih_situs: None,
             pustaka: Vec::new(),
             pilih_pustaka: None,
-            status: "Contoh: ketik \"pupr\" atau tempel alamat situs, lalu tekan Enter.".into(),
+            status: "Contoh: ketik \"keuangan\" atau tempel alamat situs, lalu tekan Enter.".into(),
             url_tempel: None,
             gen: 0,
             fokus: true,

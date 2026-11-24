@@ -230,7 +230,7 @@ function Wajib-Rclone {
 }
 
 # Menyusun baris perintah Windows dengan aturan kutip yang benar
-# (path OneDrive hampir selalu mengandung spasi, mis. "OneDrive - PUPR").
+# (path OneDrive hampir selalu mengandung spasi, mis. "OneDrive - Kantor").
 function Gabung-Argumen([string[]]$daftar) {
     $hasil = foreach ($a in $daftar) {
         if ($a -eq '') { '""' }

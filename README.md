@@ -289,7 +289,7 @@ berjalan selama Anda masuk ke Windows (layar terkunci tidak apa-apa).
 ## SharePoint
 
 Klik **Tambah akun > SharePoint**, login dengan akun Microsoft kantor/sekolah, lalu cari situsnya. Anda
-bisa mengetik namanya (misalnya "pupr") atau menempel alamatnya dari browser
+bisa mengetik namanya (misalnya "keuangan") atau menempel alamatnya dari browser
 (`https://namatenant.sharepoint.com/sites/NamaSitus`). Pilih situs dan **pustaka dokumennya**
 (biasanya "Dokumen"). Satu akun SharePoint mewakili satu pustaka; untuk pustaka lain, tambah akun
 SharePoint lagi atau ganti lewat *⋯ > Pilih situs & pustaka…* pada akun itu.
@@ -446,9 +446,9 @@ pindah klien -ClientId X -ClientSecret Y                # simpan client ID aplik
 pindah klien -Hapus                                     # hapus client ID yang disimpan di komputer ini
 pindah hubungkan -Akun pd-gdrive -ClientAplikasi        # login ulang memakai client ID aplikasi
 pindah hubungkan -Akun pd-sharepoint -Jenis sharepoint  # login Microsoft
-pindah situs -Akun pd-sharepoint -Cari pupr             # daftar situs (+ Id)
+pindah situs -Akun pd-sharepoint -Cari keuangan         # daftar situs (+ Id)
 pindah pustaka -Akun pd-sharepoint -SitusId <Id>        # daftar pustaka (+ Id)
-pindah pustaka -Akun pd-sharepoint -Pustaka <Id> -SitusNama PUPR -PustakaNama Dokumen
+pindah pustaka -Akun pd-sharepoint -Pustaka <Id> -SitusNama Keuangan -PustakaNama Dokumen
 pindah periksa -Sumber "pd-gdrive:Arsip" -Tujuan "pd-onedrive:Pindahan Google Drive/Arsip"
 pindah uji
 pindah salin -Latar -Ya

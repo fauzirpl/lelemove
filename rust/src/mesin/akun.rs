@@ -536,9 +536,9 @@ mod uji {
 
     #[test]
     fn situs() {
-        let (n, u) = pecah_situs("PUPR Bengkalis (https://x.sharepoint.com/sites/PUPR)");
-        assert_eq!(n, "PUPR Bengkalis");
-        assert_eq!(u, "https://x.sharepoint.com/sites/PUPR");
+        let (n, u) = pecah_situs("Bagian Keuangan (https://x.sharepoint.com/sites/Keuangan)");
+        assert_eq!(n, "Bagian Keuangan");
+        assert_eq!(u, "https://x.sharepoint.com/sites/Keuangan");
         assert_eq!(tanpa_jenis("Dokumen (documentLibrary)"), "Dokumen");
         assert_eq!(tanpa_jenis("OneDrive (business)"), "OneDrive");
     }
