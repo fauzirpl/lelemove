@@ -1,21 +1,48 @@
 ﻿# LELEMOVE
 
-Menyalin file antar **Google Drive**, **OneDrive**, **SharePoint**, **Dropbox**, **NAS/Nextcloud**,
-**object storage S3**, layanan lain yang didukung rclone, dan **folder di komputer**, ke arah mana
-pun, memakai [rclone](https://rclone.org). Contohnya OneDrive → Google Drive, SharePoint → NAS
-kantor, Dropbox → Google Drive, folder komputer → Backblaze B2, atau cloud → komputer.
-Lihat *Layanan yang didukung*.
+Aplikasi Windows untuk menyalin file antar **Google Drive**, **OneDrive**, **SharePoint**,
+**Dropbox**, **NAS/Nextcloud/SFTP**, **object storage S3**, layanan lain yang didukung
+[rclone](https://rclone.org), dan **folder di komputer**, ke arah mana pun. Contohnya OneDrive →
+Google Drive, SharePoint → NAS kantor, Dropbox → Google Drive, folder komputer → Backblaze B2, atau
+cloud → komputer.
+
 Menyalin tidak mengubah atau menghapus file di sumber. File di sumber hanya dihapus bila Anda sendiri
 memilih **Pindahkan** setelah verifikasi, dan itu pun masuk ke Recycle Bin / Sampah.
 
-Versi 2 ditulis ulang dalam **Rust** (jendela memakai egui). Tidak lagi butuh PowerShell, jadi
-tetap jalan di komputer kantor yang memblokir skrip.
+![Jendela LELEMOVE: daftar lokasi dan akun di kiri, panel Dari dan Ke, bilah penyalinan di bawah](aset/tangkapan-layar.png)
 
-Dulu bernama **Pindah Drive**. Namanya kini LELEMOVE (lele yang suka pindahan), ikonnya ikan lele
-yang melaju. Nama internal tidak berubah: mesin `pindah.exe`, folder data `%LOCALAPPDATA%\pindah-drive`,
-dan nama akun `pd-*` di rclone tetap sama, jadi akun dan pengaturan lama langsung terbaca.
+**Unduh:** [halaman Releases](https://github.com/fauzirpl/lelemove/releases/latest) (Windows 10/11 64-bit, tanpa hak admin).
 
-![Jendela LELEMOVE: daftar lokasi di kiri, panel Dari dan Ke, bilah penyalinan di bawah](aset/tangkapan-layar.png)
+## Fitur utama
+
+- **29 layanan penyimpanan** plus semua layanan lain yang didukung rclone (lebih dari 70), dengan
+  banyak akun per layanan.
+- **Pengelola file dua panel** (*Dari* | *Ke*) untuk menjelajah folder lokal maupun cloud.
+- **Periksa dulu, baru salin**: ruang tujuan dan uji coba (dry run) diperiksa sebelum penyalinan.
+- **Penyalinan di latar belakang**: aplikasi boleh ditutup, ada notifikasi Windows, batas kecepatan,
+  dan **lanjut otomatis** saat jaringan putus.
+- **Filter file**: hanya jenis tertentu, lewati pola tertentu, atau hanya yang diubah sejak tanggal tertentu.
+- **Verifikasi** setiap file (checksum bila memungkinkan), lalu **Pindahkan** (opsional) yang
+  menghapus dari sumber hanya file yang terbukti sama.
+- **Jadwal backup** lewat Task Scheduler Windows.
+- **Riwayat & laporan**: CSV dan laporan siap cetak berisi status setiap file, untuk audit.
+- **Baris perintah** (`pindah.exe`) untuk semua fitur di atas.
+
+Ditulis dalam **Rust** (jendela memakai egui), tanpa PowerShell, jadi tetap jalan di komputer
+kantor yang memblokir skrip. Dulu bernama **Pindah Drive**; nama internalnya tidak berubah (mesin
+`pindah.exe`, folder data `%LOCALAPPDATA%\pindah-drive`, nama akun `pd-*` di rclone), jadi akun dan
+pengaturan lama langsung terbaca.
+
+## Daftar isi
+
+- [Pasang](#pasang) · [Cara memakai](#cara-memakai) · [Cara kerja penyalinan](#cara-kerja-penyalinan)
+- [Layanan yang didukung](#layanan-yang-didukung) · [Filter file](#filter-file) ·
+  [Riwayat & laporan](#riwayat--laporan) · [Pindahkan](#pindahkan-hapus-sumber-setelah-verifikasi) ·
+  [Jadwal backup](#jadwal-backup-otomatis)
+- [SharePoint](#sharepoint) · [Izin akun](#izin-akun) ·
+  [Client ID Google](#penyalinan-macet-pakai-client-id-google-sendiri) ·
+  [Verifikasi](#verifikasi-seberapa-teliti) · [Batasan](#batasan) · [Privasi](#privasi)
+- [Baris perintah](#baris-perintah) · [Untuk pengembang](#untuk-pengembang) · [Riwayat versi](#riwayat-versi)
 
 ## Pasang
 
@@ -29,10 +56,10 @@ Unduh **`LELEMOVE-Setup-<versi>.exe`** dari halaman
   aplikasinya bisa dihapus lagi.
 - Pemasangan diam-diam: `LELEMOVE-Setup-<versi>.exe /silent` (tambah `/nodesktop` bila
   tidak ingin pintasan Desktop).
-- Akun, pengaturan, dan riwayat penyalinan dari versi 1.x tetap terbaca (format datanya sama).
+- Memperbarui cukup dengan memasang versi baru di atasnya. Akun, pengaturan, jadwal, dan riwayat
+  tetap terbaca, termasuk dari versi 1.x (format datanya sama). Tutup jendela LELEMOVE dulu.
 - Bila sebelumnya terpasang dengan nama lama di `Programs\Pindah Drive`, installer memindahkannya ke
   `Programs\LELEMOVE` dan mengganti pintasan "Pindah Drive" dengan "LELEMOVE".
-
 - Installer di Releases **tidak membawa client ID Google**. Agar penyalinan Google Drive tidak
   macet karena dibatasi, buat client ID sendiri lewat *Pengaturan > Client ID Google* (lihat
   [Penyalinan macet? Pakai client ID Google sendiri](#penyalinan-macet-pakai-client-id-google-sendiri)).
@@ -49,10 +76,12 @@ dan **Ke** (tujuan) berdampingan, toolbar di atas, dan bilah penyalinan di bawah
 
 - **Akun.** Di daftar kiri, klik *Tambah akun* lalu pilih Google Drive, OneDrive, SharePoint,
   atau *Layanan lain* (Dropbox, NAS, S3, dan lainnya), beri nama (misalnya "Pribadi" atau
-  "Kantor"), lalu login di browser atau isi data loginnya. Satu jenis boleh berisi lebih dari satu akun. Saat aplikasi dibuka, setiap akun diuji: titik
-  hijau di ikonnya berarti siap; **"login kedaluwarsa"** (merah) berarti perlu klik **Login
-  ulang**; **"jaringan terputus"** (kuning) diuji ulang sendiri. Tombol **⋯** di tiap akun (atau
-  klik kanan) berisi: buka di panel Dari/Ke, login ulang, beri izin penuh, dan lepas.
+  "Kantor"), lalu login di browser atau isi data loginnya. Satu layanan boleh berisi lebih dari
+  satu akun. Saat aplikasi dibuka, setiap akun diuji: titik hijau di ikonnya berarti siap;
+  **"login kedaluwarsa"** (merah) berarti perlu klik **Login ulang**; **"jaringan terputus"**
+  (kuning) diuji ulang sendiri. Tombol **⋯** di tiap akun (atau klik kanan) berisi: buka di panel
+  Dari/Ke, *Login ulang* (atau *Ubah data login…* untuk layanan berisian), *Beri izin penuh*
+  (Google), *Pilih situs & pustaka…* (SharePoint), dan *Lepas akun ini*.
 - **Pengaturan** (ikon ⚙ di dasar daftar kiri). Berisi **Client ID Google** (pasang, ganti,
   atau hapus client ID aplikasi, dan lihat akun Google mana yang sudah memakainya; client ID
   tidak lagi diatur per akun) dan **Penyalinan > Lanjutkan otomatis bila jaringan putus**.
@@ -90,9 +119,10 @@ dan **Ke** (tujuan) berdampingan, toolbar di atas, dan bilah penyalinan di bawah
 ## Cara kerja penyalinan
 
 Antar akun yang berbeda (misalnya OneDrive → Google Drive), data **dialirkan lewat komputer ini**:
-rclone mengunduh dan mengunggah sekaligus dalam potongan 64 MB di memori, tanpa menyimpan
-berkas utuh ke disk. Jadi kuota internet terpakai dua kali (unduh + unggah), dan komputer harus
-tetap menyala (aplikasi mencegah Windows tidur selama menyalin).
+rclone mengunduh dan mengunggah sekaligus dalam potongan di memori, tanpa menyimpan berkas utuh ke
+disk. Jadi kuota internet terpakai dua kali (unduh + unggah), dan komputer harus tetap menyala
+(aplikasi mencegah Windows tidur selama menyalin). Penyalinan memakai `rclone copy`, sehingga
+hanya file baru atau yang berubah yang dikirim; penyalinan ulang ke tujuan yang sama cepat.
 
 ### Jaringan putus: lanjut otomatis
 
@@ -107,8 +137,10 @@ proses penyalinan latar LELEMOVE memutuskan dari **galat terakhir** di log perco
 | Galat lain (mis. izin ditolak) | Berhenti dan kabari lewat notifikasi |
 
 Saat menunggu, jeda bertambah: 30 detik, 1, 2, 5, lalu 10 menit. Setelah jeda, LELEMOVE menguji
-sambungan ke server layanan yang dipakai (`www.googleapis.com` / `graph.microsoft.com`, DNS + TCP
-443) tiap 15 detik dan baru menjalankan rclone lagi setelah tersambung. File yang sudah sampai
+sambungan (DNS + TCP) tiap 15 detik ke server layanan yang dipakai, dan baru menjalankan rclone
+lagi setelah tersambung. Untuk layanan cloud, yang diuji server API-nya (mis. `www.googleapis.com`,
+`graph.microsoft.com`, `api.dropboxapi.com`); untuk server sendiri (NAS, SFTP, Nextcloud, S3 lain),
+host dan port dari konfigurasi akunnya. File yang sudah sampai
 dilewati. Batasnya 25 percobaan, atau 6 jam tanpa internet dalam satu jeda. Selama menunggu,
 bilah penyalinan menampilkan **"Menunggu jaringan"** (kuning) beserta perkiraan jam percobaan
 berikutnya; *Hentikan* tetap bisa dipakai. Notifikasi Windows muncul sekali saat jaringan pertama
@@ -194,9 +226,13 @@ file yang cocok, dengan dua kali konfirmasi (yang kedua: ketik `HAPUS`).
 2. Hanya file berstatus *cocok persis* yang dihapus dari **sumber**. File yang belum ada, berbeda,
    gagal dibaca, atau file Office yang metadatanya diubah SharePoint tidak disentuh.
 3. Ke mana perginya: folder komputer → **Recycle Bin**; Google Drive → **Sampah** (30 hari);
-   OneDrive/SharePoint → **recycle bin** layanan itu. Folder yang menjadi kosong ikut dihapus;
-   folder yang memang kosong sejak awal dibiarkan.
-4. Folder sumber di drive jaringan atau flashdisk ditolak, karena di sana tidak ada Recycle Bin.
+   OneDrive/SharePoint → **recycle bin**; Dropbox, Box, pCloud, Yandex, MEGA, Proton, Nextcloud,
+   ownCloud → tempat sampah masing-masing; Backblaze B2 → versi tersembunyi (lihat kolom
+   *Pindahkan* di [Layanan yang didukung](#layanan-yang-didukung)). Folder yang menjadi kosong ikut
+   dihapus; folder yang memang kosong sejak awal dibiarkan.
+4. Ditolak bila file yang dihapus tidak bisa dipulihkan: folder di drive jaringan atau flashdisk
+   (tanpa Recycle Bin), dan layanan tanpa tempat sampah (SMB/NAS, SFTP, FTP, WebDAV lain, S3, R2,
+   Azure, dan sejenisnya).
 
 Tujuan tidak pernah dihapus apa pun. Jadwal backup tidak bisa memindahkan (selalu menyalin).
 
@@ -227,7 +263,7 @@ berjalan selama Anda masuk ke Windows (layar terkunci tidak apa-apa).
 
 ## SharePoint
 
-Klik **+ SharePoint**, login dengan akun Microsoft kantor/sekolah, lalu cari situsnya. Anda
+Klik **Tambah akun > SharePoint**, login dengan akun Microsoft kantor/sekolah, lalu cari situsnya. Anda
 bisa mengetik namanya (misalnya "pupr") atau menempel alamatnya dari browser
 (`https://namatenant.sharepoint.com/sites/NamaSitus`). Pilih situs dan **pustaka dokumennya**
 (biasanya "Dokumen"). Satu akun SharePoint mewakili satu pustaka; untuk pustaka lain, tambah akun
@@ -252,6 +288,7 @@ SharePoint lagi atau ganti lewat *⋯ > Pilih situs & pustaka…* pada akun itu.
 | Google Drive, izin penuh (`drive`) | Ya | Ya |
 | OneDrive pribadi / kantor | Ya | Ya |
 | SharePoint (satu pustaka dokumen) | Ya, bila punya hak edit | Ya |
+| Layanan lain (Dropbox, NAS, S3, ...) | Ya, bila akun/kuncinya boleh menulis | Ya, bila boleh membaca |
 | Komputer ini | Ya | Ya |
 
 Izin terbatas adalah pilihan bawaan dan paling aman untuk akun yang hanya menjadi tujuan.
@@ -322,20 +359,30 @@ publik, gunakan `.\buat-installer.ps1 -TanpaClient`.
 
 ## Verifikasi: seberapa teliti?
 
+Checksum (isi file) dipakai bila kedua sisi punya jenis checksum yang sama; selain itu yang
+dicocokkan nama dan ukurannya. Contohnya:
+
 | Sumber ↔ tujuan | Cara mencocokkan |
 |---|---|
-| Komputer ↔ Google Drive | checksum MD5 |
+| Komputer ↔ Google Drive, Google Drive ↔ Google Drive | checksum MD5 |
 | Komputer ↔ OneDrive, OneDrive ↔ OneDrive | checksum QuickXorHash |
-| Google Drive ↔ Google Drive | checksum MD5 |
-| OneDrive ↔ Google Drive | nama & ukuran saja (tidak ada jenis checksum yang sama) |
+| Komputer ↔ S3; Komputer ↔ SFTP (bila server menyediakan `md5sum`/`sha1sum`) | checksum MD5/SHA-1 |
+| OneDrive ↔ Google Drive, Komputer ↔ WebDAV/FTP | nama & ukuran saja (tidak ada jenis checksum yang sama) |
 
-Verifikasi tidak mengunduh ulang: checksum dibaca dari metadata yang disimpan tiap layanan.
+Verifikasi tidak mengunduh ulang: checksum dibaca dari metadata yang disimpan tiap layanan. Hasil
+verifikasi selalu menyebut caranya, dan laporan per file di *Riwayat & laporan* mencatatnya.
 
 ## Batasan
 
-- Kuota tujuan dicek sebelum menyalin. Isi sampah ikut dihitung dalam kuota.
+- Kuota tujuan dicek sebelum menyalin, bila layanannya melaporkan kuota (FTP, S3, B2, dan
+  sejenisnya tidak). Isi sampah ikut dihitung dalam kuota.
 - Google membatasi unggahan **750 GB per hari**. Penyalinan berhenti sendiri dan bisa
   dilanjutkan besok.
+- Layanan bertanda *beta* (Zoho WorkDrive, iCloud Drive, Proton Drive, Jottacloud) bergantung
+  pada dukungan rclone yang masih berkembang. Login iCloud perlu diulang sekitar tiap 30 hari dan
+  butuh *Advanced Data Protection* nonaktif.
+- Jadwal backup dengan layanan yang login-nya kedaluwarsa (Google mode Testing, iCloud) gagal
+  sampai Anda login ulang; hasilnya tampil di notifikasi dan riwayat.
 - Bila sumbernya folder OneDrive di komputer, file yang statusnya "hanya online" diunduh dulu
   ke disk. Aplikasi menghitung apakah ruang disknya cukup.
 - **Notebook OneNote** dan **Personal Vault** tidak ikut tersalin.
@@ -344,18 +391,27 @@ Verifikasi tidak mengunduh ulang: checksum dibaca dari metadata yang disimpan ti
 
 ## Privasi
 
-- Token login disimpan oleh rclone di `%APPDATA%\rclone\rclone.conf`. Jangan bagikan file ini.
-- Pengaturan, status, dan log ada di `%LOCALAPPDATA%\pindah-drive\`. Log yang lebih tua dari
-  60 hari dihapus otomatis setiap kali penyalinan dimulai, kecuali log penyalinan terakhir.
+Tidak ada server LELEMOVE, akun LELEMOVE, analitik, atau telemetri. Kebijakan lengkapnya ada di
+[docs/privasi.md](docs/privasi.md) (juga di aplikasi: *Bantuan & info > Privasi*).
+
+- Token login dan data login layanan berisian (alamat, pengguna, kata sandi terobfuskasi, kunci
+  akses) disimpan oleh rclone di `%APPDATA%\rclone\rclone.conf`. Jangan bagikan file ini;
+  obfuskasi bukan enkripsi.
+- Pengaturan, status, jadwal, riwayat, dan log ada di `%LOCALAPPDATA%\pindah-drive\`. Log yang lebih
+  tua dari 60 hari dihapus otomatis setiap kali penyalinan dimulai, kecuali log penyalinan
+  terakhir. Riwayat (`riwayat.jsonl`) tidak dihapus otomatis karena dipakai untuk audit.
 - *Lepas akun* hanya menghapus koneksi di komputer ini, bukan file di cloud. Untuk mencabut izin
-  sepenuhnya, hapus akses "rclone" di <https://myaccount.google.com/permissions> atau di
-  pengaturan akun Microsoft.
+  sepenuhnya, hapus akses "rclone" di <https://myaccount.google.com/permissions>, di pengaturan
+  akun Microsoft, atau cabut kata sandi aplikasi/kunci akses di layanan lain.
 
 ## Baris perintah
 
-Semua yang ada di aplikasi juga bisa dijalankan lewat `pindah.exe` (di folder aplikasi):
+Semua yang ada di aplikasi juga bisa dijalankan lewat `pindah.exe` (di folder aplikasi).
+Daftar lengkap opsinya: `pindah bantuan`. Tambahkan `-Mesin` untuk ringkasan terstruktur: baris
+terakhir keluarannya berupa `##HASIL {json}`.
 
 ```powershell
+pindah cek                                              # rclone, akun, folder OneDrive, rute
 pindah akun                                             # daftar akun
 pindah hubungkan -Akun pd-onedrive-2 -Jenis onedrive -Label "Kantor"
 pindah hubungkan -Akun pd-gdrive -Ulang                 # login ulang (token kedaluwarsa)
@@ -395,8 +451,17 @@ pindah jadwal -Id <id> -Jalankan                        # jalankan sekarang di k
 pindah jadwal -Id <id> -Hapus
 ```
 
-Sumber dan tujuan ditulis sebagai folder komputer (`D:\Data`) atau `<akun>:<folder>`.
-Tanpa perintah (atau lewat `Pindah.cmd`), `pindah` membuka menu teks.
+Sumber dan tujuan ditulis sebagai folder komputer (`D:\Data`) atau `<akun>:<folder>`; untuk
+object storage `<akun>:<bucket>/<folder>`, untuk SMB `<akun>:<share>/<folder>`. Tanpa perintah
+(atau lewat `Pindah.cmd`), `pindah` membuka menu teks.
+
+| Kode keluar | Arti |
+|---|---|
+| 0 | Berhasil |
+| 1 | Galat (pesan di keluaran; mis. login kedaluwarsa, folder tidak ada) |
+| 2 | `periksa`: ruang tujuan tidak cukup |
+| 3 | Perlu perhatian: `uji` menemukan file yang akan terlewat, atau `pindahkan` menunggu persetujuan (`-Ya`) |
+| 10 | `hubungkan`: rclone mengajukan pertanyaan lanjutan (lihat `Tanya` di `##HASIL`) |
 
 - `-BatasKecepatan` diteruskan ke rclone sebagai `--bwlimit`, dengan satuan 1024 per detik:
   `500K`, `5M`, `1.5M`; angka tanpa satuan berarti KB/dtk. Unggah dan unduh bisa dibedakan
@@ -470,10 +535,18 @@ Cara kerjanya: setiap tombol di jendela menjalankan `pindah.exe <perintah> -Mesi
 tersembunyi. Teks keluarannya masuk ke *Log aktivitas*, sedangkan satu baris `##HASIL {json}`
 berisi angka hasilnya. Progres penyalinan dibaca dari `job.json` dan log rclone. Daftar folder
 di panel Dari/Ke dimuat di thread latar (`rclone lsf --dirs-only` untuk cloud, `read_dir` untuk
-komputer ini). Ikon memakai huruf Segoe MDL2 Assets bawaan Windows 10/11. Pratinjau jendela
-untuk dokumentasi: `"LELEMOVE.exe" --pratinjau layar.png [--dialog client] [--log]
-[--lebar 760] [--tinggi 820]`; pakai `PINDAH_DRIVE_DATA=<folder sementara>` agar data asli
-tidak tersentuh.
+komputer ini). Ikon memakai huruf Segoe MDL2 Assets bawaan Windows 10/11; petak layanan lain
+memakai inisial dan warna dari `penyedia.rs`. Pratinjau jendela untuk dokumentasi:
+
+```powershell
+"LELEMOVE.exe" --pratinjau layar.png [--dialog <nama>] [--log] [--lebar 760] [--tinggi 820] [--tunda 2500]
+# <nama>: pengaturan, client, akun-google, info:<tab>, jadwal, jadwal-baru, filter, riwayat,
+#         layanan, kredensial:<jenis>, tanya-konfig, impor, pindahkan, pindahkan-tanya,
+#         jelajah:<akun>, sharepoint:<akun>:<kata>
+```
+
+Pakai `PINDAH_DRIVE_DATA=<folder sementara>` (dan `RCLONE_CONFIG=<berkas sementara>`) agar data
+dan akun asli tidak tersentuh. Tangkapan layar di README dibuat dengan cara ini.
 
 Untuk menguji layanan berisian tanpa akun sungguhan: jalankan server lokal dengan rclone dan pakai
 konfigurasi rclone terpisah (`RCLONE_CONFIG`), supaya `rclone.conf` asli tidak tersentuh:
@@ -507,3 +580,12 @@ Memakai sebagai plugin Claude Code:
 claude plugin marketplace add C:\laragon\www\pindah-drive
 claude plugin install pindah-drive@pindah-drive-lokal
 ```
+
+## Riwayat versi
+
+| Versi | Isi utama |
+|---|---|
+| [2.2.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.2.0) | 29 layanan penyimpanan (Dropbox, Box, pCloud, MEGA, iCloud, Nextcloud, SMB/NAS, SFTP, FTP, S3, R2, B2, Azure, ...), pertanyaan lanjutan/2FA, pakai remote rclone yang sudah ada |
+| [2.1.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.1.0) | Filter file, riwayat & laporan audit (CSV, HTML siap cetak), Pindahkan dengan verifikasi ulang |
+| [2.0.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.0.0) | Ditulis ulang dalam Rust: jendela dua panel, nama LELEMOVE, lanjut otomatis saat jaringan putus, jadwal backup, Bantuan & info |
+| 1.x | Versi PowerShell + WPF (*Pindah Drive*); sumbernya di `arsip-v1-powershell/` |
