@@ -1,5 +1,7 @@
 # LELEMOVE
 
+*Soesah membatja edjaan lama? [Baca dalam ejaan sekarang](README-ejaan-sekarang.md).*
+
 > **MAKLOEMAT**
 >
 > Kepada seloeroeh pegawai kantor, pengoeroes arsip, dan rakjat pemilik berkas di seantero
@@ -24,7 +26,7 @@ https://github.com/user-attachments/assets/e3d6832b-8cc2-4dd4-a695-b0be344245aa
 ![Djendela LELEMOVE: daftar lokasi dan akoen di kiri, panel Dari dan Ke, bilah penjalinan di bawah](aset/tangkapan-layar.png)
 
 **Oendoeh:** [halaman Releases](https://github.com/fauzirpl/lelemove/releases/latest): Windows 10/11
-64-bit (tanpa hak admin) dan macOS 11 ke atas (Apple Silicon dan Intel).
+64-bit (tanpa hak admin) dan macOS 11 ke atas (Apple Silicon dan Intel, masih beta).
 
 **Doekoeng:** LELEMOVE pertjoema; bila terbantoe, traktirlah pengembangnja di [Saweria](https://saweria.co/pemecuteai).
 
@@ -47,7 +49,7 @@ ditoelis persis seperti jang tampil di aplikasi (edjaan sekarang), soepaja moeda
   menghapoes dari soember hanja file jang terboekti sama.
 - **Djadwal backup** lewat Task Scheduler (Windows) atau launchd (macOS).
 - **Riwajat & laporan**: CSV dan laporan siap tjetak berisi status setiap file, oentoek audit.
-- **Migrasi email**: pindahkan semoea folder email dari Gmail, Outlook/Microsoft 365, atau server
+- **Migrasi email** (beta): pindahkan semoea folder email dari Gmail, Outlook/Microsoft 365, atau server
   IMAP lain ke server email sendiri, lengkap dengan status batja, bintang, dan tanggal asli.
 - **Baris perintah** (`pindah.exe`) oentoek semoea fitoer di atas.
 
@@ -100,6 +102,9 @@ pertama diboeka; klik *More info* > *Run anyway*. Keaslian oendoehan dapat ditje
 
 Oendoeh **`LELEMOVE-<versi>-macOS.dmg`** dari halaman
 [**Releases**](https://github.com/fauzirpl/lelemove/releases/latest).
+
+> **Beta.** Versi macOS lolos oedji otomatis di Mac (GitHub Actions), tetapi beloem banjak dipakai di
+> Mac soenggoehan. Bila menemoekan masalah, laporkan di [Issues](https://github.com/fauzirpl/lelemove/issues).
 
 - macOS 11 Big Sur atau lebih baroe. Satoe aplikasi oentoek Apple Silicon dan Intel, rclone soedah
   di dalamnja.
@@ -219,7 +224,7 @@ tempat sampah, sehingga Pindahkan ditolak di sana.
 | Cloud | Proton Drive (beta) | Email + kata sandi (+ kode 2FA) | Sampah |
 | Cloud | Jottacloud (beta) | Token login dari sitoesnja (ditanjakan) | – |
 | Server & NAS | Nextcloud, ownCloud | Alamat WebDAV + kata sandi aplikasi | Sampah |
-| Server & NAS | WebDAV lain, SMB/NAS, SFTP, FTP/FTPS, Seafile | Alamat + pengoena + kata sandi | – |
+| Server & NAS | WebDAV lain, SMB/NAS, SFTP, FTP/FTPS, Seafile | Alamat + penggoena + kata sandi | – |
 | Object storage | Amazon S3, Cloudflare R2, Wasabi, MinIO, DigitalOcean Spaces, S3 lain | Access key + secret (+ endpoint) | – |
 | Object storage | Backblaze B2 | Key ID + application key | Versi tersemboenji B2 |
 | Object storage | Azure Blob Storage | Nama storage account + access key | – |
@@ -306,7 +311,7 @@ Tjara kerdjanja:
 
 | Bagian | Keterangan |
 |---|---|
-| Pemitjoe (Windows) | Satoe toegas **Task Scheduler** per djadwal, bernama `LELEMOVE - Backup <id>`, milik pengoena Windows jang sedang masoek (tanpa hak admin, "Interactive only"). |
+| Pemitjoe (Windows) | Satoe toegas **Task Scheduler** per djadwal, bernama `LELEMOVE - Backup <id>`, milik penggoena Windows jang sedang masoek (tanpa hak admin, "Interactive only"). |
 | Pemitjoe (macOS) | Satoe LaunchAgent per djadwal di `~/Library/LaunchAgents` (`io.github.fauzirpl.lelemove.backup.<id>`), didjalankan **launchd**. |
 | Jang didjalankan | `LELEMOVE.exe --jadwal <id>` → `pindah.exe jadwal -Jalankan -Id <id>` tersemboenji. |
 | Kompoeter mati/tidoer pada djamnja | Windows: didjalankan begitoe kompoeter menjala lagi (*StartWhenAvailable*). macOS: didjalankan begitoe Mac bangoen; bila Mac mati, djadwal itoe dilewati. Kompoeter tidak dibangoenkan. |
@@ -326,13 +331,17 @@ Memindahkan semoea email dari **Gmail**, **Outlook/Microsoft 365**, atau server 
 email sendiri** (cPanel, Plesk, Zimbra, Dovecot, server email dinas). Boeka *Migrasi email* di dasar
 daftar kiri:
 
+> **Beta.** Migrasi email soedah dioedji dengan server IMAP oedji, tetapi login Gmail dan Outlook
+> soenggoehan beloem banjak dioedji. Djalankan **Periksa** doeloe, dan laporkan masalah di
+> [Issues](https://github.com/fauzirpl/lelemove/issues).
+
 1. **Dari**: pilih lajanan laloe isi alamat email lama.
    - Gmail: pakai **sandi aplikasi** ([myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords);
      akoen haroes memakai verifikasi 2 langkah), atau **Login Google di browser** (memakai client ID
-     Google di *Pengaturan*; akoennja haroes terdaftar sebagai pengoena oedji di project Google Cloud itoe).
+     Google di *Pengaturan*; akoennja haroes terdaftar sebagai penggoena oedji di project Google Cloud itoe).
    - Outlook/Microsoft 365: login Microsoft di browser; boetoeh client ID Azure (lihat di bawah).
-   - Server IMAP lain: server, port, keamanan, pengoena, dan kata sandi.
-2. **Ke**: server IMAP baroe (mis. `mail.kantor.go.id`, port 993, SSL/TLS), nama pengoena (biasanja
+   - Server IMAP lain: server, port, keamanan, penggoena, dan kata sandi.
+2. **Ke**: server IMAP baroe (mis. `mail.kantor.go.id`, port 993, SSL/TLS), nama penggoena (biasanja
    alamat email lengkap), dan kata sandi.
 3. **Periksa** mengoedji login kedoea server dan menghitoeng email jang akan disalin; **Mulai migrasi**
    menjalinnja. Progres per folder tampil di dialog, dan hasilnja tertjatat di *Riwayat & laporan*.
@@ -482,7 +491,7 @@ installer oemoem, goenakan `.\buat-installer.ps1 -TanpaClient`.
 Checksum (isi file) dipakai bila kedoea sisi mempoenjai djenis checksum jang sama; selain itoe jang
 ditjotjokkan nama dan oekoerannja. Tjontohnja:
 
-| Soember ↔ toedjoean | Tjara menjotjokkan |
+| Soember ↔ toedjoean | Tjara mentjotjokkan |
 |---|---|
 | Kompoeter ↔ Google Drive, Google Drive ↔ Google Drive | checksum MD5 |
 | Kompoeter ↔ OneDrive, OneDrive ↔ OneDrive | checksum QuickXorHash |
@@ -514,7 +523,7 @@ verifikasi selaloe menjeboet tjaranja, dan laporan per file di *Riwayat & lapora
 Tidak ada server LELEMOVE, akoen LELEMOVE, analitik, atau telemetri. Kebidjakan lengkapnja ada di
 [docs/privasi.md](docs/privasi.md) (djoega di aplikasi: *Bantuan & info > Privasi*).
 
-- Token login dan data login lajanan berisian (alamat, pengoena, kata sandi terobfoeskasi, koentji
+- Token login dan data login lajanan berisian (alamat, penggoena, kata sandi terobfoeskasi, koentji
   akses) disimpan oleh rclone di `%APPDATA%\rclone\rclone.conf`. Djangan bagikan file ini;
   obfoeskasi boekan enkripsi.
 - Pengatoeran, statoes, djadwal, riwajat, dan log ada di `%LOCALAPPDATA%\pindah-drive\`. Log jang
@@ -646,7 +655,7 @@ skills/pindah-drive/SKILL.md   panduan untuk Claude; .claude-plugin/ = manifest 
 arsip-v1-powershell/           sumber versi 1.x (PowerShell + WPF + C#), tidak dipakai lagi
 ```
 
-Build memakai toolchain Rust **GNU** per pengoena (tanpa Visual Studio):
+Build memakai toolchain Rust **GNU** per penggoena (tanpa Visual Studio):
 
 ```powershell
 winget install Rustlang.Rustup --custom "--default-host x86_64-pc-windows-gnu --profile minimal"
@@ -746,7 +755,7 @@ Sekali pertjoema, tetap pertjoema!
 
 | Versi | Isi oetama |
 |---|---|
-| [2.3.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.3.0) | Versi macOS (Apple Silicon + Intel, .dmg), migrasi email dari Gmail/Outlook/IMAP ke server email sendiri, tautan doekoengan Saweria, naskah README berëdjaan zaman perdjoeangan |
+| [2.3.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.3.0) | Versi macOS (beta; Apple Silicon + Intel, .dmg), migrasi email (beta) dari Gmail/Outlook/IMAP ke server email sendiri, tautan doekoengan Saweria, naskah README berëdjaan zaman perdjoeangan |
 | [2.2.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.2.0) | 29 lajanan penjimpanan (Dropbox, Box, pCloud, MEGA, iCloud, Nextcloud, SMB/NAS, SFTP, FTP, S3, R2, B2, Azure, ...), pertanjaan landjoetan/2FA, pakai remote rclone jang soedah ada |
 | [2.1.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.1.0) | Filter file, riwajat & laporan audit (CSV, HTML siap tjetak), Pindahkan dengan verifikasi oelang |
 | [2.0.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.0.0) | Ditoelis oelang dalam Rust: djendela doea panel, nama LELEMOVE, landjoet otomatis ketika djaringan poetoes, djadwal backup, Bantuan & info |

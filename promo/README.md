@@ -14,7 +14,11 @@ node alat/ambil-sfx.mjs                                      # efek suara dari r
 node alat/buat-suara.mjs                                     # narasi + src/linimasa.json
 python alat/buat_musik.py src/linimasa.json public/musik.wav # musik latar (butuh numpy)
 npx remotion render Promo out/lelemove-promo.mp4
+node alat/buat-srt.mjs                                       # subtitle out/lelemove-promo.srt
 ```
+
+Subtitle SRT berguna untuk platform yang memutar video tanpa suara (mis. LinkedIn): unggah videonya
+langsung, lalu tambahkan berkas `.srt` sebagai teks.
 
 Pratinjau interaktif: `npm run dev` (Remotion Studio).
 
