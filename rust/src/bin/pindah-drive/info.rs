@@ -7,7 +7,7 @@
 use eframe::egui::{self, vec2, Align, Layout, RichText, ScrollArea, Ui};
 
 use pindah_drive::gaya::{self, kecil, tebal, tombol, tombol_utama, REDUP, TINTA};
-use pindah_drive::{win, VERSI};
+use pindah_drive::{win, SAWERIA, VERSI};
 
 use crate::dialog::Hasil;
 
@@ -269,11 +269,36 @@ fn baris_folder(ui: &mut Ui, label: &str, jalur: &str) {
     });
 }
 
+/// Ajakan dukungan sukarela (Saweria). Tautan dibuka di browser; tidak memengaruhi fitur apa pun.
+fn dukung(ui: &mut Ui) {
+    egui::Frame::new()
+        .fill(gaya::LATAR2)
+        .stroke(egui::Stroke::new(1.0_f32, gaya::GARIS))
+        .corner_radius(8)
+        .inner_margin(egui::Margin::symmetric(14, 10))
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                ui.vertical(|ui| {
+                    ui.label(RichText::new("Dukung LELEMOVE").family(tebal()).color(TINTA));
+                    ui.label(kecil("Gratis dipakai. Bila terbantu, traktir pengembangnya lewat Saweria.", REDUP));
+                });
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    if ui.add(tombol("Buka Saweria")).on_hover_text(SAWERIA).clicked() {
+                        win::buka(SAWERIA);
+                    }
+                });
+            });
+        });
+}
+
 fn tentang(ui: &mut Ui, i: &Info) {
     ui.label(RichText::new("LELEMOVE").family(tebal()).size(22.0).color(gaya::HIJAU));
     ui.label(RichText::new(format!("Versi {VERSI}")).color(TINTA));
     ui.add_space(6.0);
     paragraf(ui, "Salin file antar OneDrive, SharePoint, Google Drive, dan folder komputer, ke arah mana pun. Menyalin dan mencocokkan; file di sumber tidak diubah, kecuali Anda sendiri memilih Pindahkan setelah verifikasi (yang dihapus masuk ke Recycle Bin / Tong Sampah / Sampah).");
+    ui.add_space(8.0);
+    dukung(ui);
     ui.add_space(8.0);
     egui::Grid::new("tentang").num_columns(2).spacing(vec2(14.0, 4.0)).show(ui, |ui| {
         let mut baris = |k: &str, v: &str| {

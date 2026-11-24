@@ -1,4 +1,4 @@
-﻿# LELEMOVE
+# LELEMOVE
 
 Aplikasi Windows untuk menyalin file antar **Google Drive**, **OneDrive**, **SharePoint**,
 **Dropbox**, **NAS/Nextcloud/SFTP**, **object storage S3**, layanan lain yang didukung
@@ -12,6 +12,8 @@ memilih **Pindahkan** setelah verifikasi, dan itu pun masuk ke Recycle Bin / Sam
 ![Jendela LELEMOVE: daftar lokasi dan akun di kiri, panel Dari dan Ke, bilah penyalinan di bawah](aset/tangkapan-layar.png)
 
 **Unduh:** [halaman Releases](https://github.com/fauzirpl/lelemove/releases/latest) (Windows 10/11 64-bit, tanpa hak admin).
+
+**Dukung:** LELEMOVE gratis; bila terbantu, traktir pengembangnya di [Saweria](https://saweria.co/pemecuteai).
 
 ## Fitur utama
 
@@ -43,7 +45,8 @@ pengaturan lama langsung terbaca.
 - [SharePoint](#sharepoint) · [Izin akun](#izin-akun) ·
   [Client ID Google](#penyalinan-macet-pakai-client-id-google-sendiri) ·
   [Verifikasi](#verifikasi-seberapa-teliti) · [Batasan](#batasan) · [Privasi](#privasi)
-- [Baris perintah](#baris-perintah) · [Untuk pengembang](#untuk-pengembang) · [Riwayat versi](#riwayat-versi)
+- [Baris perintah](#baris-perintah) · [Untuk pengembang](#untuk-pengembang) · [Dukung](#dukung) ·
+  [Riwayat versi](#riwayat-versi)
 
 ## Pasang
 
@@ -618,6 +621,14 @@ Memakai sebagai plugin Claude Code:
 claude plugin marketplace add C:\laragon\www\pindah-drive
 claude plugin install pindah-drive@pindah-drive-lokal
 ```
+
+## Dukung
+
+LELEMOVE gratis dan sumbernya terbuka. Bila aplikasi ini menghemat waktu Anda atau kantor Anda,
+dukungan lewat **[saweria.co/pemecuteai](https://saweria.co/pemecuteai)** membantu pengembangannya
+(fitur baru, versi macOS, pengujian layanan). Tautan yang sama ada di aplikasi (*Bantuan & info >
+Tentang*) dan di tombol *Sponsor* repositori ini. Dukungan bersifat sukarela: semua fitur tetap
+terbuka untuk semua orang.
 
 ## Riwayat versi
 

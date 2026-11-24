@@ -22,6 +22,9 @@ pub mod win;
 
 pub const VERSI: &str = env!("CARGO_PKG_VERSION");
 
+/// Dukungan sukarela untuk pengembangan LELEMOVE (dibuka di browser; aplikasi tidak mengirim data).
+pub const SAWERIA: &str = "https://saweria.co/pemecuteai";
+
 /// Nama aplikasi yang tampil ke pengguna (dulu "Pindah Drive"). Nama internal (folder data
 /// `pindah-drive`, `pindah.exe`, remote `pd-*`, APP_ID, mutex) sengaja tidak diganti agar akun,
 /// pengaturan, dan pemasangan lama tetap terbaca.

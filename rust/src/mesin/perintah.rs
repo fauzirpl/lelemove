@@ -3071,4 +3071,6 @@ pub fn tampilkan_bantuan() {
     polos("    -Sertakan \"pdf,docx\"  hanya jenis file ini   -Lewati \"*.tmp,node_modules/\"  lewati pola ini");
     polos("    -Sejak 2026-01-31     hanya yang diubah sejak tanggal itu   -TanpaFilter  hapus filter");
     polos("  menu                        menu teks (bawaan bila tanpa perintah)");
+    polos("");
+    polos(&format!("Dukung pengembangan LELEMOVE: {}", crate::SAWERIA));
 }
