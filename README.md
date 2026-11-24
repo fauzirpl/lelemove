@@ -1,499 +1,530 @@
 # LELEMOVE
 
-Aplikasi Windows untuk menyalin file antar **Google Drive**, **OneDrive**, **SharePoint**,
-**Dropbox**, **NAS/Nextcloud/SFTP**, **object storage S3**, layanan lain yang didukung
-[rclone](https://rclone.org), dan **folder di komputer**, ke arah mana pun. Contohnya OneDrive →
-Google Drive, SharePoint → NAS kantor, Dropbox → Google Drive, folder komputer → Backblaze B2, atau
-cloud → komputer.
+> **MAKLOEMAT**
+>
+> Kepada seloeroeh pegawai kantor, pengoeroes arsip, dan rakjat pemilik berkas di seantero
+> Noesantara: berkas Saoedara tidak lagi terkoeroeng di satoe tempat. Dengan LELEMOVE, ia boleh
+> berpindah ke mana poen Saoedara kehendaki, dengan tertib, tjermat, dan tanpa ada jang tertjetjer.
+>
+> Merdeka!
 
-Menyalin tidak mengubah atau menghapus file di sumber. File di sumber hanya dihapus bila Anda sendiri
-memilih **Pindahkan** setelah verifikasi, dan itu pun masuk ke Recycle Bin / Sampah.
+Aplikasi Windows dan macOS oentoek menjalin file antar **Google Drive**, **OneDrive**, **SharePoint**,
+**Dropbox**, **NAS/Nextcloud/SFTP**, **object storage S3**, lajanan lain jang didoekoeng
+[rclone](https://rclone.org), dan **folder di kompoeter**, ke arah mana poen. Tjontohnja OneDrive →
+Google Drive, SharePoint → NAS kantor, Dropbox → Google Drive, folder kompoeter → Backblaze B2, atau
+cloud → kompoeter.
 
-![Jendela LELEMOVE: daftar lokasi dan akun di kiri, panel Dari dan Ke, bilah penyalinan di bawah](aset/tangkapan-layar.png)
+Menjalin tidak mengoebah atau menghapoes file di soember. File di soember hanja dihapoes bila Saoedara
+sendiri memilih **Pindahkan** setelah verifikasi, dan itoe poen masoek ke Recycle Bin / Sampah.
 
-**Unduh:** [halaman Releases](https://github.com/fauzirpl/lelemove/releases/latest) (Windows 10/11 64-bit, tanpa hak admin).
+![Djendela LELEMOVE: daftar lokasi dan akoen di kiri, panel Dari dan Ke, bilah penjalinan di bawah](aset/tangkapan-layar.png)
 
-**Dukung:** LELEMOVE gratis; bila terbantu, traktir pengembangnya di [Saweria](https://saweria.co/pemecuteai).
+**Oendoeh:** [halaman Releases](https://github.com/fauzirpl/lelemove/releases/latest): Windows 10/11
+64-bit (tanpa hak admin) dan macOS 11 ke atas (Apple Silicon dan Intel).
 
-## Fitur utama
+**Doekoeng:** LELEMOVE pertjoema; bila terbantoe, traktirlah pengembangnja di [Saweria](https://saweria.co/pemecuteai).
 
-- **29 layanan penyimpanan** plus semua layanan lain yang didukung rclone (lebih dari 70), dengan
-  banyak akun per layanan.
-- **Pengelola file dua panel** (*Dari* | *Ke*) untuk menjelajah folder lokal maupun cloud.
-- **Periksa dulu, baru salin**: ruang tujuan dan uji coba (dry run) diperiksa sebelum penyalinan.
-- **Penyalinan di latar belakang**: aplikasi boleh ditutup, ada notifikasi Windows, batas kecepatan,
-  dan **lanjut otomatis** saat jaringan putus.
-- **Filter file**: hanya jenis tertentu, lewati pola tertentu, atau hanya yang diubah sejak tanggal tertentu.
-- **Verifikasi** setiap file (checksum bila memungkinkan), lalu **Pindahkan** (opsional) yang
-  menghapus dari sumber hanya file yang terbukti sama.
-- **Jadwal backup** lewat Task Scheduler Windows.
-- **Riwayat & laporan**: CSV dan laporan siap cetak berisi status setiap file, untuk audit.
-- **Migrasi email**: pindahkan semua folder email dari Gmail, Outlook/Microsoft 365, atau server IMAP lain
-  ke server email sendiri, lengkap dengan status baca, bintang, dan tanggal asli.
-- **Baris perintah** (`pindah.exe`) untuk semua fitur di atas.
+*Tjatatan edjaan: naskah ini ditoelis dengan edjaan zaman perdjoeangan. Nama tombol dan menoe
+ditoelis persis seperti jang tampil di aplikasi (edjaan sekarang), soepaja moedah ditjari.*
 
-Ditulis dalam **Rust** (jendela memakai egui), tanpa PowerShell, jadi tetap jalan di komputer
-kantor yang memblokir skrip. Dulu bernama **Pindah Drive**; nama internalnya tidak berubah (mesin
-`pindah.exe`, folder data `%LOCALAPPDATA%\pindah-drive`, nama akun `pd-*` di rclone), jadi akun dan
-pengaturan lama langsung terbaca.
+<a name="fitur-utama"></a>
+## Fitoer oetama
+
+- **29 lajanan penjimpanan** ditambah semoea lajanan lain jang didoekoeng rclone (lebih dari 70),
+  dengan banjak akoen per lajanan.
+- **Pengelola file doea panel** (*Dari* | *Ke*) oentoek mendjeladjah folder lokal maoepoen cloud.
+- **Periksa doeloe, baroe salin**: roeang toedjoean dan oedji tjoba (dry run) diperiksa sebeloem
+  penjalinan.
+- **Penjalinan di latar belakang**: aplikasi boleh ditoetoep, ada notifikasi, batas ketjepatan,
+  dan **landjoet otomatis** bila djaringan poetoes.
+- **Filter file**: hanja djenis tertentoe, lewati pola tertentoe, atau hanja jang dioebah sedjak
+  tanggal tertentoe.
+- **Verifikasi** setiap file (checksum bila memoengkinkan), laloe **Pindahkan** (pilihan) jang
+  menghapoes dari soember hanja file jang terboekti sama.
+- **Djadwal backup** lewat Task Scheduler (Windows) atau launchd (macOS).
+- **Riwajat & laporan**: CSV dan laporan siap tjetak berisi status setiap file, oentoek audit.
+- **Migrasi email**: pindahkan semoea folder email dari Gmail, Outlook/Microsoft 365, atau server
+  IMAP lain ke server email sendiri, lengkap dengan status batja, bintang, dan tanggal asli.
+- **Baris perintah** (`pindah.exe`) oentoek semoea fitoer di atas.
+
+Ditoelis dalam **Rust** (djendela memakai egui), tanpa PowerShell, djadi tetap djalan di kompoeter
+kantor jang memblokir skrip. Doeloe bernama **Pindah Drive**; nama dalamnja tidak beroebah (mesin
+`pindah.exe`, folder data `%LOCALAPPDATA%\pindah-drive`, nama akoen `pd-*` di rclone), djadi akoen
+dan pengatoeran lama langsoeng terbatja.
 
 ## Daftar isi
 
-- [Pasang](#pasang) · [macOS (uji coba)](#macos-uji-coba) · [Cara memakai](#cara-memakai) ·
-  [Cara kerja penyalinan](#cara-kerja-penyalinan)
-- [Layanan yang didukung](#layanan-yang-didukung) · [Filter file](#filter-file) ·
-  [Riwayat & laporan](#riwayat--laporan) · [Pindahkan](#pindahkan-hapus-sumber-setelah-verifikasi) ·
-  [Jadwal backup](#jadwal-backup-otomatis) · [Migrasi email](#migrasi-email)
-- [SharePoint](#sharepoint) · [Izin akun](#izin-akun) ·
-  [Client ID Google](#penyalinan-macet-pakai-client-id-google-sendiri) ·
+- [Pasang](#pasang) · [macOS](#macos) · [Tjara memakai](#tjara-memakai) ·
+  [Tjara kerdja penjalinan](#tjara-kerdja-penjalinan)
+- [Lajanan jang didoekoeng](#lajanan-jang-didoekoeng) · [Filter file](#filter-file) ·
+  [Riwajat & laporan](#riwajat--laporan) · [Pindahkan](#pindahkan-hapoes-soember-setelah-verifikasi) ·
+  [Djadwal backup](#djadwal-backup-otomatis) · [Migrasi email](#migrasi-email)
+- [SharePoint](#sharepoint) · [Izin akoen](#izin-akoen) ·
+  [Client ID Google](#penjalinan-matjet-pakai-client-id-google-sendiri) ·
   [Verifikasi](#verifikasi-seberapa-teliti) · [Batasan](#batasan) · [Privasi](#privasi)
-- [Baris perintah](#baris-perintah) · [Untuk pengembang](#untuk-pengembang) · [Dukung](#dukung) ·
-  [Riwayat versi](#riwayat-versi)
+- [Baris perintah](#baris-perintah) · [Oentoek pengembang](#oentoek-pengembang) · [Doekoeng](#doekoeng) ·
+  [Riwajat versi](#riwajat-versi)
 
 ## Pasang
 
-Unduh **`LELEMOVE-Setup-<versi>.exe`** dari halaman
-[**Releases**](https://github.com/fauzirpl/lelemove/releases/latest), jalankan, lalu klik *Pasang*
-(atau *Perbarui* bila versi lama sudah terpasang; berkas PowerShell versi 1.x dibersihkan otomatis).
+Oendoeh **`LELEMOVE-Setup-<versi>.exe`** dari halaman
+[**Releases**](https://github.com/fauzirpl/lelemove/releases/latest), djalankan, laloe klik *Pasang*
+(atau *Perbarui* bila versi lama soedah terpasang; berkas PowerShell versi 1.x dibersihkan otomatis).
 
-- Windows 10/11 64-bit. Dipasang untuk akun Windows Anda saja, di `%LOCALAPPDATA%\Programs\LELEMOVE`, tanpa hak admin.
-- rclone sudah ikut di dalamnya, jadi tidak perlu mengunduh apa pun lagi.
-- Muncul di Start Menu (dan Desktop bila dicentang), serta di *Settings > Apps*, tempat
-  aplikasinya bisa dihapus lagi.
+- Windows 10/11 64-bit. Dipasang oentoek akoen Windows Saoedara sadja, di `%LOCALAPPDATA%\Programs\LELEMOVE`,
+  tanpa hak admin.
+- rclone soedah ikoet di dalamnja, djadi tidak perloe mengoendoeh apa-apa lagi.
+- Moentjoel di Start Menu (dan Desktop bila ditjentang), serta di *Settings > Apps*, tempat
+  aplikasinja dapat dihapoes kembali.
 - Pemasangan diam-diam: `LELEMOVE-Setup-<versi>.exe /silent` (tambah `/nodesktop` bila
-  tidak ingin pintasan Desktop).
-- Memperbarui cukup dengan memasang versi baru di atasnya. Akun, pengaturan, jadwal, dan riwayat
-  tetap terbaca, termasuk dari versi 1.x (format datanya sama). Tutup jendela LELEMOVE dulu.
-- Bila sebelumnya terpasang dengan nama lama di `Programs\Pindah Drive`, installer memindahkannya ke
+  tidak menghendaki pintasan Desktop).
+- Memperbaroei tjoekoep dengan memasang versi baroe di atasnja. Akoen, pengatoeran, djadwal, dan
+  riwajat tetap terbatja, termasoek dari versi 1.x (bentoek datanja sama). Toetoep djendela LELEMOVE doeloe.
+- Bila sebeloemnja terpasang dengan nama lama di `Programs\Pindah Drive`, installer memindahkannja ke
   `Programs\LELEMOVE` dan mengganti pintasan "Pindah Drive" dengan "LELEMOVE".
-- Installer di Releases **tidak membawa client ID Google**. Agar penyalinan Google Drive tidak
-  macet karena dibatasi, buat client ID sendiri lewat *Pengaturan > Client ID Google* (lihat
-  [Penyalinan macet? Pakai client ID Google sendiri](#penyalinan-macet-pakai-client-id-google-sendiri)).
+- Installer di Releases **tidak membawa client ID Google**. Agar penjalinan Google Drive tidak
+  matjet karena dibatasi, boeatlah client ID sendiri lewat *Pengaturan > Client ID Google* (lihat
+  [Penjalinan matjet? Pakai client ID Google sendiri](#penjalinan-matjet-pakai-client-id-google-sendiri)).
 
-Installer belum ditandatangani secara digital, jadi Windows SmartScreen memperingatkan saat
-pertama dibuka; klik *More info* > *Run anyway*. Keaslian unduhan bisa dicek dengan
-`Get-FileHash .\LELEMOVE-Setup-<versi>.exe -Algorithm SHA256` lalu dicocokkan dengan berkas
-`.sha256` di halaman rilis yang sama.
+Installer beloem ditandatangani setjara digital, djadi Windows SmartScreen memperingatkan ketika
+pertama diboeka; klik *More info* > *Run anyway*. Keaslian oendoehan dapat ditjek dengan
+`Get-FileHash .\LELEMOVE-Setup-<versi>.exe -Algorithm SHA256` laloe ditjotjokkan dengan berkas
+`.sha256` di halaman rilis jang sama.
 
-### macOS (uji coba)
+<a name="macos-uji-coba"></a>
+### macOS
 
-Versi macOS sedang diuji dan belum ada di Releases. Paket ujinya, `LELEMOVE-<versi>-macOS.dmg`,
-dibuat otomatis oleh [workflow macOS](https://github.com/fauzirpl/lelemove/actions/workflows/macos.yml):
-buka run terakhir yang berhasil, lalu unduh artefak **LELEMOVE-macOS** (perlu masuk GitHub).
+Oendoeh **`LELEMOVE-<versi>-macOS.dmg`** dari halaman
+[**Releases**](https://github.com/fauzirpl/lelemove/releases/latest).
 
-- macOS 11 Big Sur atau lebih baru. Satu aplikasi untuk Apple Silicon dan Intel, rclone sudah di dalamnya.
-- Buka berkas .dmg, seret **LELEMOVE** ke **Applications**, lalu buka dari Applications. Jadwal
-  backup hanya bisa dibuat bila aplikasinya ada di Applications.
-- Aplikasi belum ditandatangani dengan Apple Developer ID, jadi macOS menahannya saat pertama dibuka.
-  Buka *Pengaturan Sistem > Privasi & Keamanan*, gulir ke bawah, lalu klik *Buka Saja* untuk
-  LELEMOVE. Cara lain, lewat Terminal: `xattr -dr com.apple.quarantine /Applications/LELEMOVE.app`.
-- Fiturnya sama dengan versi Windows, dengan padanan macOS: file yang dipindahkan masuk ke
-  **Tong Sampah** (bisa dikembalikan), jadwal backup dijalankan **launchd** (`~/Library/LaunchAgents`),
-  hasil penyalinan latar dikabarkan lewat Pusat Notifikasi, Mac tidak tidur selama menyalin, dan
+- macOS 11 Big Sur atau lebih baroe. Satoe aplikasi oentoek Apple Silicon dan Intel, rclone soedah
+  di dalamnja.
+- Boeka berkas .dmg, seret **LELEMOVE** ke **Applications**, laloe boeka dari Applications. Djadwal
+  backup hanja dapat diboeat bila aplikasinja ada di Applications.
+- Aplikasi beloem ditandatangani dengan Apple Developer ID, djadi macOS menahannja ketika pertama
+  diboeka. Boeka *Pengaturan Sistem > Privasi & Keamanan*, goeloeng ke bawah, laloe klik *Buka Saja*
+  oentoek LELEMOVE. Tjara lain, lewat Terminal: `xattr -dr com.apple.quarantine /Applications/LELEMOVE.app`.
+- Fitoernja sama dengan versi Windows, dengan padanan macOS: file jang dipindahkan masoek ke
+  **Tong Sampah** (dapat dikembalikan), djadwal backup didjalankan **launchd** (`~/Library/LaunchAgents`),
+  hasil penjalinan latar dikabarkan lewat Poesat Notifikasi, Mac tidak tidoer selama menjalin, dan
   folder OneDrive di `~/Library/CloudStorage` dikenali.
-- Data kerja ada di `~/Library/Application Support/pindah-drive`, akun rclone di `~/.config/rclone/rclone.conf`.
-- Saat pertama membuka Desktop, Dokumen, Unduhan, atau disk eksternal, macOS meminta izin; klik *Izinkan*.
-- Seperti rilis Windows di Releases, versi ini tidak membawa client ID Google: buat sendiri lewat
+- Data kerdja ada di `~/Library/Application Support/pindah-drive`, akoen rclone di `~/.config/rclone/rclone.conf`.
+- Ketika pertama memboeka Desktop, Dokoemen, Oendoehan, atau disk loear, macOS meminta izin; klik *Izinkan*.
+- Seperti rilis Windows, versi ini tidak membawa client ID Google: boeatlah sendiri lewat
   *Pengaturan > Client ID Google*.
 
-## Cara memakai
+<a name="cara-memakai"></a>
+## Tjara memakai
 
-Jendelanya mirip pengelola file dua panel: **daftar lokasi** di kiri, panel **Dari** (sumber)
-dan **Ke** (tujuan) berdampingan, toolbar di atas, dan bilah penyalinan di bawah.
+Djendelanja serupa pengelola file doea panel: **daftar lokasi** di kiri, panel **Dari** (soember)
+dan **Ke** (toedjoean) berdampingan, bilah alat di atas, dan bilah penjalinan di bawah.
 
-- **Akun.** Di daftar kiri, klik *Tambah akun* lalu pilih Google Drive, OneDrive, SharePoint,
-  atau *Layanan lain* (Dropbox, NAS, S3, dan lainnya), beri nama (misalnya "Pribadi" atau
-  "Kantor"), lalu login di browser atau isi data loginnya. Satu layanan boleh berisi lebih dari
-  satu akun. Saat aplikasi dibuka, setiap akun diuji: titik hijau di ikonnya berarti siap;
-  **"login kedaluwarsa"** (merah) berarti perlu klik **Login ulang**; **"jaringan terputus"**
-  (kuning) diuji ulang sendiri. Tombol **⋯** di tiap akun (atau klik kanan) berisi: buka di panel
-  Dari/Ke, *Login ulang* (atau *Ubah data login…* untuk layanan berisian), *Beri izin penuh*
+- **Akoen.** Di daftar kiri, klik *Tambah akun* laloe pilih Google Drive, OneDrive, SharePoint,
+  atau *Layanan lain* (Dropbox, NAS, S3, dan lain-lain), beri nama (misalnja "Pribadi" atau
+  "Kantor"), laloe login di browser atau isi data loginnja. Satoe lajanan boleh berisi lebih dari
+  satoe akoen. Ketika aplikasi diboeka, setiap akoen dioedji: titik hidjau di ikonnja berarti siap;
+  **"login kedaluwarsa"** (merah) berarti perloe klik **Login ulang**; **"jaringan terputus"**
+  (koening) dioedji oelang sendiri. Tombol **⋯** di tiap akoen (atau klik kanan) berisi: boeka di
+  panel Dari/Ke, *Login ulang* (atau *Ubah data login…* oentoek lajanan berisian), *Beri izin penuh*
   (Google), *Pilih situs & pustaka…* (SharePoint), dan *Lepas akun ini*.
 - **Pengaturan** (ikon ⚙ di dasar daftar kiri). Berisi **Client ID Google** (pasang, ganti,
-  atau hapus client ID aplikasi, dan lihat akun Google mana yang sudah memakainya; client ID
-  tidak lagi diatur per akun) dan **Penyalinan > Lanjutkan otomatis bila jaringan putus**.
-- **Riwayat & laporan** (ikon jam di dasar daftar kiri). Semua penyalinan, verifikasi, dan
-  pemindahan, beserta laporan CSV dan siap cetak. Lihat *Riwayat & laporan* di bawah.
-- **Jadwal backup** (ikon kalender di dasar daftar kiri). Menyalin otomatis setiap hari atau
-  pada hari tertentu, tanpa perlu membuka aplikasi. Lihat *Jadwal backup otomatis* di bawah.
+  atau hapoes client ID aplikasi, dan lihat akoen Google mana jang soedah memakainja; client ID
+  tidak lagi diatoer per akoen) dan **Penyalinan > Lanjutkan otomatis bila jaringan putus**.
+- **Riwayat & laporan** (ikon djam di dasar daftar kiri). Semoea penjalinan, verifikasi, dan
+  pemindahan, beserta laporan CSV dan siap tjetak. Lihat *Riwajat & laporan* di bawah.
+- **Jadwal backup** (ikon kalender di dasar daftar kiri). Menjalin otomatis setiap hari atau
+  pada hari tertentoe, tanpa perloe memboeka aplikasi. Lihat *Djadwal backup otomatis* di bawah.
+- **Migrasi email** (ikon soerat di dasar daftar kiri). Lihat *Migrasi email* di bawah.
 - **Bantuan & info** (ikon ? di atas Pengaturan). Dialog bertab: *Tanya jawab*, *Ketentuan*
-  penggunaan, kebijakan *Privasi*, *Atribusi* (komponen, layanan/API, dan semua pustaka Rust
-  beserta lisensinya), dan *Tentang* (versi, folder aplikasi, data, dan log).
-- **Dari mana, ke mana.** Klik panel Dari atau Ke (garis biru di atasnya menandai panel
-  aktif), lalu klik lokasi di daftar kiri: *Komputer ini*, Desktop, Dokumen, folder OneDrive
-  yang tersinkron, atau salah satu akun. Lokasi juga bisa diganti lewat nama lokasi di kepala
-  panel. Klik dua kali folder untuk masuk, **↑** atau `..` untuk naik, dan klik nama folder di
-  bilah alamat untuk kembali; klik ruang kosong bilah alamat untuk mengetik alamatnya. Yang
-  disalin adalah **seluruh isi folder yang sedang dibuka** di panel Dari, ke folder yang sedang
-  dibuka di panel Ke (dibuat bila belum ada). Tombol **⇄** di antara panel menukar sumber dan
-  tujuan; ikon map terbuka di kepala panel membuka jendela pilih folder.
-- **Salin.** Klik *Mulai salin* di toolbar. Aplikasi otomatis memeriksa ukuran, ruang tujuan,
-  dan menjalankan uji coba dulu (bisa juga lewat *Periksa*), lalu menampilkan jumlah file yang
-  akan disalin untuk Anda setujui. Penyalinan berjalan di latar belakang, jadi aplikasi boleh
-  ditutup; Windows menampilkan notifikasi saat penyalinan selesai atau berhenti karena galat.
-  Batas kecepatan di kanan toolbar (Tanpa batas, 1, 5, atau 10 MB/dtk) menjaga internet tetap
-  lancar untuk keperluan lain; pilihannya diingat dan berlaku saat penyalinan dimulai atau
-  dilanjutkan.
-- **Filter.** Di bawah panel Dari, klik *Filter…* untuk menyalin hanya jenis file tertentu,
-  melewati pola tertentu, atau hanya file yang diubah sejak tanggal tertentu. Lihat *Filter file*.
-- **Verifikasi.** Berjalan otomatis setelah penyalinan selesai; bisa juga diklik di toolbar.
-- **Pindahkan (opsional).** Setelah verifikasi, tautan *Pindahkan: hapus … file ini dari sumber*
-  menghapus dari sumber file yang terbukti sama di tujuan. Lihat *Pindahkan*.
+  pemakaian, kebidjakan *Privasi*, *Atribusi* (komponen, lajanan/API, dan semoea poestaka Rust
+  beserta lisensinja), dan *Tentang* (versi, folder aplikasi, data, log, dan tautan dukungan).
+- **Dari mana, ke mana.** Klik panel Dari atau Ke (garis biroe di atasnja menandai panel
+  jang aktif), laloe klik lokasi di daftar kiri: *Komputer ini*, Desktop, Dokumen, folder OneDrive
+  jang tersinkron, atau salah satoe akoen. Lokasi djoega dapat diganti lewat nama lokasi di kepala
+  panel. Klik doea kali folder oentoek masoek, **↑** atau `..` oentoek naik, dan klik nama folder di
+  bilah alamat oentoek kembali; klik roeang kosong bilah alamat oentoek mengetik alamatnja. Jang
+  disalin ialah **seloeroeh isi folder jang sedang diboeka** di panel Dari, ke folder jang sedang
+  diboeka di panel Ke (diboeat bila beloem ada). Tombol **⇄** di antara panel menoekar soember dan
+  toedjoean; ikon map terboeka di kepala panel memboeka djendela pilih folder.
+- **Salin.** Klik *Mulai salin* di bilah alat. Aplikasi otomatis memeriksa oekoeran, roeang toedjoean,
+  dan mendjalankan oedji tjoba doeloe (dapat djoega lewat *Periksa*), laloe menampilkan djoemlah file
+  jang akan disalin oentoek Saoedara setoedjoei. Penjalinan berdjalan di latar belakang, djadi
+  aplikasi boleh ditoetoep; notifikasi moentjoel bila penjalinan selesai atau berhenti karena galat.
+  Batas ketjepatan di kanan bilah alat (Tanpa batas, 1, 5, atau 10 MB/dtk) mendjaga internet tetap
+  lantjar oentoek keperloean lain; pilihannja diingat dan berlakoe ketika penjalinan dimoelai atau
+  dilandjoetkan.
+- **Filter.** Di bawah panel Dari, klik *Filter…* oentoek menjalin hanja djenis file tertentoe,
+  melewati pola tertentoe, atau hanja file jang dioebah sedjak tanggal tertentoe. Lihat *Filter file*.
+- **Verifikasi.** Berdjalan otomatis setelah penjalinan selesai; dapat djoega diklik di bilah alat.
+- **Pindahkan (pilihan).** Setelah verifikasi, tautan *Pindahkan: hapus … file ini dari sumber*
+  menghapoes dari soember file jang terboekti sama di toedjoean. Lihat *Pindahkan*.
 
-*Hentikan* menghentikan penyalinan. *Lanjutkan* meneruskannya, dan file yang sudah sampai dilewati.
-*Log aktivitas* di bilah status bawah membuka catatan lengkap setiap langkah.
+*Hentikan* menghentikan penjalinan. *Lanjutkan* meneroeskannja, dan file jang soedah sampai dilewati.
+*Log aktivitas* di bilah status bawah memboeka tjatatan lengkap setiap langkah.
 
-## Cara kerja penyalinan
+<a name="cara-kerja-penyalinan"></a>
+## Tjara kerdja penjalinan
 
-Antar akun yang berbeda (misalnya OneDrive → Google Drive), data **dialirkan lewat komputer ini**:
-rclone mengunduh dan mengunggah sekaligus dalam potongan di memori, tanpa menyimpan berkas utuh ke
-disk. Jadi kuota internet terpakai dua kali (unduh + unggah), dan komputer harus tetap menyala
-(aplikasi mencegah Windows tidur selama menyalin). Penyalinan memakai `rclone copy`, sehingga
-hanya file baru atau yang berubah yang dikirim; penyalinan ulang ke tujuan yang sama cepat.
+Antar akoen jang berlainan (misalnja OneDrive → Google Drive), data **dialirkan lewat kompoeter ini**:
+rclone mengoendoeh dan mengoenggah sekaligoes dalam potongan di memori, tanpa menjimpan berkas oetoeh
+ke disk. Djadi koeota internet terpakai doea kali (oendoeh + oenggah), dan kompoeter haroes tetap
+menjala (aplikasi mentjegah kompoeter tidoer selama menjalin). Penjalinan memakai `rclone copy`,
+sehingga hanja file baroe atau jang beroebah jang dikirim; penjalinan oelang ke toedjoean jang sama
+berdjalan tjepat.
 
-### Jaringan putus: lanjut otomatis
+<a name="jaringan-putus-lanjut-otomatis"></a>
+### Djaringan poetoes: landjoet otomatis
 
-rclone sendiri mencoba ulang gangguan singkat. Bila putusnya lebih lama sampai rclone berhenti,
-proses penyalinan latar LELEMOVE memutuskan dari **galat terakhir** di log percobaan itu:
+rclone sendiri mentjoba oelang gangguan singkat. Bila poetoesnja lebih lama sampai rclone berhenti,
+proses penjalinan latar LELEMOVE memoetoeskan dari **galat terachir** di log pertjobaan itoe:
 
-| Galat terakhir | Tindakan |
+| Galat terachir | Tindakan |
 |---|---|
-| Jaringan (DNS menolak, `no such host`, `dial tcp`, `i/o timeout`, koneksi putus, ...) | Tunggu, lalu lanjut otomatis |
-| Login kedaluwarsa (`invalid_grant`) | Berhenti: perlu *Login ulang* |
-| Batas unggah harian Google (750 GB) | Berhenti: lanjutkan besok |
+| Djaringan (DNS menolak, `no such host`, `dial tcp`, `i/o timeout`, sambungan poetoes, ...) | Toenggoe, laloe landjoet otomatis |
+| Login kedaloewarsa (`invalid_grant`) | Berhenti: perloe *Login ulang* |
+| Batas oenggah harian Google (750 GB) | Berhenti: landjoetkan esok hari |
 | Galat lain (mis. izin ditolak) | Berhenti dan kabari lewat notifikasi |
 
-Saat menunggu, jeda bertambah: 30 detik, 1, 2, 5, lalu 10 menit. Setelah jeda, LELEMOVE menguji
-sambungan (DNS + TCP) tiap 15 detik ke server layanan yang dipakai, dan baru menjalankan rclone
-lagi setelah tersambung. Untuk layanan cloud, yang diuji server API-nya (mis. `www.googleapis.com`,
-`graph.microsoft.com`, `api.dropboxapi.com`); untuk server sendiri (NAS, SFTP, Nextcloud, S3 lain),
-host dan port dari konfigurasi akunnya. File yang sudah sampai
-dilewati. Batasnya 25 percobaan, atau 6 jam tanpa internet dalam satu jeda. Selama menunggu,
-bilah penyalinan menampilkan **"Menunggu jaringan"** (kuning) beserta perkiraan jam percobaan
-berikutnya; *Hentikan* tetap bisa dipakai. Notifikasi Windows muncul sekali saat jaringan pertama
-kali putus. Di log tercatat baris `LELEMOVE: jaringan terputus ...` dan `... penyalinan
+Selama menoenggoe, djeda bertambah: 30 detik, 1, 2, 5, laloe 10 menit. Setelah djeda, LELEMOVE
+menguji sambungan (DNS + TCP) tiap 15 detik ke server lajanan jang dipakai, dan baroe mendjalankan
+rclone lagi setelah tersamboeng. Oentoek lajanan cloud, jang dioedji server API-nja (mis.
+`www.googleapis.com`, `graph.microsoft.com`, `api.dropboxapi.com`); oentoek server sendiri (NAS,
+SFTP, Nextcloud, S3 lain), host dan port dari konfigurasi akoennja. File jang soedah sampai
+dilewati. Batasnja 25 pertjobaan, atau 6 djam tanpa internet dalam satoe djeda. Selama menoenggoe,
+bilah penjalinan menampilkan **"Menunggu jaringan"** (koening) beserta perkiraan djam pertjobaan
+berikoetnja; *Hentikan* tetap dapat dipakai. Notifikasi moentjoel sekali ketika djaringan pertama
+kali poetoes. Di log tertjatat baris `LELEMOVE: jaringan terputus ...` dan `... penyalinan
 dilanjutkan`. Matikan lewat *Pengaturan > Penyalinan* (`"LanjutOtomatis": false` di
-`pengaturan.json`); penyalinan dari konsol tanpa `-Latar` tidak pernah melanjutkan sendiri.
+`pengaturan.json`); penjalinan dari konsol tanpa `-Latar` tidak pernah melandjoetkan sendiri.
 
-## Layanan yang didukung
+<a name="layanan-yang-didukung"></a>
+## Lajanan jang didoekoeng
 
-*Tambah akun > Layanan lain* menampilkan semua layanan di bawah (bisa dicari). Kolom *Pindahkan*
-menyebut ke mana file pergi saat dihapus dari sumber; "–" berarti layanan tanpa tempat sampah,
-sehingga Pindahkan ditolak di sana.
+*Tambah akun > Layanan lain* menampilkan semoea lajanan di bawah ini (dapat ditjari). Kolom
+*Pindahkan* menjeboet ke mana file pergi ketika dihapoes dari soember; "–" berarti lajanan tanpa
+tempat sampah, sehingga Pindahkan ditolak di sana.
 
-| Kelompok | Layanan | Login | Pindahkan |
+| Kelompok | Lajanan | Login | Pindahkan |
 |---|---|---|---|
 | Cloud | Google Drive, OneDrive, SharePoint | Browser | Sampah / recycle bin |
-| Cloud | Dropbox, Box, pCloud, Yandex Disk | Browser | File terhapus / Sampah |
+| Cloud | Dropbox, Box, pCloud, Yandex Disk | Browser | File terhapoes / Sampah |
 | Cloud | HiDrive, Zoho WorkDrive (beta) | Browser | – |
 | Cloud | MEGA | Email + kata sandi (+ kode 2FA) | Rubbish Bin |
 | Cloud | Koofr | Email + kata sandi aplikasi | – |
-| Cloud | iCloud Drive (beta) | Apple ID + kata sandi, lalu kode 2FA | – |
+| Cloud | iCloud Drive (beta) | Apple ID + kata sandi, laloe kode 2FA | – |
 | Cloud | Proton Drive (beta) | Email + kata sandi (+ kode 2FA) | Sampah |
-| Cloud | Jottacloud (beta) | Token login dari situsnya (ditanyakan) | – |
+| Cloud | Jottacloud (beta) | Token login dari sitoesnja (ditanjakan) | – |
 | Server & NAS | Nextcloud, ownCloud | Alamat WebDAV + kata sandi aplikasi | Sampah |
-| Server & NAS | WebDAV lain, SMB/NAS, SFTP, FTP/FTPS, Seafile | Alamat + pengguna + kata sandi | – |
+| Server & NAS | WebDAV lain, SMB/NAS, SFTP, FTP/FTPS, Seafile | Alamat + pengoena + kata sandi | – |
 | Object storage | Amazon S3, Cloudflare R2, Wasabi, MinIO, DigitalOcean Spaces, S3 lain | Access key + secret (+ endpoint) | – |
-| Object storage | Backblaze B2 | Key ID + application key | Versi tersembunyi B2 |
+| Object storage | Backblaze B2 | Key ID + application key | Versi tersemboenji B2 |
 | Object storage | Azure Blob Storage | Nama storage account + access key | – |
 
-- **Layanan lain dari rclone** (lebih dari 70): *Buat lewat rclone config* membuka jendela
-  `rclone config`. Sesudahnya, *Pakai remote rclone yang sudah ada* memasukkannya ke LELEMOVE.
-  Remote seperti itu tetap milik Anda: *Lepas* hanya berhenti memakainya, tidak menghapusnya.
-- **Folder bersama yang sudah bisa dibuka di Explorer** (`\\server\share`) bisa langsung dipakai
-  lewat *Komputer ini*. Pilih *SMB/NAS* hanya bila perlu login dengan akun berbeda.
-- **Isian rahasia** (kata sandi, secret) dikirim dari jendela ke `pindah.exe` lewat stdin, lalu
-  diobfuskasi lewat `rclone obscure -` sebelum masuk `rclone config create`. Jadi kata sandi tidak
-  pernah tampil polos di argumen proses. Obfuskasi bukan enkripsi; pakai kata sandi aplikasi bila ada.
-- **Pertanyaan lanjutan** (kode 2FA iCloud, token Jottacloud, pilihan) datang dari mesin
+- **Lajanan lain dari rclone** (lebih dari 70): *Buat lewat rclone config* memboeka djendela
+  `rclone config`. Sesoedahnja, *Pakai remote rclone yang sudah ada* memasoekkannja ke LELEMOVE.
+  Remote seperti itoe tetap milik Saoedara: *Lepas* hanja berhenti memakainja, tidak menghapoesnja.
+- **Folder bersama jang soedah dapat diboeka di Explorer** (`\\server\share`) dapat langsoeng dipakai
+  lewat *Komputer ini*. Pilih *SMB/NAS* hanja bila perloe login dengan akoen berlainan.
+- **Isian rahasia** (kata sandi, secret) dikirim dari djendela ke `pindah.exe` lewat stdin, laloe
+  diobfoeskasi lewat `rclone obscure -` sebeloem masoek `rclone config create`. Djadi kata sandi tidak
+  pernah tampak polos di argoemen proses. Obfoeskasi boekan enkripsi; pakai kata sandi aplikasi bila ada.
+- **Pertanjaan landjoetan** (kode 2FA iCloud, token Jottacloud, pilihan) datang dari mesin
   konfigurasi rclone (`config create --non-interactive` → `config update --continue`) dan tampil
-  sebagai dialog. Akun baru yang gagal tersambung dihapus lagi.
-- Layanan tanpa info kuota (FTP, S3, B2, ...) tetap bisa diperiksa: kuotanya ditulis "tidak dilaporkan".
-- Saat jaringan putus, server sendiri (NAS, SFTP, Nextcloud, S3 lain) diuji ke host dan port dari
-  konfigurasi akunnya; layanan cloud ke server API-nya.
+  sebagai dialog. Akoen baroe jang gagal tersamboeng dihapoes kembali.
+- Lajanan tanpa keterangan koeota (FTP, S3, B2, ...) tetap dapat diperiksa: koeotanja ditoelis "tidak dilaporkan".
+- Ketika djaringan poetoes, server sendiri (NAS, SFTP, Nextcloud, S3 lain) dioedji ke host dan port
+  dari konfigurasi akoennja; lajanan cloud ke server API-nja.
 
 ## Filter file
 
-| Isian | Contoh | Arti |
+| Isian | Tjontoh | Arti |
 |---|---|---|
-| Hanya jenis file ini | `pdf, docx, xlsx` | Hanya ekstensi ini yang disalin (huruf besar-kecil sama saja). Kosong = semua. |
-| Lewati | `*.tmp, Arsip Lama/, node_modules/` | Pola yang tidak disalin. Akhiran `/` = folder beserta isinya; `*` = teks apa saja. |
-| Hanya yang diubah sejak | `31-01-2026` | Hanya file yang tanggal ubahnya pada/sesudah tanggal itu. |
+| Hanya jenis file ini | `pdf, docx, xlsx` | Hanja ekstensi ini jang disalin (hoeroef besar-ketjil sama sadja). Kosong = semoea. |
+| Lewati | `*.tmp, Arsip Lama/, node_modules/` | Pola jang tidak disalin. Achiran `/` = folder beserta isinja; `*` = teks apa sadja. |
+| Hanya yang diubah sejak | `31-01-2026` | Hanja file jang tanggal oebahnja pada/sesoedah tanggal itoe. |
 
-Filter disimpan di `pengaturan.json` (`Filter`) dan dipakai sama persis oleh periksa, uji coba,
-salin, verifikasi, dan pindahkan; file yang sengaja tidak disalin tidak dilaporkan "belum ada di
-tujuan". Saat filter jenis atau tanggal aktif, folder kosong di sumber tidak ikut dibuat di tujuan
-(rclone akan membuat *semua* subfolder walau isinya tidak ada yang lolos). File sistem
-(`desktop.ini`, `Thumbs.db`, berkas kunci Office `~$*`) selalu dilewati. Jadwal backup menyimpan
-salinan filternya sendiri (*Pakai folder & filter yang sedang dibuka*).
+Filter disimpan di `pengaturan.json` (`Filter`) dan dipakai sama persis oleh periksa, oedji tjoba,
+salin, verifikasi, dan pindahkan; file jang sengadja tidak disalin tidak dilaporkan "beloem ada di
+toedjoean". Ketika filter djenis atau tanggal aktif, folder kosong di soember tidak ikoet diboeat di
+toedjoean (rclone akan memboeat *semoea* soebfolder walau isinja tidak ada jang lolos). File sistem
+(`desktop.ini`, `Thumbs.db`, berkas koentji Office `~$*`, dan di macOS `.DS_Store` serta `._*`)
+selaloe dilewati. Djadwal backup menjimpan salinan filternja sendiri (*Pakai folder & filter yang
+sedang dibuka*).
 
-## Riwayat & laporan
+<a name="riwayat--laporan"></a>
+## Riwajat & laporan
 
-Setiap penyalinan (termasuk yang dihentikan, gagal, atau dilewati jadwal), verifikasi, dan
-pemindahan dicatat sebagai satu baris di `%LOCALAPPDATA%\pindah-drive\riwayat.jsonl`. Riwayat tidak
-dihapus otomatis.
+Setiap penjalinan (termasoek jang dihentikan, gagal, atau dilewati djadwal), verifikasi, pemindahan,
+dan migrasi email ditjatat sebagai satoe baris di `%LOCALAPPDATA%\pindah-drive\riwayat.jsonl`.
+Riwajat tidak dihapoes otomatis.
 
-- **Laporan per file** (pada verifikasi/pindahkan): halaman HTML siap cetak berisi rute, waktu,
-  metode (checksum atau nama & ukuran), filter, ringkasan, dan status **setiap file**, yang
-  bermasalah ditampilkan lebih dulu. Simpan sebagai PDF lewat *Ctrl+P* di browser. Cocok sebagai
-  bukti audit bahwa salinan lengkap.
-- **CSV per file**: daftar yang sama untuk Excel (UTF-8, pemisah koma).
-- **Ekspor CSV / Laporan HTML**: seluruh riwayat yang tampil (bisa disaring: Salin, Verifikasi,
+- **Laporan per file** (pada verifikasi/pindahkan): halaman HTML siap tjetak berisi roete, waktoe,
+  metode (checksum atau nama & oekoeran), filter, ringkasan, dan status **setiap file**; jang
+  bermasalah ditampilkan lebih doeloe. Simpan sebagai PDF lewat *Ctrl+P* (macOS: *Cmd+P*) di browser.
+  Tjotjok sebagai boekti audit bahwa salinan lengkap.
+- **CSV per file**: daftar jang sama oentoek Excel (UTF-8, pemisah koma).
+- **Ekspor CSV / Laporan HTML**: seloeroeh riwajat jang tampil (dapat disaring: Salin, Verifikasi,
   Pindahkan).
 
-Daftar per file dibaca dari berkas `verifikasi-*.txt` di folder log, yang ikut terhapus setelah
-60 hari; ringkasannya tetap ada di riwayat.
+Daftar per file dibatja dari berkas `verifikasi-*.txt` di folder log, jang ikoet terhapoes setelah
+60 hari; ringkasannja tetap ada di riwajat.
 
-## Pindahkan (hapus sumber setelah verifikasi)
+<a name="pindahkan-hapus-sumber-setelah-verifikasi"></a>
+## Pindahkan (hapoes soember setelah verifikasi)
 
-Opsional dan selalu atas permintaan Anda. Muncul sebagai tautan di bawah hasil verifikasi bila ada
-file yang cocok, dengan dua kali konfirmasi (yang kedua: ketik `HAPUS`).
+Pilihan, dan selaloe atas permintaan Saoedara. Moentjoel sebagai tautan di bawah hasil verifikasi
+bila ada file jang tjotjok, dengan doea kali konfirmasi (jang kedoea: ketik `HAPUS`).
 
-1. LELEMOVE **memverifikasi ulang** saat itu juga (hasil verifikasi sebelumnya bisa basi).
-2. Hanya file berstatus *cocok persis* yang dihapus dari **sumber**. File yang belum ada, berbeda,
-   gagal dibaca, atau file Office yang metadatanya diubah SharePoint tidak disentuh.
-3. Ke mana perginya: folder komputer → **Recycle Bin**; Google Drive → **Sampah** (30 hari);
-   OneDrive/SharePoint → **recycle bin**; Dropbox, Box, pCloud, Yandex, MEGA, Proton, Nextcloud,
-   ownCloud → tempat sampah masing-masing; Backblaze B2 → versi tersembunyi (lihat kolom
-   *Pindahkan* di [Layanan yang didukung](#layanan-yang-didukung)). Folder yang menjadi kosong ikut
-   dihapus; folder yang memang kosong sejak awal dibiarkan.
-4. Ditolak bila file yang dihapus tidak bisa dipulihkan: folder di drive jaringan atau flashdisk
-   (tanpa Recycle Bin), dan layanan tanpa tempat sampah (SMB/NAS, SFTP, FTP, WebDAV lain, S3, R2,
-   Azure, dan sejenisnya).
+1. LELEMOVE **memverifikasi oelang** saat itoe djoega (hasil verifikasi sebeloemnja bisa basi).
+2. Hanja file berstatoes *tjotjok persis* jang dihapoes dari **soember**. File jang beloem ada,
+   berbeda, gagal dibatja, atau file Office jang metadatanja dioebah SharePoint tidak disentoeh.
+3. Ke mana perginja: folder kompoeter → **Recycle Bin** (Windows) atau **Tong Sampah** (macOS);
+   Google Drive → **Sampah** (30 hari); OneDrive/SharePoint → **recycle bin**; Dropbox, Box,
+   pCloud, Yandex, MEGA, Proton, Nextcloud, ownCloud → tempat sampah masing-masing; Backblaze B2 →
+   versi tersemboenji (lihat kolom *Pindahkan* di [Lajanan jang didoekoeng](#lajanan-jang-didoekoeng)).
+   Folder jang mendjadi kosong ikoet dihapoes; folder jang memang kosong sedjak awal dibiarkan.
+4. Ditolak bila file jang dihapoes tidak dapat dipoelihkan: folder di drive djaringan atau
+   flashdisk tanpa Recycle Bin, dan lajanan tanpa tempat sampah (SMB/NAS, SFTP, FTP, WebDAV lain,
+   S3, R2, Azure, dan sedjenisnja).
 
-Tujuan tidak pernah dihapus apa pun. Jadwal backup tidak bisa memindahkan (selalu menyalin).
+Toedjoean tidak pernah dihapoes apa poen. Djadwal backup tidak dapat memindahkan (selaloe menjalin).
 
-## Jadwal backup otomatis
+<a name="jadwal-backup-otomatis"></a>
+## Djadwal backup otomatis
 
-Buka folder yang mau dicadangkan di panel **Dari** dan tujuannya di panel **Ke**, lalu klik
-**Jadwal backup > Jadwal baru**. Isi nama, jam (kelipatan 5 menit), hari (semua hari = setiap
-hari), dan apakah hasilnya diverifikasi. Rute jadwal disimpan terpisah, jadi panel Dari/Ke boleh
-diganti sesudahnya tanpa mengubah jadwal. Di daftar jadwal ada *Jalankan sekarang*, *Ubah*,
-*Nonaktifkan*/*Aktifkan*, dan *Hapus*, beserta hasil terakhir dan tautan ke log-nya.
+Boeka folder jang hendak ditjadangkan di panel **Dari** dan toedjoeannja di panel **Ke**, laloe klik
+**Jadwal backup > Jadwal baru**. Isi nama, djam (kelipatan 5 menit), hari (semoea hari = setiap
+hari), dan apakah hasilnja diverifikasi. Roete djadwal disimpan terpisah, djadi panel Dari/Ke boleh
+diganti sesoedahnja tanpa mengoebah djadwal. Di daftar djadwal ada *Jalankan sekarang*, *Ubah*,
+*Nonaktifkan*/*Aktifkan*, dan *Hapus*, beserta hasil terachir dan tautan ke log-nja.
 
-Cara kerjanya:
+Tjara kerdjanja:
 
 | Bagian | Keterangan |
 |---|---|
-| Pemicu | Satu tugas **Task Scheduler** per jadwal, bernama `LELEMOVE - Backup <id>`, milik pengguna Windows yang sedang masuk (tanpa hak admin, "Interactive only"). |
-| Yang dijalankan | `LELEMOVE.exe --jadwal <id>` → `pindah.exe jadwal -Jalankan -Id <id>` tersembunyi. |
-| Komputer mati/tidur pada jamnya | Dijalankan begitu komputer menyala lagi (*StartWhenAvailable*). Komputer tidak dibangunkan. |
-| Penyalinan lain sedang berjalan | Jadwal ini dilewati (tercatat "dilewati" + notifikasi), dicoba lagi pada jadwal berikutnya. |
-| Jaringan putus | Sama dengan penyalinan latar: lanjut otomatis (bila aktif di Pengaturan). |
-| Hasil | Notifikasi Windows: selesai (jumlah file baru, hasil verifikasi), ada selisih, atau gagal. Bila aplikasi terbuka, bilah bawah menampilkan "Backup terjadwal ...". |
-| Penyimpanan | `%LOCALAPPDATA%\pindah-drive\jadwal.json` (daftar + hasil terakhir); log di folder `log\jadwal-*.log`. |
+| Pemitjoe (Windows) | Satoe toegas **Task Scheduler** per djadwal, bernama `LELEMOVE - Backup <id>`, milik pengoena Windows jang sedang masoek (tanpa hak admin, "Interactive only"). |
+| Pemitjoe (macOS) | Satoe LaunchAgent per djadwal di `~/Library/LaunchAgents` (`io.github.fauzirpl.lelemove.backup.<id>`), didjalankan **launchd**. |
+| Jang didjalankan | `LELEMOVE.exe --jadwal <id>` → `pindah.exe jadwal -Jalankan -Id <id>` tersemboenji. |
+| Kompoeter mati/tidoer pada djamnja | Windows: didjalankan begitoe kompoeter menjala lagi (*StartWhenAvailable*). macOS: didjalankan begitoe Mac bangoen; bila Mac mati, djadwal itoe dilewati. Kompoeter tidak dibangoenkan. |
+| Penjalinan lain sedang berdjalan | Djadwal ini dilewati (tertjatat "dilewati" + notifikasi), ditjoba lagi pada djadwal berikoetnja. |
+| Djaringan poetoes | Sama dengan penjalinan latar: landjoet otomatis (bila aktif di Pengaturan). |
+| Hasil | Notifikasi: selesai (djoemlah file baroe, hasil verifikasi), ada selisih, atau gagal. Bila aplikasi terboeka, bilah bawah menampilkan "Backup terjadwal ...". |
+| Penjimpanan | `%LOCALAPPDATA%\pindah-drive\jadwal.json` (daftar + hasil terachir); log di folder `log\jadwal-*.log`. |
 
-Yang disalin hanya file baru atau yang berubah; tidak ada yang dihapus di tujuan. Uninstall
-menghapus tugas Windows milik folder aplikasi itu, tetapi `jadwal.json` tetap ada: bila LELEMOVE
-dipasang lagi, jadwal tampil "tugas Windows hilang" dan cukup diklik *Aktifkan*. Jadwal hanya
-berjalan selama Anda masuk ke Windows (layar terkunci tidak apa-apa).
+Jang disalin hanja file baroe atau jang beroebah; tidak ada jang dihapoes di toedjoean. Uninstall
+menghapoes toegas Windows milik folder aplikasi itoe, tetapi `jadwal.json` tetap ada: bila LELEMOVE
+dipasang lagi, djadwal tampil "tugas Windows hilang" dan tjoekoep diklik *Aktifkan*. Djadwal hanja
+berdjalan selama Saoedara masoek ke kompoeter (lajar terkoentji tidak mengapa).
 
 ## Migrasi email
 
-Memindahkan semua email dari **Gmail**, **Outlook/Microsoft 365**, atau server IMAP lain ke **server
-email sendiri** (cPanel, Plesk, Zimbra, Dovecot, server email dinas). Buka *Migrasi email* di dasar
+Memindahkan semoea email dari **Gmail**, **Outlook/Microsoft 365**, atau server IMAP lain ke **server
+email sendiri** (cPanel, Plesk, Zimbra, Dovecot, server email dinas). Boeka *Migrasi email* di dasar
 daftar kiri:
 
-1. **Dari**: pilih layanan lalu isi alamat email lama.
+1. **Dari**: pilih lajanan laloe isi alamat email lama.
    - Gmail: pakai **sandi aplikasi** ([myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords);
-     akun harus memakai verifikasi 2 langkah), atau **Login Google di browser** (memakai client ID
-     Google di *Pengaturan*; akunnya harus terdaftar sebagai pengguna uji di project Google Cloud itu).
-   - Outlook/Microsoft 365: login Microsoft di browser; butuh client ID Azure (lihat di bawah).
-   - Server IMAP lain: server, port, keamanan, pengguna, dan kata sandi.
-2. **Ke**: server IMAP baru (mis. `mail.kantor.go.id`, port 993, SSL/TLS), nama pengguna (biasanya
+     akoen haroes memakai verifikasi 2 langkah), atau **Login Google di browser** (memakai client ID
+     Google di *Pengaturan*; akoennja haroes terdaftar sebagai pengoena oedji di project Google Cloud itoe).
+   - Outlook/Microsoft 365: login Microsoft di browser; boetoeh client ID Azure (lihat di bawah).
+   - Server IMAP lain: server, port, keamanan, pengoena, dan kata sandi.
+2. **Ke**: server IMAP baroe (mis. `mail.kantor.go.id`, port 993, SSL/TLS), nama pengoena (biasanja
    alamat email lengkap), dan kata sandi.
-3. **Periksa** menguji login kedua server dan menghitung email yang akan disalin; **Mulai migrasi**
-   menyalinnya. Progres per folder tampil di dialog, dan hasilnya tercatat di *Riwayat & laporan*.
+3. **Periksa** mengoedji login kedoea server dan menghitoeng email jang akan disalin; **Mulai migrasi**
+   menjalinnja. Progres per folder tampil di dialog, dan hasilnja tertjatat di *Riwayat & laporan*.
 
-Yang terjadi saat migrasi:
+Jang terdjadi ketika migrasi:
 
-- Semua folder ikut, termasuk subfolder, status dibaca/belum, bintang, sudah dibalas, dan tanggal
-  terima aslinya. Folder khusus masuk ke padanannya di server baru (Sent Mail / Sent Items → Sent,
-  Deleted Items → Trash, Drafts → Drafts), termasuk server bergaya cPanel yang foldernya berawalan `INBOX.`.
-- Email di akun lama **tidak diubah, tidak ditandai dibaca, dan tidak dihapus** (dibuka baca-saja).
-- Email yang sudah ada di tujuan (Message-ID sama) dilewati. Jadi migrasi **aman dijalankan ulang**:
-  bila terputus atau dihentikan, jalankan lagi dan hanya sisanya yang disalin.
-- Gmail: label menjadi folder. Email arsip tanpa label (hanya ada di *Semua Email*) disalin ke folder
-  Archive; *Berbintang* dan *Penting* tidak disalin terpisah karena tandanya ikut di setiap email.
-  Gmail membatasi unduhan IMAP sekitar 2,5 GB per hari; kotak surat yang lebih besar dilanjutkan esoknya.
-- Sampah dan Spam tidak disalin kecuali dicentang. Folder Outlook yang bukan email (Kalender, Kontak,
+- Semoea folder ikoet, termasoek soebfolder, statoes dibatja/beloem, bintang, soedah dibalas, dan tanggal
+  terima aslinja. Folder choesoes masoek ke padanannja di server baroe (Sent Mail / Sent Items → Sent,
+  Deleted Items → Trash, Drafts → Drafts), termasoek server bergaja cPanel jang foldernja berawalan `INBOX.`.
+- Email di akoen lama **tidak dioebah, tidak ditandai dibatja, dan tidak dihapoes** (diboeka batja-sadja).
+- Email jang soedah ada di toedjoean (Message-ID sama) dilewati. Djadi migrasi **aman didjalankan oelang**:
+  bila terpoetoes atau dihentikan, djalankan lagi dan hanja sisanja jang disalin.
+- Gmail: label mendjadi folder. Email arsip tanpa label (hanja ada di *Semua Email*) disalin ke folder
+  Archive; *Berbintang* dan *Penting* tidak disalin terpisah karena tandanja ikoet di setiap email.
+  Gmail membatasi oendoehan IMAP kira-kira 2,5 GB per hari; kotak soerat jang lebih besar dilandjoetkan esoknja.
+- Sampah dan Spam tidak disalin ketjoeali ditjentang. Folder Outlook jang boekan email (Kalender, Kontak,
   Tugas, Catatan) dilewati.
-- Kata sandi hanya dikirim ke server email masing-masing dan **tidak disimpan**. Login Google/Microsoft
-  memakai token yang hanya ada di memori selama migrasi berjalan.
-- Server email di jaringan kantor yang memakai sertifikat buatan sendiri: centang
-  *Terima sertifikat swatanda* (biarkan mati untuk server di internet).
+- Kata sandi hanja dikirim ke server email masing-masing dan **tidak disimpan**. Login Google/Microsoft
+  memakai token jang hanja ada di memori selama migrasi berdjalan.
+- Server email di djaringan kantor jang memakai sertifikat boeatan sendiri: tjentang
+  *Terima sertifikat swatanda* (biarkan mati oentoek server di internet).
 
-Lewat baris perintah (kata sandi lewat stdin, atau diketik tanpa tampil):
+Lewat baris perintah (kata sandi lewat stdin, atau diketik tanpa tampak):
 
 ```powershell
 .\pindah.exe email -Sumber gmail:nama@gmail.com -Tujuan imap://nama@kantor.go.id@mail.kantor.go.id -HanyaPeriksa
 .\pindah.exe email -Sumber outlook:nama@outlook.com -Tujuan imap://nama@mail.server.id -Ya
 ```
 
-### Outlook: butuh client ID Azure
+<a name="outlook-butuh-client-id-azure"></a>
+### Outlook: boetoeh client ID Azure
 
-Microsoft tidak lagi menerima kata sandi untuk IMAP, jadi LELEMOVE login lewat aplikasi Azure milik
-Anda sendiri (gratis, cukup dibuat sekali):
+Microsoft tidak lagi menerima kata sandi oentoek IMAP, djadi LELEMOVE login lewat aplikasi Azure milik
+Saoedara sendiri (pertjoema, tjoekoep diboeat sekali):
 
-1. Buka [portal.azure.com](https://portal.azure.com) > *Microsoft Entra ID* > *App registrations* > *New registration*.
+1. Boeka [portal.azure.com](https://portal.azure.com) > *Microsoft Entra ID* > *App registrations* > *New registration*.
 2. Name: `LELEMOVE`. Supported account types: *Accounts in any organizational directory and personal
-   Microsoft accounts* (atau hanya organisasi Anda, untuk Microsoft 365 kantor).
-3. Redirect URI: platform *Public client/native (mobile & desktop)*, isi `http://localhost`, lalu *Register*.
-4. *API permissions* > *Add a permission* > *Microsoft Graph* > *Delegated permissions*: centang
-   `IMAP.AccessAsUser.All` dan `offline_access`. Di Microsoft 365 kantor, admin mungkin perlu memberi
-   persetujuan (*Grant admin consent*).
-5. Salin *Application (client) ID* ke isian *Client ID* di dialog Migrasi email. ID ini disimpan untuk
-   migrasi berikutnya (bukan rahasia).
+   Microsoft accounts* (atau hanja organisasi Saoedara, oentoek Microsoft 365 kantor).
+3. Redirect URI: platform *Public client/native (mobile & desktop)*, isi `http://localhost`, laloe *Register*.
+4. *API permissions* > *Add a permission* > *Microsoft Graph* > *Delegated permissions*: tjentang
+   `IMAP.AccessAsUser.All` dan `offline_access`. Di Microsoft 365 kantor, admin moengkin perloe memberi
+   persetoedjoean (*Grant admin consent*).
+5. Salin *Application (client) ID* ke isian *Client ID* di dialog Migrasi email. ID ini disimpan oentoek
+   migrasi berikoetnja (boekan rahasia).
 
-Pastikan IMAP aktif di akun Outlook.com: *Pengaturan > Email > Teruskan dan IMAP*.
+Pastikan IMAP aktif di akoen Outlook.com: *Pengaturan > Email > Teruskan dan IMAP*.
 
 ## SharePoint
-Klik **Tambah akun > SharePoint**, login dengan akun Microsoft kantor/sekolah, lalu cari situsnya. Anda
-bisa mengetik namanya (misalnya "keuangan") atau menempel alamatnya dari browser
-(`https://namatenant.sharepoint.com/sites/NamaSitus`). Pilih situs dan **pustaka dokumennya**
-(biasanya "Dokumen"). Satu akun SharePoint mewakili satu pustaka; untuk pustaka lain, tambah akun
-SharePoint lagi atau ganti lewat *⋯ > Pilih situs & pustaka…* pada akun itu.
+Klik **Tambah akun > SharePoint**, login dengan akoen Microsoft kantor/sekolah, laloe tjari sitoesnja.
+Saoedara dapat mengetik namanja (misalnja "keuangan") atau menempel alamatnja dari browser
+(`https://namatenant.sharepoint.com/sites/NamaSitus`). Pilih sitoes dan **poestaka dokoemennja**
+(biasanja "Dokumen"). Satoe akoen SharePoint mewakili satoe poestaka; oentoek poestaka lain, tambah
+akoen SharePoint lagi atau ganti lewat *⋯ > Pilih situs & pustaka…* pada akoen itoe.
 
-- Yang tersalin hanya file dan folder. Riwayat versi, izin berbagi, metadata kolom, list,
-  dan halaman situs tidak ikut.
-- Untuk menyalin dari SharePoint cukup hak *baca*; untuk menyalin ke SharePoint perlu hak *edit*.
-- Bila SharePoint menjadi tujuan, SharePoint menambahkan metadata ke file Office
-  (.docx/.xlsx/.pptx), sehingga ukurannya berubah. LELEMOVE memakai `--ignore-size
-  --ignore-checksum` saat menyalin ke SharePoint, dan saat verifikasi file Office semacam itu
-  dihitung cocok, disertai catatan.
-- SharePoint sering membatasi laju (throttling, HTTP 429). rclone menunggu lalu mencoba lagi.
-- Cara tanpa login tambahan: di SharePoint klik **Sync** atau **Add shortcut to My files**,
-  lalu pilih folder hasilnya lewat *Komputer ini*.
+- Jang tersalin hanja file dan folder. Riwajat versi, izin berbagi, metadata kolom, list,
+  dan halaman sitoes tidak ikoet.
+- Oentoek menjalin dari SharePoint tjoekoep hak *batja*; oentoek menjalin ke SharePoint perloe hak *edit*.
+- Bila SharePoint mendjadi toedjoean, SharePoint menambahkan metadata ke file Office
+  (.docx/.xlsx/.pptx), sehingga oekoerannja beroebah. LELEMOVE memakai `--ignore-size
+  --ignore-checksum` ketika menjalin ke SharePoint, dan ketika verifikasi file Office sematjam itoe
+  dihitoeng tjotjok, disertai tjatatan.
+- SharePoint kerap membatasi ladjoe (throttling, HTTP 429). rclone menoenggoe laloe mentjoba lagi.
+- Tjara tanpa login tambahan: di SharePoint klik **Sync** atau **Add shortcut to My files**,
+  laloe pilih folder hasilnja lewat *Komputer ini*.
 
-## Izin akun
+<a name="izin-akun"></a>
+## Izin akoen
 
-| Akun | Sebagai tujuan | Sebagai sumber |
+| Akoen | Sebagai toedjoean | Sebagai soember |
 |---|---|---|
-| Google Drive, izin terbatas (`drive.file`) | Ya | Tidak: hanya bisa melihat file buatan LELEMOVE |
-| Google Drive, izin penuh (`drive`) | Ya | Ya |
-| OneDrive pribadi / kantor | Ya | Ya |
-| SharePoint (satu pustaka dokumen) | Ya, bila punya hak edit | Ya |
-| Layanan lain (Dropbox, NAS, S3, ...) | Ya, bila akun/kuncinya boleh menulis | Ya, bila boleh membaca |
-| Komputer ini | Ya | Ya |
+| Google Drive, izin terbatas (`drive.file`) | Ja | Tidak: hanja dapat melihat file boeatan LELEMOVE |
+| Google Drive, izin penoeh (`drive`) | Ja | Ja |
+| OneDrive pribadi / kantor | Ja | Ja |
+| SharePoint (satoe poestaka dokoemen) | Ja, bila poenja hak edit | Ja |
+| Lajanan lain (Dropbox, NAS, S3, ...) | Ja, bila akoen/koentjinja boleh menoelis | Ja, bila boleh membatja |
+| Komputer ini | Ja | Ja |
 
-Izin terbatas adalah pilihan bawaan dan paling aman untuk akun yang hanya menjadi tujuan.
-Untuk menyalin *dari* Google Drive, beri izin penuh lewat *⋯ > Beri izin penuh* pada akun itu.
+Izin terbatas ialah pilihan bawaan dan paling aman oentoek akoen jang hanja mendjadi toedjoean.
+Oentoek menjalin *dari* Google Drive, berilah izin penoeh lewat *⋯ > Beri izin penuh* pada akoen itoe.
 
-Akun OneDrive kantor sebenarnya punya beberapa "drive" (pustaka SharePoint), seperti
+Akoen OneDrive kantor sebenarnja mempoenjai beberapa "drive" (poestaka SharePoint), seperti
 `PersonalCacheLibrary` dan `Pustaka Penangguhan Preservasi`. LELEMOVE otomatis memilih
-OneDrive utama, yaitu drive yang alamatnya berakhir `/Documents` ("Dokumen" atau "Documents"
-tergantung bahasa), lalu menampilkan nama drive itu di daftar akun.
+OneDrive oetama, jaitoe drive jang alamatnja berachir `/Documents` ("Dokumen" atau "Documents"
+tergantoeng bahasa), laloe menampilkan nama drive itoe di daftar akoen.
 
-## Penyalinan macet? Pakai client ID Google sendiri
+<a name="penyalinan-macet-pakai-client-id-google-sendiri"></a>
+## Penjalinan matjet? Pakai client ID Google sendiri
 
-Gejalanya: progres berhenti di angka tertentu dengan kecepatan 0, sementara
+Gedjalanja: progres berhenti di angka tertentoe dengan ketjepatan 0, sementara
 aplikasi menampilkan "Tidak ada kemajuan sejak ..." atau "membatasi permintaan (rate limit)".
 
-Penyebabnya: rclone memakai satu **client ID Google bersama** untuk semua penggunanya di seluruh
-dunia. Client ID itu sedang dipensiunkan Google dan kuota per menitnya sering habis
-(`Error 403: Quota exceeded ... rateLimitExceeded`). Selama kuota habis, rclone hanya bisa
-menunggu dan mencoba lagi.
+Sebabnja: rclone memakai satoe **client ID Google bersama** oentoek semoea pemakainja di seloeroeh
+doenia. Client ID itoe sedang dipensioenkan Google dan koeota per menitnja kerap habis
+(`Error 403: Quota exceeded ... rateLimitExceeded`). Selama koeota habis, rclone hanja dapat
+menoenggoe dan mentjoba lagi.
 
-Solusinya adalah client ID sendiri. Gratis, kuotanya khusus untuk Anda, dan cukup dibuat
-sekali (sekitar 5 menit). Buka **Pengaturan > Client ID Google > Pasang client ID…**; dialognya
-berisi langkah-langkah beserta tautan ke Google Cloud Console:
+Djalan keloearnja ialah client ID sendiri. Pertjoema, koeotanja choesoes oentoek Saoedara, dan
+tjoekoep diboeat sekali (kira-kira 5 menit). Boeka **Pengaturan > Client ID Google > Pasang client ID…**;
+dialognja berisi langkah-langkah beserta tautan ke Google Cloud Console:
 
-1. Buat project baru di Google Cloud.
+1. Boeat project baroe di Google Cloud.
 2. Aktifkan Google Drive API.
-3. Isi *Branding* (nama aplikasi dan email Anda), pilih Audience *External*.
-4. Di *Clients*, buat client jenis *Desktop app*, lalu tempel Client ID dan secret-nya ke aplikasi.
-   Google hanya menampilkan secret sekali, saat client dibuat. Simpan dengan *Download JSON*.
-5. Di *Audience*: selama status *Testing*, tambahkan email setiap akun Google pemakai di
-   *Test users* (maksimal 100). **Login dalam mode Testing kedaluwarsa setelah 7 hari**; aplikasi
-   menandainya dengan titik merah dan tombol *Login ulang*. Agar tidak kedaluwarsa dan akun lain
-   bisa login tanpa didaftarkan, klik *Publish app*. Google meminta alamat beranda dan kebijakan
-   privasi di *Branding*, tetapi untuk izin `drive.file` tidak perlu verifikasi. Izin penuh
-   (`drive`) tetap memunculkan layar "aplikasi belum diverifikasi".
+3. Isi *Branding* (nama aplikasi dan email Saoedara), pilih Audience *External*.
+4. Di *Clients*, boeat client djenis *Desktop app*, laloe tempel Client ID dan secret-nja ke aplikasi.
+   Google hanja menampilkan secret sekali, ketika client diboeat. Simpan dengan *Download JSON*.
+5. Di *Audience*: selama statoes *Testing*, tambahkan email setiap akoen Google pemakai di
+   *Test users* (paling banjak 100). **Login dalam mode Testing kedaloewarsa setelah 7 hari**; aplikasi
+   menandainja dengan titik merah dan tombol *Login ulang*. Agar tidak kedaloewarsa dan akoen lain
+   dapat login tanpa didaftarkan, klik *Publish app*. Google meminta alamat beranda dan kebidjakan
+   privasi di *Branding*, tetapi oentoek izin `drive.file` tidak perloe verifikasi. Izin penoeh
+   (`drive`) tetap memoentjoelkan lajar "aplikasi belum diverifikasi".
 
-Saat login, Google bisa menampilkan *"Google hasn't verified this app"*. Karena aplikasinya milik
-Anda sendiri, klik *Continue* atau *Advanced* lalu *Go to … (unsafe)*.
+Ketika login, Google boleh djadi menampilkan *"Google hasn't verified this app"*. Karena aplikasinja
+milik Saoedara sendiri, klik *Continue* atau *Advanced* laloe *Go to … (unsafe)*.
 
 ### Pengaturan > Client ID Google
 
-Client ID Google diatur **sekali untuk seluruh aplikasi**, di *Pengaturan* (ikon ⚙ di dasar daftar
-lokasi), bukan lagi lewat menu ⋯ tiap akun atau dialog tambah akun.
+Client ID Google diatoer **sekali oentoek seloeroeh aplikasi**, di *Pengaturan* (ikon ⚙ di dasar daftar
+lokasi), boekan lagi lewat menoe ⋯ tiap akoen atau dialog tambah akoen.
 
-| Di Pengaturan | Artinya |
+| Di Pengaturan | Artinja |
 |---|---|
-| **Terpasang** `1234…` (dari komputer ini) | Client ID disimpan lewat Pengaturan di komputer ini. |
-| **Terpasang** `1234…` (dari installer) | Client ID ikut dibawa installer; tidak bisa dihapus dari sini. |
-| **Belum ada** | Akun Google memakai client ID bersama rclone (sering dibatasi). |
-| *Pasang / Ganti client ID…* | Isi Client ID + secret; langsung tersimpan, tanpa login. |
-| *Hapus* | Menghapus client ID yang disimpan di komputer ini (bawaan installer berlaku lagi bila ada). |
-| *Ambil dari akun X* | Muncul bila belum ada client ID aplikasi tetapi akun X sudah memakai client ID sendiri. |
-| Daftar *Akun Google* | Tiap akun: "memakai client ID aplikasi", "memakai client ID lain", atau "memakai client ID bersama". |
-| *Login ulang dengan client ID ini* | Untuk akun yang belum memakai client ID aplikasi; browser terbuka untuk login. |
+| **Terpasang** `1234…` (dari komputer ini) | Client ID disimpan lewat Pengaturan di kompoeter ini. |
+| **Terpasang** `1234…` (dari installer) | Client ID ikoet dibawa installer; tidak dapat dihapoes dari sini. |
+| **Belum ada** | Akoen Google memakai client ID bersama rclone (kerap dibatasi). |
+| *Pasang / Ganti client ID…* | Isi Client ID + secret; langsoeng tersimpan, tanpa login. |
+| *Hapus* | Menghapoes client ID jang disimpan di kompoeter ini (bawaan installer berlakoe lagi bila ada). |
+| *Ambil dari akun X* | Moentjoel bila beloem ada client ID aplikasi tetapi akoen X soedah memakai client ID sendiri. |
+| Daftar *Akun Google* | Tiap akoen: "memakai client ID aplikasi", "memakai client ID lain", atau "memakai client ID bersama". |
+| *Login ulang dengan client ID ini* | Oentoek akoen jang beloem memakai client ID aplikasi; browser terboeka oentoek login. |
 
 Client ID aplikasi:
-- dipakai otomatis untuk setiap akun Google yang **ditambahkan** sesudahnya. Akun yang sudah ada
-  baru ikut memakainya setelah *Login ulang dengan client ID ini*;
-- disimpan di `%LOCALAPPDATA%\pindah-drive\client-google.json`. Lokasinya sengaja di luar folder
-  proyek, karena folder proyek berada di web root Laragon;
-- **ikut dibawa installer** saat `buat-installer.ps1` dijalankan. Rekan yang memasang langsung bisa
-  login, asalkan email mereka sudah Anda tambahkan di *Test users* (atau aplikasinya sudah di-publish).
+- dipakai otomatis oentoek setiap akoen Google jang **ditambahkan** sesoedahnja. Akoen jang soedah ada
+  baroe ikoet memakainja setelah *Login ulang dengan client ID ini*;
+- disimpan di `%LOCALAPPDATA%\pindah-drive\client-google.json`. Letaknja sengadja di loear folder
+  projek, karena folder projek berada di web root Laragon;
+- **ikoet dibawa installer** ketika `buat-installer.ps1` didjalankan. Rekan jang memasang langsoeng dapat
+  login, asalkan email mereka soedah Saoedara tambahkan di *Test users* (atau aplikasinja soedah di-publish).
 
-Pertimbangkan sebelum membagikan: siapa pun yang memegang installer bisa membaca client ID dan
-secret itu, lalu ikut memakai kuota project Anda. Untuk client jenis *Desktop app*, Google
-menganggap ini wajar, tetapi jangan unggah installer seperti itu ke tempat umum. Untuk installer
-publik, gunakan `.\buat-installer.ps1 -TanpaClient`.
+Timbanglah sebeloem membagikan: siapa poen jang memegang installer dapat membatja client ID dan
+secret itoe, laloe ikoet memakai koeota project Saoedara. Oentoek client djenis *Desktop app*, Google
+menganggap ini wadjar, tetapi djangan oenggah installer seperti itoe ke tempat oemoem. Oentoek
+installer oemoem, goenakan `.\buat-installer.ps1 -TanpaClient`.
 
 ## Verifikasi: seberapa teliti?
 
-Checksum (isi file) dipakai bila kedua sisi punya jenis checksum yang sama; selain itu yang
-dicocokkan nama dan ukurannya. Contohnya:
+Checksum (isi file) dipakai bila kedoea sisi mempoenjai djenis checksum jang sama; selain itoe jang
+ditjotjokkan nama dan oekoerannja. Tjontohnja:
 
-| Sumber ↔ tujuan | Cara mencocokkan |
+| Soember ↔ toedjoean | Tjara menjotjokkan |
 |---|---|
-| Komputer ↔ Google Drive, Google Drive ↔ Google Drive | checksum MD5 |
-| Komputer ↔ OneDrive, OneDrive ↔ OneDrive | checksum QuickXorHash |
-| Komputer ↔ S3; Komputer ↔ SFTP (bila server menyediakan `md5sum`/`sha1sum`) | checksum MD5/SHA-1 |
-| OneDrive ↔ Google Drive, Komputer ↔ WebDAV/FTP | nama & ukuran saja (tidak ada jenis checksum yang sama) |
+| Kompoeter ↔ Google Drive, Google Drive ↔ Google Drive | checksum MD5 |
+| Kompoeter ↔ OneDrive, OneDrive ↔ OneDrive | checksum QuickXorHash |
+| Kompoeter ↔ S3; Kompoeter ↔ SFTP (bila server menjediakan `md5sum`/`sha1sum`) | checksum MD5/SHA-1 |
+| OneDrive ↔ Google Drive, Kompoeter ↔ WebDAV/FTP | nama & oekoeran sadja (tidak ada djenis checksum jang sama) |
 
-Verifikasi tidak mengunduh ulang: checksum dibaca dari metadata yang disimpan tiap layanan. Hasil
-verifikasi selalu menyebut caranya, dan laporan per file di *Riwayat & laporan* mencatatnya.
+Verifikasi tidak mengoendoeh oelang: checksum dibatja dari metadata jang disimpan tiap lajanan. Hasil
+verifikasi selaloe menjeboet tjaranja, dan laporan per file di *Riwayat & laporan* mentjatatnja.
 
 ## Batasan
 
-- Kuota tujuan dicek sebelum menyalin, bila layanannya melaporkan kuota (FTP, S3, B2, dan
-  sejenisnya tidak). Isi sampah ikut dihitung dalam kuota.
-- Google membatasi unggahan **750 GB per hari**. Penyalinan berhenti sendiri dan bisa
-  dilanjutkan besok.
-- Layanan bertanda *beta* (Zoho WorkDrive, iCloud Drive, Proton Drive, Jottacloud) bergantung
-  pada dukungan rclone yang masih berkembang. Login iCloud perlu diulang sekitar tiap 30 hari dan
-  butuh *Advanced Data Protection* nonaktif.
-- Jadwal backup dengan layanan yang login-nya kedaluwarsa (Google mode Testing, iCloud) gagal
-  sampai Anda login ulang; hasilnya tampil di notifikasi dan riwayat.
-- Bila sumbernya folder OneDrive di komputer, file yang statusnya "hanya online" diunduh dulu
-  ke disk. Aplikasi menghitung apakah ruang disknya cukup.
-- **Notebook OneNote** dan **Personal Vault** tidak ikut tersalin.
-- Dokumen Google (Docs/Sheets/Slides) yang disalin ke luar Google Drive diubah menjadi
+- Koeota toedjoean ditjek sebeloem menjalin, bila lajanannja melaporkan koeota (FTP, S3, B2, dan
+  sedjenisnja tidak). Isi sampah ikoet dihitoeng dalam koeota.
+- Google membatasi oenggahan **750 GB per hari**. Penjalinan berhenti sendiri dan dapat
+  dilandjoetkan esok hari.
+- Lajanan bertanda *beta* (Zoho WorkDrive, iCloud Drive, Proton Drive, Jottacloud) bergantoeng
+  pada doekoengan rclone jang masih berkembang. Login iCloud perloe dioelang kira-kira tiap 30 hari
+  dan memerloekan *Advanced Data Protection* dimatikan.
+- Djadwal backup dengan lajanan jang login-nja kedaloewarsa (Google mode Testing, iCloud) gagal
+  sampai Saoedara login oelang; hasilnja tampil di notifikasi dan riwajat.
+- Bila soembernja folder OneDrive di kompoeter, file jang statoesnja "hanja online" dioendoeh doeloe
+  ke disk. Aplikasi menghitoeng apakah roeang disknja tjoekoep.
+- **Notebook OneNote** dan **Personal Vault** tidak ikoet tersalin.
+- Dokoemen Google (Docs/Sheets/Slides) jang disalin ke loear Google Drive dioebah mendjadi
   `.docx`/`.xlsx`/`.pptx`.
 
 ## Privasi
 
-Tidak ada server LELEMOVE, akun LELEMOVE, analitik, atau telemetri. Kebijakan lengkapnya ada di
-[docs/privasi.md](docs/privasi.md) (juga di aplikasi: *Bantuan & info > Privasi*).
+Tidak ada server LELEMOVE, akoen LELEMOVE, analitik, atau telemetri. Kebidjakan lengkapnja ada di
+[docs/privasi.md](docs/privasi.md) (djoega di aplikasi: *Bantuan & info > Privasi*).
 
-- Token login dan data login layanan berisian (alamat, pengguna, kata sandi terobfuskasi, kunci
-  akses) disimpan oleh rclone di `%APPDATA%\rclone\rclone.conf`. Jangan bagikan file ini;
-  obfuskasi bukan enkripsi.
-- Pengaturan, status, jadwal, riwayat, dan log ada di `%LOCALAPPDATA%\pindah-drive\`. Log yang lebih
-  tua dari 60 hari dihapus otomatis setiap kali penyalinan dimulai, kecuali log penyalinan
-  terakhir. Riwayat (`riwayat.jsonl`) tidak dihapus otomatis karena dipakai untuk audit.
-- *Lepas akun* hanya menghapus koneksi di komputer ini, bukan file di cloud. Untuk mencabut izin
-  sepenuhnya, hapus akses "rclone" di <https://myaccount.google.com/permissions>, di pengaturan
-  akun Microsoft, atau cabut kata sandi aplikasi/kunci akses di layanan lain.
+- Token login dan data login lajanan berisian (alamat, pengoena, kata sandi terobfoeskasi, koentji
+  akses) disimpan oleh rclone di `%APPDATA%\rclone\rclone.conf`. Djangan bagikan file ini;
+  obfoeskasi boekan enkripsi.
+- Pengatoeran, statoes, djadwal, riwajat, dan log ada di `%LOCALAPPDATA%\pindah-drive\`. Log jang
+  lebih toea dari 60 hari dihapoes otomatis setiap kali penjalinan dimoelai, ketjoeali log
+  penjalinan terachir. Riwajat (`riwayat.jsonl`) tidak dihapoes otomatis karena dipakai oentoek audit.
+- *Lepas akun* hanja menghapoes koneksi di kompoeter ini, boekan file di cloud. Oentoek mentjaboet
+  izin sepenoehnja, hapoes akses "rclone" di <https://myaccount.google.com/permissions>, di
+  pengatoeran akoen Microsoft, atau tjaboet kata sandi aplikasi/koentji akses di lajanan lain.
 
 ## Baris perintah
 
-Semua yang ada di aplikasi juga bisa dijalankan lewat `pindah.exe` (di folder aplikasi).
-Daftar lengkap opsinya: `pindah bantuan`. Tambahkan `-Mesin` untuk ringkasan terstruktur: baris
-terakhir keluarannya berupa `##HASIL {json}`.
+Semoea jang ada di aplikasi dapat poela didjalankan lewat `pindah.exe` (di folder aplikasi).
+Daftar lengkap opsinja: `pindah bantuan`. Tambahkan `-Mesin` oentoek ringkasan tersoesoen: baris
+terachir keloearannja beroepa `##HASIL {json}`.
 
 ```powershell
 pindah cek                                              # rclone, akun, folder OneDrive, rute
@@ -536,33 +567,35 @@ pindah jadwal -Id <id> -Jalankan                        # jalankan sekarang di k
 pindah jadwal -Id <id> -Hapus
 ```
 
-Sumber dan tujuan ditulis sebagai folder komputer (`D:\Data`) atau `<akun>:<folder>`; untuk
-object storage `<akun>:<bucket>/<folder>`, untuk SMB `<akun>:<share>/<folder>`. Tanpa perintah
-(atau lewat `Pindah.cmd`), `pindah` membuka menu teks.
+Soember dan toedjoean ditoelis sebagai folder kompoeter (`D:\Data`) atau `<akun>:<folder>`; oentoek
+object storage `<akun>:<bucket>/<folder>`, oentoek SMB `<akun>:<share>/<folder>`. Tanpa perintah
+(atau lewat `Pindah.cmd`), `pindah` memboeka menoe teks.
 
-| Kode keluar | Arti |
+| Kode keloear | Arti |
 |---|---|
 | 0 | Berhasil |
-| 1 | Galat (pesan di keluaran; mis. login kedaluwarsa, folder tidak ada) |
-| 2 | `periksa`: ruang tujuan tidak cukup |
-| 3 | Perlu perhatian: `uji` menemukan file yang akan terlewat, atau `pindahkan` menunggu persetujuan (`-Ya`) |
-| 10 | `hubungkan`: rclone mengajukan pertanyaan lanjutan (lihat `Tanya` di `##HASIL`) |
+| 1 | Galat (pesan di keloearan; mis. login kedaloewarsa, folder tidak ada) |
+| 2 | `periksa`: roeang toedjoean tidak tjoekoep |
+| 3 | Perloe perhatian: `uji` menemoekan file jang akan terlewat, atau `pindahkan` menoenggoe persetoedjoean (`-Ya`) |
+| 10 | `hubungkan`: rclone mengadjoekan pertanjaan landjoetan (lihat `Tanya` di `##HASIL`) |
 
-- `-BatasKecepatan` diteruskan ke rclone sebagai `--bwlimit`, dengan satuan 1024 per detik:
-  `500K`, `5M`, `1.5M`; angka tanpa satuan berarti KB/dtk. Unggah dan unduh bisa dibedakan
-  dengan `unggah:unduh`, misalnya `10M:5M`. Nilainya disimpan di `pengaturan.json`
-  (`BatasKecepatan`) dan juga dipakai jendela aplikasi; `-BatasKecepatan off` menghapusnya.
-- `salin -Latar` mengirim notifikasi Windows saat selesai atau berhenti karena galat, juga
-  bila jendela aplikasi sudah ditutup. *Hentikan* tidak memunculkan notifikasi.
-- `salin -Latar` melanjutkan sendiri saat jaringan putus (lihat *Jaringan putus: lanjut
-  otomatis*); `status` lalu menampilkan `Keadaan: MENUNGGU JARINGAN` dan perkiraan jamnya.
-- Setiap `salin` menghapus berkas di `%LOCALAPPDATA%\pindah-drive\log` yang lebih tua dari
-  60 hari, kecuali log yang tercatat di `job.json`.
+- `-BatasKecepatan` diteroeskan ke rclone sebagai `--bwlimit`, dengan satoean 1024 per detik:
+  `500K`, `5M`, `1.5M`; angka tanpa satoean berarti KB/dtk. Oenggah dan oendoeh dapat dibedakan
+  dengan `unggah:unduh`, misalnja `10M:5M`. Nilainja disimpan di `pengaturan.json`
+  (`BatasKecepatan`) dan djoega dipakai djendela aplikasi; `-BatasKecepatan off` menghapoesnja.
+- `salin -Latar` mengirim notifikasi Windows ketika selesai atau berhenti karena galat, djoega
+  bila djendela aplikasi soedah ditoetoep. *Hentikan* tidak memoentjoelkan notifikasi.
+- `salin -Latar` melandjoetkan sendiri ketika djaringan poetoes (lihat
+  [Djaringan poetoes: landjoet otomatis](#djaringan-poetoes-landjoet-otomatis)); `status` laloe
+  menampilkan `Keadaan: MENUNGGU JARINGAN` dan perkiraan djamnja.
+- Setiap `salin` menghapoes berkas di `%LOCALAPPDATA%\pindah-drive\log` jang lebih toea dari
+  60 hari, ketjoeali log jang tertjatat di `job.json`.
 - `jadwal -Hari` menerima `setiap` (bawaan) atau nama hari dipisah koma: `sen,sel,rab,kam,jum,sab,min`
-  (nama lengkap juga boleh). `-Jam` memakai format `22:00`. Jadwal memakai batas kecepatan yang
-  tersimpan di `pengaturan.json` saat ia berjalan, dan tidak mengubah rute yang dibuka di jendela.
+  (nama lengkap djoega boleh). `-Jam` memakai format `22:00`. Djadwal memakai batas ketjepatan jang
+  tersimpan di `pengaturan.json` ketika ia berdjalan, dan tidak mengoebah roete jang diboeka di djendela.
 
-## Untuk pengembang
+<a name="untuk-pengembang"></a>
+## Oentoek pengembang
 
 ```
 rust/                          kode sumber versi 2 (satu crate Rust)
@@ -609,40 +642,41 @@ skills/pindah-drive/SKILL.md   panduan untuk Claude; .claude-plugin/ = manifest 
 arsip-v1-powershell/           sumber versi 1.x (PowerShell + WPF + C#), tidak dipakai lagi
 ```
 
-Build memakai toolchain Rust **GNU** per pengguna (tanpa Visual Studio):
+Build memakai toolchain Rust **GNU** per pengoena (tanpa Visual Studio):
 
 ```powershell
 winget install Rustlang.Rustup --custom "--default-host x86_64-pc-windows-gnu --profile minimal"
 .\buat-installer.ps1
 ```
 
-Catatan toolchain: rustup GNU tidak membawa assembler `as.exe`, jadi crate yang me-link lewat
-`raw-dylib`/`windows-link` tidak bisa dibangun. `Cargo.lock` mengunci beberapa crate ke versi
-yang masih memakai import library biasa (lihat komentar di `rust/Cargo.toml`), dan `build.rs`
-menyediakan `libshlwapi.a`. Uji unit: `cargo test --release --lib --bin pindah-drive` di folder
-`rust`. Untuk menguji lanjut otomatis tanpa memutus internet: jalankan `salin -Latar` dengan
-`HTTPS_PROXY=http://127.0.0.1:9` (semua permintaan rclone gagal seperti jaringan putus),
-`PINDAH_DRIVE_JEDA_ULANG=3` (jeda dalam detik), dan `PINDAH_DRIVE_MAKS_ULANG=3`.
+Tjatatan toolchain: rustup GNU tidak membawa assembler `as.exe`, djadi crate jang me-link lewat
+`raw-dylib`/`windows-link` tidak dapat dibangoen. `Cargo.lock` mengoentji beberapa crate ke versi
+jang masih memakai import library biasa (lihat komentar di `rust/Cargo.toml`), dan `build.rs`
+menjediakan `libshlwapi.a`. Oedji oenit: `cargo test --release --lib --bin pindah-drive` di folder
+`rust`. Oentoek mengoedji landjoet otomatis tanpa memoetoes internet: djalankan `salin -Latar` dengan
+`HTTPS_PROXY=http://127.0.0.1:9` (semoea permintaan rclone gagal seperti djaringan poetoes),
+`PINDAH_DRIVE_JEDA_ULANG=3` (djeda dalam detik), dan `PINDAH_DRIVE_MAKS_ULANG=3`.
 
-Versi macOS dibangun di Mac: `rustup target add aarch64-apple-darwin x86_64-apple-darwin`, lalu
-`./buat-dmg.sh`. Tanpa Mac, kode macOS tetap bisa diperiksa dari Windows dengan
+Versi macOS dibangoen di Mac: `rustup target add aarch64-apple-darwin x86_64-apple-darwin`, laloe
+`./buat-dmg.sh`. Tanpa Mac, kode macOS tetap dapat diperiksa dari Windows dengan
 `cargo check --target aarch64-apple-darwin --all-targets` (setelah `rustup target add aarch64-apple-darwin`);
-uji unitnya dijalankan workflow macOS di GitHub Actions. Fungsi khusus sistem ada di `win.rs` dan
-`mac.rs` dengan nama yang sama (`lib.rs` memilih salah satunya), sehingga kode lain cukup memanggil `win::...`.
+oedji oenitnja didjalankan workflow macOS di GitHub Actions. Foengsi choesoes sistem ada di `win.rs`
+dan `mac.rs` dengan nama jang sama (`lib.rs` memilih salah satoenja), sehingga kode lain tjoekoep
+memanggil `win::...`.
 
-Untuk menguji jadwal tanpa menyentuh data asli: set `PINDAH_DRIVE_DATA` ke folder kosong, lalu
-jalankan `target\release\pindah.exe jadwal -Tambah ...` dengan jam 1-2 menit dari sekarang.
-Tugas yang dibuat saat variabel itu terpasang membawa `--data "<folder>"`, sehingga pemicu dari
-Task Scheduler juga memakai folder uji. Picu tanpa menunggu: `schtasks /Run /TN "LELEMOVE - Backup <id>"`.
-Hapus jadwal uji dengan `pindah jadwal -Id <id> -Hapus`.
+Oentoek mengoedji djadwal tanpa menjentoeh data asli: isi `PINDAH_DRIVE_DATA` dengan folder kosong,
+laloe djalankan `target\release\pindah.exe jadwal -Tambah ...` dengan djam 1-2 menit dari sekarang.
+Toegas jang diboeat ketika variabel itoe terpasang membawa `--data "<folder>"`, sehingga pemitjoe dari
+Task Scheduler djoega memakai folder oedji. Pitjoe tanpa menoenggoe:
+`schtasks /Run /TN "LELEMOVE - Backup <id>"`. Hapoes djadwal oedji dengan `pindah jadwal -Id <id> -Hapus`.
 
-Cara kerjanya: setiap tombol di jendela menjalankan `pindah.exe <perintah> -Mesin` sebagai proses
-tersembunyi. Teks keluarannya masuk ke *Log aktivitas*, sedangkan satu baris `##HASIL {json}`
-berisi angka hasilnya. Progres penyalinan dibaca dari `job.json` dan log rclone. Daftar folder
-di panel Dari/Ke dimuat di thread latar (`rclone lsf --dirs-only` untuk cloud, `read_dir` untuk
-komputer ini). Ikon memakai huruf Segoe MDL2 Assets bawaan Windows 10/11; di macOS simbol Unicode
-dari huruf bawaan egui (uji `ikon_unicode_ada_di_huruf_bawaan` memastikan semuanya ada); petak layanan lain
-memakai inisial dan warna dari `penyedia.rs`. Pratinjau jendela untuk dokumentasi:
+Tjara kerdjanja: setiap tombol di djendela mendjalankan `pindah.exe <perintah> -Mesin` sebagai proses
+tersemboenji. Teks keloearannja masoek ke *Log aktivitas*, sedangkan satoe baris `##HASIL {json}`
+berisi angka hasilnja. Progres penjalinan dibatja dari `job.json` dan log rclone. Daftar folder
+di panel Dari/Ke dimoeat di thread latar (`rclone lsf --dirs-only` oentoek cloud, `read_dir` oentoek
+kompoeter ini). Ikon memakai hoeroef Segoe MDL2 Assets bawaan Windows 10/11; di macOS simbol Unicode
+dari hoeroef bawaan egui (oedji `ikon_unicode_ada_di_huruf_bawaan` memastikan semoeanja ada); petak
+lajanan lain memakai inisial dan warna dari `penyedia.rs`. Pratindjau djendela oentoek dokoementasi:
 
 ```powershell
 "LELEMOVE.exe" --pratinjau layar.png [--dialog <nama>] [--log] [--lebar 760] [--tinggi 820] [--tunda 2500]
@@ -652,10 +686,10 @@ memakai inisial dan warna dari `penyedia.rs`. Pratinjau jendela untuk dokumentas
 ```
 
 Pakai `PINDAH_DRIVE_DATA=<folder sementara>` (dan `RCLONE_CONFIG=<berkas sementara>`) agar data
-dan akun asli tidak tersentuh. Tangkapan layar di README dibuat dengan cara ini.
+dan akoen asli tidak tersentoeh. Tangkapan lajar di README diboeat dengan tjara ini.
 
-Untuk menguji layanan berisian tanpa akun sungguhan: jalankan server lokal dengan rclone dan pakai
-konfigurasi rclone terpisah (`RCLONE_CONFIG`), supaya `rclone.conf` asli tidak tersentuh:
+Oentoek mengoedji lajanan berisian tanpa akoen soenggoehan: djalankan server lokal dengan rclone dan
+pakai konfigurasi rclone terpisah (`RCLONE_CONFIG`), soepaja `rclone.conf` asli tidak tersentoeh:
 
 ```powershell
 rclone serve webdav C:\uji\dav --addr 127.0.0.1:18081 --user uji --pass rahasia   # juga: serve sftp / ftp / s3 --auth-key AK,SK
@@ -665,9 +699,9 @@ $env:RCLONE_CONFIG = "C:\uji\rclone-uji.conf"; $env:PINDAH_DRIVE_DATA = "C:\uji\
 
 ### Membuat rilis
 
-Installer untuk publik **wajib** dibangun dengan `-TanpaClient`. Tanpa opsi itu, client ID dan
-secret Google dari `%LOCALAPPDATA%\pindah-drive\client-google.json` ikut masuk ke installer.
-Keduanya menulis ke nama berkas yang sama di `dist\`, jadi pindahkan dulu installer pribadi bila
+Installer oentoek oemoem **wadjib** dibangoen dengan `-TanpaClient`. Tanpa opsi itoe, client ID dan
+secret Google dari `%LOCALAPPDATA%\pindah-drive\client-google.json` ikoet masoek ke installer.
+Kedoeanja menoelis ke nama berkas jang sama di `dist\`, djadi pindahkan doeloe installer pribadi bila
 masih dipakai.
 
 ```powershell
@@ -680,6 +714,11 @@ $exe = ".\dist\LELEMOVE-Setup-<versi>.exe"
 gh release create v<versi> $exe "$exe.sha256" --target main --title "LELEMOVE <versi>" --notes-file catatan-rilis.md
 ```
 
+Berkas macOS tidak dibangoen di Windows. Workflow macOS memboeatnja pada setiap push ke main:
+oendoeh artefak **LELEMOVE-macOS** dari run commit jang sama
+(`gh run download <run-id> -n LELEMOVE-macOS`), laloe sertakan `LELEMOVE-<versi>-macOS.dmg` beserta
+berkas `.sha256`-nja dalam perintah `gh release create` di atas.
+
 Memakai sebagai plugin Claude Code:
 
 ```powershell
@@ -687,19 +726,24 @@ claude plugin marketplace add C:\laragon\www\pindah-drive
 claude plugin install pindah-drive@pindah-drive-lokal
 ```
 
-## Dukung
+<a name="dukung"></a>
+## Doekoeng
 
-LELEMOVE gratis dan sumbernya terbuka. Bila aplikasi ini menghemat waktu Anda atau kantor Anda,
-dukungan lewat **[saweria.co/pemecuteai](https://saweria.co/pemecuteai)** membantu pengembangannya
-(fitur baru, versi macOS, pengujian layanan). Tautan yang sama ada di aplikasi (*Bantuan & info >
-Tentang*) dan di tombol *Sponsor* repositori ini. Dukungan bersifat sukarela: semua fitur tetap
-terbuka untuk semua orang.
+LELEMOVE pertjoema dan soembernja terboeka. Bila aplikasi ini menghemat waktoe Saoedara atau kantor
+Saoedara, sokongan lewat **[saweria.co/pemecuteai](https://saweria.co/pemecuteai)** membantoe
+pengembangannja (fitoer baroe, pengoedjian lajanan, dan pemeliharaan versi Windows serta macOS).
+Tautan jang sama ada di aplikasi (*Bantuan & info > Tentang*) dan di tombol *Sponsor* repositori ini.
+Sokongan bersifat soekarela: semoea fitoer tetap terboeka oentoek semoea orang.
 
-## Riwayat versi
+Sekali pertjoema, tetap pertjoema!
 
-| Versi | Isi utama |
+<a name="riwayat-versi"></a>
+## Riwajat versi
+
+| Versi | Isi oetama |
 |---|---|
-| [2.2.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.2.0) | 29 layanan penyimpanan (Dropbox, Box, pCloud, MEGA, iCloud, Nextcloud, SMB/NAS, SFTP, FTP, S3, R2, B2, Azure, ...), pertanyaan lanjutan/2FA, pakai remote rclone yang sudah ada |
-| [2.1.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.1.0) | Filter file, riwayat & laporan audit (CSV, HTML siap cetak), Pindahkan dengan verifikasi ulang |
-| [2.0.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.0.0) | Ditulis ulang dalam Rust: jendela dua panel, nama LELEMOVE, lanjut otomatis saat jaringan putus, jadwal backup, Bantuan & info |
-| 1.x | Versi PowerShell + WPF (*Pindah Drive*); sumbernya di `arsip-v1-powershell/` |
+| [2.3.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.3.0) | Versi macOS (Apple Silicon + Intel, .dmg), migrasi email dari Gmail/Outlook/IMAP ke server email sendiri, tautan doekoengan Saweria, naskah README berëdjaan zaman perdjoeangan |
+| [2.2.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.2.0) | 29 lajanan penjimpanan (Dropbox, Box, pCloud, MEGA, iCloud, Nextcloud, SMB/NAS, SFTP, FTP, S3, R2, B2, Azure, ...), pertanjaan landjoetan/2FA, pakai remote rclone jang soedah ada |
+| [2.1.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.1.0) | Filter file, riwajat & laporan audit (CSV, HTML siap tjetak), Pindahkan dengan verifikasi oelang |
+| [2.0.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.0.0) | Ditoelis oelang dalam Rust: djendela doea panel, nama LELEMOVE, landjoet otomatis ketika djaringan poetoes, djadwal backup, Bantuan & info |
+| 1.x | Versi PowerShell + WPF (*Pindah Drive*); soembernja di `arsip-v1-powershell/` |
