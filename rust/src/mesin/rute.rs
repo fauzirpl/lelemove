@@ -1,11 +1,10 @@
 //! Sumber & tujuan: folder di komputer (D:\Data) atau "<akun>:<folder>" (pd-onedrive:Kerja).
 
 use serde_json::{Map, Value};
-use std::os::windows::fs::MetadataExt;
-use std::path::{Path, PathBuf};
+use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 
 use super::akun::{jenis_dari_nama, nama_layanan, remote_dari};
-use super::dasar::{baca_objek, cocok_kecualian, jalur, teks, tulis_json, ATRIBUT_HANYA_CLOUD, REMOTE_GOOGLE};
+use super::dasar::{baca_objek, cocok_kecualian, jalur, teks, tulis_json, REMOTE_GOOGLE};
 use super::rclone::{panggil, Mode};
 use crate::{v, win};
 
@@ -15,11 +14,20 @@ pub struct Rute {
     pub tujuan: Option<String>,
 }
 
+/// Folder di komputer ini: "D:\..." atau "\\server\share" (Windows), "/..." (macOS).
+/// Selain itu alamat akun "<remote>:<folder>".
+#[cfg(windows)]
 pub fn adalah_lokal(s: &str) -> bool {
     let b = s.as_bytes();
     (b.len() >= 3 && b[0].is_ascii_alphabetic() && b[1] == b':' && b[2] == b'\\') || s.starts_with("\\\\")
 }
 
+#[cfg(target_os = "macos")]
+pub fn adalah_lokal(s: &str) -> bool {
+    s.starts_with('/')
+}
+
+#[cfg(windows)]
 pub fn rapikan_sumber(s: &str) -> String {
     let s = s.trim().trim_matches('"');
     let b = s.as_bytes();
@@ -31,6 +39,24 @@ pub fn rapikan_sumber(s: &str) -> String {
         return s.trim_end_matches('\\').to_string();
     }
     s.replace('\\', "/")
+}
+
+#[cfg(target_os = "macos")]
+pub fn rapikan_sumber(s: &str) -> String {
+    let s = s.trim().trim_matches('"');
+    if adalah_lokal(s) {
+        let t = s.trim_end_matches('/');
+        return if t.is_empty() { "/".into() } else { t.to_string() };
+    }
+    s.replace('\\', "/")
+}
+
+/// `p` sama dengan folder `akar` atau berada di dalamnya (tanpa membedakan huruf besar/kecil,
+/// seperti sistem berkas bawaan Windows dan macOS).
+pub fn di_dalam(p: &str, akar: &str) -> bool {
+    let p = p.to_lowercase();
+    let a = akar.trim_end_matches(MAIN_SEPARATOR).to_lowercase();
+    p == a || p.starts_with(&format!("{a}{MAIN_SEPARATOR}"))
 }
 
 pub fn normalisasi_tujuan(d: &str) -> String {
@@ -53,6 +79,7 @@ pub struct OneDriveLokal {
 }
 
 /// Folder OneDrive yang tersinkron di komputer ini (dari registry dan variabel lingkungan).
+#[cfg(windows)]
 pub fn daftar_onedrive() -> Vec<OneDriveLokal> {
     use winreg::enums::HKEY_CURRENT_USER;
     use winreg::RegKey;
@@ -79,12 +106,34 @@ pub fn daftar_onedrive() -> Vec<OneDriveLokal> {
     hasil
 }
 
+/// Folder OneDrive di macOS: aplikasi OneDrive (File Provider) membuat
+/// ~/Library/CloudStorage/OneDrive-Personal dan OneDrive-<Organisasi>; versi lama memakai ~/OneDrive.
+#[cfg(target_os = "macos")]
+pub fn daftar_onedrive() -> Vec<OneDriveLokal> {
+    let rumah = win::folder_rumah();
+    let mut hasil: Vec<OneDriveLokal> = Vec::new();
+    if let Ok(isi) = std::fs::read_dir(rumah.join("Library").join("CloudStorage")) {
+        let mut v: Vec<(String, String)> = isi
+            .flatten()
+            .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
+            .map(|e| (e.file_name().to_string_lossy().to_string(), e.path().to_string_lossy().to_string()))
+            .filter(|(n, _)| n.starts_with("OneDrive"))
+            .collect();
+        v.sort();
+        for (nama, folder) in v {
+            let jenis = if nama == "OneDrive-Personal" { "Pribadi" } else { "Kantor/Sekolah" };
+            hasil.push(OneDriveLokal { folder, jenis: jenis.into() });
+        }
+    }
+    let lama = rumah.join("OneDrive");
+    if lama.is_dir() && std::fs::symlink_metadata(&lama).is_ok_and(|m| !m.file_type().is_symlink()) {
+        hasil.push(OneDriveLokal { folder: lama.to_string_lossy().to_string(), jenis: "OneDrive".into() });
+    }
+    hasil
+}
+
 pub fn di_onedrive(path: &str) -> bool {
-    let p = path.to_lowercase();
-    daftar_onedrive().iter().any(|o| {
-        let akar = o.folder.trim_end_matches('\\').to_lowercase();
-        p == akar || p.starts_with(&format!("{akar}\\"))
-    })
+    daftar_onedrive().iter().any(|o| di_dalam(path, &o.folder))
 }
 
 /// Folder tujuan bawaan: "<akun tujuan>:Pindahan <asal>/<nama folder sumber>".
@@ -114,8 +163,7 @@ pub fn tujuan_bawaan(src: &str, remote_tujuan: &str) -> String {
         nama = asal.to_string();
     }
     if remote_tujuan.is_empty() {
-        let dok = win::folder(win::Folder::Dokumen)
-            .unwrap_or_else(|| PathBuf::from(std::env::var("USERPROFILE").unwrap_or_default()).join("Documents"));
+        let dok = win::folder(win::Folder::Dokumen).unwrap_or_else(|| win::folder_rumah().join("Documents"));
         return dok.join(format!("Pindahan {asal}")).join(nama).to_string_lossy().to_string();
     }
     format!("{remote_tujuan}:Pindahan {asal}/{nama}")
@@ -183,14 +231,14 @@ pub fn ukur_lokal(path: &str) -> Ukuran {
                 continue;
             }
             let Ok(m) = e.metadata() else { continue };
-            let n = m.file_size() as i64;
+            let n = m.len() as i64;
             u.jumlah += 1;
             u.bytes += n;
             if n > u.terbesar {
                 u.terbesar = n;
                 u.terbesar_nama = e.path().to_string_lossy().to_string();
             }
-            if m.file_attributes() & ATRIBUT_HANYA_CLOUD != 0 {
+            if win::hanya_cloud(&m) {
                 u.jumlah_hanya_cloud += 1;
                 u.hanya_cloud += n;
             }
@@ -335,12 +383,31 @@ mod uji {
 
     #[test]
     fn rapikan() {
-        assert_eq!(rapikan_sumber("\"D:\\Data\\\""), "D:\\Data");
-        assert_eq!(rapikan_sumber("D:"), "D:\\");
         assert_eq!(rapikan_sumber("pd-onedrive:Kerja\\DLH"), "pd-onedrive:Kerja/DLH");
         assert_eq!(normalisasi_tujuan("Arsip/2024"), "pd-gdrive:Arsip/2024");
         assert_eq!(normalisasi_tujuan("pd-gdrive-2:Arsip"), "pd-gdrive-2:Arsip");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn rapikan_windows() {
+        assert_eq!(rapikan_sumber("\"D:\\Data\\\""), "D:\\Data");
+        assert_eq!(rapikan_sumber("D:"), "D:\\");
         assert_eq!(normalisasi_tujuan("E:\\Salinan"), "E:\\Salinan");
+        assert!(adalah_lokal("\\\\server\\share") && !adalah_lokal("/Users/a"));
+        assert!(di_dalam("D:\\Data\\Kerja", "d:\\data\\") && di_dalam("D:\\Data", "D:\\Data") && !di_dalam("D:\\Data2", "D:\\Data"));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn rapikan_mac() {
+        assert_eq!(rapikan_sumber("\"/Users/a/Data/\""), "/Users/a/Data");
+        assert_eq!(rapikan_sumber("/"), "/");
+        assert_eq!(normalisasi_tujuan("/Volumes/USB/Salinan"), "/Volumes/USB/Salinan");
+        assert!(adalah_lokal("/Users/a") && !adalah_lokal("D:\\Data"));
+        assert!(di_dalam("/Users/a/Data/Kerja", "/users/a/data/") && di_dalam("/x", "/") && !di_dalam("/Users/a/Data2", "/Users/a/Data"));
+        let dok = tujuan_bawaan("/Users/a/Proyek", "");
+        assert!(dok.ends_with("/Documents/Pindahan Komputer/Proyek"), "{dok}");
     }
 
     #[test]

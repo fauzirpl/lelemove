@@ -10,6 +10,7 @@ use pindah_drive::gaya::{self, kecil, tebal, tombol, tombol_utama, HIJAU, KUNING
 use pindah_drive::mesin::dasar::waktu_tampil;
 use pindah_drive::mesin::jadwal::{self as mj, Filter, Jadwal, HARI_PENDEK, URUTAN_HARI};
 
+use pindah_drive::win;
 use crate::dialog::Hasil;
 
 const ELIPSIS: &str = "\u{2026}";
@@ -230,7 +231,7 @@ pub fn daftar(ui: &mut Ui, d: &mut Daftar) -> Option<Hasil> {
                             let (warna, ket) = if !j.aktif {
                                 (gaya::ABU, "nonaktif".to_string())
                             } else if !x.tugas {
-                                (KUNING, "tugas Windows hilang; klik Aktifkan untuk memasang ulang".to_string())
+                                (KUNING, format!("{} hilang; klik Aktifkan untuk memasang ulang", win::NAMA_TUGAS))
                             } else {
                                 (HIJAU, format!("berikutnya {}", mj::berikutnya(j).unwrap_or_default()))
                             };
@@ -285,7 +286,11 @@ pub fn daftar(ui: &mut Ui, d: &mut Daftar) -> Option<Hasil> {
 
     ui.add_space(4.0);
     ui.label(kecil(
-        "Jadwal dijalankan oleh Task Scheduler Windows selama Anda masuk ke Windows. Bila komputer mati atau tidur pada jamnya, backup dijalankan begitu komputer menyala lagi. Hasilnya dikabarkan lewat notifikasi Windows.",
+        if cfg!(windows) {
+                "Jadwal dijalankan oleh Task Scheduler Windows selama Anda masuk ke Windows. Bila komputer mati atau tidur pada jamnya, backup dijalankan begitu komputer menyala lagi. Hasilnya dikabarkan lewat notifikasi Windows."
+            } else {
+                "Jadwal dijalankan oleh launchd macOS selama Anda masuk ke Mac. Bila Mac tidur pada jamnya, backup dijalankan begitu Mac bangun; bila Mac mati, jadwal itu dilewati. Hasilnya dikabarkan lewat notifikasi macOS. LELEMOVE harus berada di folder Applications."
+            },
         REDUP,
     ));
     if let Some((p, w)) = &d.pesan {

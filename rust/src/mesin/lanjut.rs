@@ -169,9 +169,9 @@ mod uji {
     fn host() {
         let h = |s: &str| (s.to_string(), 443u16);
         assert_eq!(host_rute("pd-onedrive:Kerja", "pd-gdrive:Arsip"), vec![h("graph.microsoft.com"), h("www.googleapis.com")]);
-        assert_eq!(host_rute("D:\\Data", "pd-sharepoint:Dok"), vec![h("graph.microsoft.com")]);
+        assert_eq!(host_rute(crate::win::CONTOH_DATA, "pd-sharepoint:Dok"), vec![h("graph.microsoft.com")]);
         assert_eq!(host_rute("pd-dropbox-2:A", "pd-b2:arsip/x"), vec![h("api.dropboxapi.com"), h("api.backblazeb2.com")]);
-        assert!(host_rute("D:\\Data", "E:\\Salinan").is_empty());
+        assert!(host_rute(crate::win::CONTOH_DATA, crate::win::CONTOH_SALINAN).is_empty());
     }
 
     #[test]

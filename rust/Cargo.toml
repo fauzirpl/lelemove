@@ -22,12 +22,12 @@ path = "src/bin/pindah-drive/main.rs"
 # Installer. Tanpa muatan (PINDAH_PAYLOAD kosong) program ini menjadi uninstall.exe.
 [[bin]]
 name = "setup"
-path = "src/bin/setup.rs"
+path = "src/bin/setup/main.rs"
 
 # Alat build: menanam ikon & manifest ke .exe (toolchain GNU tidak membawa windres).
 [[bin]]
 name = "tanam-ikon"
-path = "src/bin/tanam-ikon.rs"
+path = "src/bin/tanam-ikon/main.rs"
 
 [dependencies]
 eframe = "0.31"
@@ -36,11 +36,25 @@ rfd = "0.15"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 regex = "1"
-winreg = "0.55"
-zip = { version = "2", default-features = false, features = ["deflate"] }
-mslnk = "0.1"
 
-[dependencies.windows-sys]
+# Windows: registry, pintasan Start Menu, Win32, dan muatan installer (zip).
+[target.'cfg(windows)'.dependencies]
+winreg = "0.55"
+mslnk = "0.1"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+# macOS: panggilan POSIX (proses, statfs, flock) dan Foundation (Tong Sampah). Keduanya sudah
+# ikut terpakai oleh eframe/winit di macOS, jadi versinya sama dengan yang di Cargo.lock.
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2"
+objc2 = "0.5"
+ttf-parser = "0.25"
+
+[dev-dependencies]
+# Uji: memastikan ikon versi macOS ada di huruf bawaan egui.
+ttf-parser = "0.25"
+
+[target.'cfg(windows)'.dependencies.windows-sys]
 version = "0.59"
 features = [
     "Win32_Foundation",

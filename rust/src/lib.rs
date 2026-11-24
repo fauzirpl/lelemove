@@ -2,13 +2,22 @@
 //!
 //! Semua pemindahan data dikerjakan rclone. Pustaka ini berisi:
 //! - `mesin`: logika yang dulu ada di pindah.ps1 (akun, rute, periksa, uji, salin, verifikasi);
-//! - `win`: pembungkus kecil Win32 (proses, mutex, folder dikenal, layar tetap menyala);
+//! - `win`: lapisan sistem operasi (proses, kunci satu-jendela, folder dikenal, layar tetap
+//!   menyala, Tong Sampah). Isinya `win.rs` di Windows dan `mac.rs` di macOS, dengan nama
+//!   fungsi yang sama, sehingga kode lain tidak perlu tahu sedang berjalan di mana;
 //! - `gaya`: tampilan egui bersama untuk jendela aplikasi dan installer;
-//! - `notifikasi`: notifikasi Windows (toast) saat penyalinan latar berakhir.
+//! - `notifikasi`: notifikasi sistem saat penyalinan latar berakhir.
+
+#[cfg(not(any(windows, target_os = "macos")))]
+compile_error!("LELEMOVE hanya dibuat untuk Windows dan macOS.");
 
 pub mod gaya;
 pub mod mesin;
+
+#[cfg_attr(target_os = "macos", path = "notifikasi_mac.rs")]
 pub mod notifikasi;
+
+#[cfg_attr(target_os = "macos", path = "mac.rs")]
 pub mod win;
 
 pub const VERSI: &str = env!("CARGO_PKG_VERSION");

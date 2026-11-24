@@ -18,7 +18,7 @@ fn id(n: u16) -> *const u16 {
     n as usize as *const u16
 }
 
-fn main() -> ExitCode {
+pub fn main() -> ExitCode {
     let a: Vec<String> = std::env::args().skip(1).collect();
     let ambil = |n: &str| a.iter().position(|x| x == n).and_then(|i| a.get(i + 1)).cloned();
     let (Some(exe), Some(ikon)) = (a.first().cloned(), ambil("--ikon")) else {

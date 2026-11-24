@@ -4,6 +4,7 @@ use eframe::egui::{
     self, vec2, Align2, Button, Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, RichText,
     Sense, Stroke, TextStyle, Ui,
 };
+#[cfg(windows)]
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -37,8 +38,54 @@ pub fn keluarga_ikon() -> FontFamily {
     FontFamily::Name("ikon".into())
 }
 
+/// Glyph ikon jendela: Segoe MDL2 di Windows, simbol Unicode di macOS.
+#[cfg(windows)]
+pub use ik_mdl2 as ik;
+#[cfg(not(windows))]
+pub use ik_unicode as ik;
+
+/// Pengganti ikon di macOS: simbol Unicode yang ada di huruf bawaan egui (Noto Emoji,
+/// emoji-icon-font) sehingga selalu tampil, apa pun huruf yang terpasang di Mac.
+pub mod ik_unicode {
+    pub const MAP: char = '\u{1F5C0}';
+    pub const NAIK: char = '\u{2B06}';
+    pub const PANAH: char = '\u{27A1}';
+    pub const TUKAR: char = '\u{1F503}';
+    pub const KOMPUTER: char = '\u{1F5B3}';
+    pub const DISK: char = '\u{1F5B4}';
+    pub const AWAN: char = '\u{2601}';
+    pub const MAP_SINKRON: char = '\u{1F501}';
+    pub const TAMBAH: char = '\u{2795}';
+    pub const LAIN: char = '\u{2026}';
+    pub const SEGARKAN: char = '\u{1F504}';
+    pub const CARI: char = '\u{1F50D}';
+    pub const MAIN: char = '\u{25B6}';
+    pub const HENTI: char = '\u{23F9}';
+    pub const SELESAI: char = '\u{2714}';
+    pub const AWAS: char = '\u{26A0}';
+    pub const GALAT: char = '\u{26D4}';
+    pub const SPEEDO: char = '\u{23F1}';
+    pub const PENGATURAN: char = '\u{2699}';
+    pub const BANTUAN: char = '\u{2753}';
+    pub const JADWAL: char = '\u{1F4C5}';
+    pub const RIWAYAT: char = '\u{1F553}';
+    pub const BUKA_MAP: char = '\u{1F5C1}';
+    pub const BAWAH: char = '\u{23F7}';
+    pub const KANAN: char = '\u{23F5}';
+    pub const TUTUP: char = '\u{1F5D9}';
+    pub const DESKTOP: char = '\u{1F5B5}';
+    pub const DOKUMEN: char = '\u{1F5CB}';
+
+    /// Semua glyph di atas (untuk uji ketersediaan huruf).
+    pub const SEMUA: [char; 28] = [
+        MAP, NAIK, PANAH, TUKAR, KOMPUTER, DISK, AWAN, MAP_SINKRON, TAMBAH, LAIN, SEGARKAN, CARI, MAIN, HENTI,
+        SELESAI, AWAS, GALAT, SPEEDO, PENGATURAN, BANTUAN, JADWAL, RIWAYAT, BUKA_MAP, BAWAH, KANAN, TUTUP,
+        DESKTOP, DOKUMEN,
+    ];
+}
+
 /// Kode glyph Segoe MDL2 Assets yang dipakai jendela.
-pub mod ik {
+pub mod ik_mdl2 {
     pub const MAP: char = '\u{F12B}';
     pub const NAIK: char = '\u{E74A}';
     pub const PANAH: char = '\u{E72A}';
@@ -181,6 +228,7 @@ pub fn tombol_ikon(ui: &mut Ui, glyph: char, sisi: f32, aktif: bool) -> egui::Re
     resp
 }
 
+#[cfg(windows)]
 fn muat_huruf(fonts: &mut FontDefinitions, nama: &str, berkas: &str) -> bool {
     let dir = PathBuf::from(std::env::var("WINDIR").unwrap_or_else(|_| "C:\\Windows".into())).join("Fonts");
     match std::fs::read(dir.join(berkas)) {
@@ -192,20 +240,64 @@ fn muat_huruf(fonts: &mut FontDefinitions, nama: &str, berkas: &str) -> bool {
     }
 }
 
-/// Huruf Windows (Segoe UI, Consolas) bila ada; huruf bawaan egui tetap jadi cadangan.
-pub fn pasang(ctx: &egui::Context) {
-    let mut fonts = FontDefinitions::default();
-    let biasa = muat_huruf(&mut fonts, "segoe", "segoeui.ttf");
-    let sb = muat_huruf(&mut fonts, "segoe-sb", "seguisb.ttf");
-    let mono = muat_huruf(&mut fonts, "consolas", "consola.ttf");
-    let simbol = muat_huruf(&mut fonts, "segoe-simbol", "seguisym.ttf");
+/// Huruf Mac pertama yang ada dari `berkas`. Berkas .ttc memuat banyak wajah: dipilih wajah
+/// tegak berlebar normal dengan ketebalan terdekat ke `berat` (400 biasa, 600 semibold).
+#[cfg(target_os = "macos")]
+fn muat_huruf_mac(fonts: &mut FontDefinitions, nama: &str, berkas: &[&str], berat: i32) -> bool {
+    for b in berkas {
+        let Ok(data) = std::fs::read(b) else { continue };
+        let jumlah = ttf_parser::fonts_in_collection(&data).unwrap_or(1);
+        let indeks = (0..jumlah)
+            .filter_map(|i| ttf_parser::Face::parse(&data, i).ok().map(|f| (i, f)))
+            .filter(|(_, f)| !f.is_italic() && !f.is_oblique() && f.width() == ttf_parser::Width::Normal)
+            .min_by_key(|(_, f)| {
+                let w = f.weight().to_number() as i32;
+                ((w - berat).abs(), w)
+            })
+            .map(|(i, _)| i);
+        let Some(indeks) = indeks else { continue };
+        let mut fd = FontData::from_owned(data);
+        fd.index = indeks;
+        fonts.font_data.insert(nama.into(), Arc::new(fd));
+        return true;
+    }
+    false
+}
+
+/// (biasa, semibold, mono, simbol) berhasil dimuat; ikon memakai huruf proporsional.
+#[cfg(target_os = "macos")]
+fn huruf_sistem(fonts: &mut FontDefinitions) -> (bool, bool, bool, bool, Vec<String>) {
+    const BIASA: &[&str] = &["/System/Library/Fonts/HelveticaNeue.ttc", "/System/Library/Fonts/Helvetica.ttc", "/System/Library/Fonts/Supplemental/Arial.ttf"];
+    const TEBAL: &[&str] = &["/System/Library/Fonts/HelveticaNeue.ttc", "/System/Library/Fonts/Helvetica.ttc", "/System/Library/Fonts/Supplemental/Arial Bold.ttf"];
+    let biasa = muat_huruf_mac(fonts, "segoe", BIASA, 400);
+    let sb = muat_huruf_mac(fonts, "segoe-sb", TEBAL, 600);
+    let mono = muat_huruf_mac(fonts, "consolas", &["/System/Library/Fonts/Menlo.ttc", "/System/Library/Fonts/Monaco.ttf"], 400);
+    let simbol = muat_huruf_mac(fonts, "segoe-simbol", &["/System/Library/Fonts/Apple Symbols.ttf"], 400);
+    (biasa, sb, mono, simbol, Vec::new())
+}
+
+/// Segoe UI, Consolas, Segoe UI Symbol, dan huruf ikon Windows.
+#[cfg(windows)]
+fn huruf_sistem(fonts: &mut FontDefinitions) -> (bool, bool, bool, bool, Vec<String>) {
+    let biasa = muat_huruf(fonts, "segoe", "segoeui.ttf");
+    let sb = muat_huruf(fonts, "segoe-sb", "seguisb.ttf");
+    let mono = muat_huruf(fonts, "consolas", "consola.ttf");
+    let simbol = muat_huruf(fonts, "segoe-simbol", "seguisym.ttf");
     // Ikon: Segoe MDL2 Assets ada sejak Windows 10; Segoe Fluent Icons (Windows 11) sebagai cadangan.
     let mut ikon = Vec::new();
     for (nama, berkas) in [("mdl2", "segmdl2.ttf"), ("fluent", "SegoeIcons.ttf")] {
-        if muat_huruf(&mut fonts, nama, berkas) {
+        if muat_huruf(fonts, nama, berkas) {
             ikon.push(nama.to_string());
         }
     }
+    (biasa, sb, mono, simbol, ikon)
+}
+
+/// Huruf sistem (Segoe UI/Consolas di Windows, Helvetica Neue/Menlo di macOS) bila ada;
+/// huruf bawaan egui tetap jadi cadangan.
+pub fn pasang(ctx: &egui::Context) {
+    let mut fonts = FontDefinitions::default();
+    let (biasa, sb, mono, simbol, mut ikon) = huruf_sistem(&mut fonts);
 
     let bawaan_prop = fonts.families.get(&FontFamily::Proportional).cloned().unwrap_or_default();
     let bawaan_mono = fonts.families.get(&FontFamily::Monospace).cloned().unwrap_or_default();
@@ -326,4 +418,22 @@ pub fn png_dari_ico(ico: &[u8]) -> Option<&[u8]> {
         }
     }
     terbaik.map(|(_, png)| png)
+}
+
+#[cfg(test)]
+mod uji {
+    /// Ikon versi macOS harus ada di salah satu huruf bawaan egui (cadangan yang selalu ikut),
+    /// agar tidak tampil sebagai kotak kosong di Mac mana pun.
+    #[test]
+    fn ikon_unicode_ada_di_huruf_bawaan() {
+        let f = eframe::egui::FontDefinitions::default();
+        let wajah: Vec<ttf_parser::Face> = f.font_data.values().filter_map(|d| ttf_parser::Face::parse(&d.font, d.index).ok()).collect();
+        assert!(!wajah.is_empty());
+        let hilang: Vec<String> = super::ik_unicode::SEMUA
+            .iter()
+            .filter(|c| !wajah.iter().any(|w| w.glyph_index(**c).is_some()))
+            .map(|c| format!("U+{:04X}", *c as u32))
+            .collect();
+        assert!(hilang.is_empty(), "tidak ada di huruf bawaan egui: {hilang:?}");
+    }
 }

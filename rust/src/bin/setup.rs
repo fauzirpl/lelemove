@@ -10,7 +10,6 @@
 //! pintasan di Start Menu (dan Desktop), serta terdaftar di HKCU ...\Uninstall.
 //! Pemasangan lama bernama "Pindah Drive" (folder, pintasan, exe) dipindahkan ke nama baru.
 //! Koneksi akun (%APPDATA%\rclone) dan data kerja (%LOCALAPPDATA%\pindah-drive) tidak disentuh.
-#![windows_subsystem = "windows"]
 
 use eframe::egui::{self, vec2, Align, Color32, Frame, Layout, Margin, RichText, TextEdit};
 use std::io::Cursor;
@@ -514,7 +513,7 @@ impl eframe::App for Jendela {
     }
 }
 
-fn main() {
+pub fn main() {
     let mut copot_diminta = false;
     let mut diam = false;
     let mut tanpa_desktop = false;

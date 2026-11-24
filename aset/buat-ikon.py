@@ -2,7 +2,10 @@
 
 Digambar 4x lebih besar lalu diperkecil (antialias), disimpan sebagai .ico multi-ukuran.
 Ukuran kecil (<= 32 px) memakai versi sederhana: ikan lebih besar, kumis lebih tebal, tanpa sirip bawah.
-Pemakaian: python buat_ikon.py <keluaran.ico> <pratinjau.png>
+Pemakaian: python buat_ikon.py <keluaran.ico> <pratinjau.png> [<keluaran.icns>]
+
+Dengan <keluaran.icns>, juga dibuat ikon macOS: petak mengikuti kisi ikon Apple (824 px di kanvas
+1024 px, sisanya ruang kosong) agar besarnya setara ikon lain di Dock dan Finder.
 """
 import math
 import sys
@@ -141,6 +144,23 @@ def main():
         lembar.alpha_composite(b, (600 + i * 150, 8))
     lembar.save(pratinjau)
     besar.save(pratinjau.replace(".png", "-1024.png"))
+    if len(sys.argv) > 3:
+        simpan_icns(sys.argv[3], besar, kecil)
+
+
+def kisi_mac(im):
+    """Petak 36..988 (952 px) dikecilkan ke 824 px di tengah kanvas 1024 (kisi ikon macOS)."""
+    petak = im.crop((36, 36, 988, 988)).resize((824, 824), Image.LANCZOS)
+    kanvas = Image.new("RGBA", (1024, 1024), (0, 0, 0, 0))
+    kanvas.alpha_composite(petak, (100, 100))
+    return kanvas
+
+
+def simpan_icns(keluar, besar, kecil):
+    b, k = kisi_mac(besar), kisi_mac(kecil)
+    ukuran = [16, 32, 64, 128, 256, 512]
+    lain = [(k if u <= 32 else b).resize((u, u), Image.LANCZOS) for u in ukuran]
+    b.save(keluar, format="ICNS", append_images=lain)
 
 
 if __name__ == "__main__":

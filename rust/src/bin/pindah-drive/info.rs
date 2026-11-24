@@ -137,7 +137,7 @@ const KOMPONEN: &[Komponen] = &[
     Komponen {
         nama: "rclone",
         lisensi: "MIT",
-        peran: "Mesin penyalin, disertakan sebagai rclone.exe. Hak cipta Nick Craig-Wood dan para kontributor rclone.",
+        peran: if cfg!(windows) { "Mesin penyalin, disertakan sebagai rclone.exe. Hak cipta Nick Craig-Wood dan para kontributor rclone." } else { "Mesin penyalin, disertakan di dalam LELEMOVE.app. Hak cipta Nick Craig-Wood dan para kontributor rclone." },
         url: "https://rclone.org",
     },
     Komponen {
@@ -152,6 +152,7 @@ const KOMPONEN: &[Komponen] = &[
         peran: "Bahasa pemrograman dan pustaka standarnya.",
         url: "https://www.rust-lang.org",
     },
+    #[cfg(windows)]
     Komponen {
         nama: "Runtime MinGW-w64 & libgcc",
         lisensi: "ZPL 2.1 / domain publik; GPL dengan GCC Runtime Library Exception",
@@ -161,9 +162,17 @@ const KOMPONEN: &[Komponen] = &[
     Komponen {
         nama: "Font bawaan egui",
         lisensi: "MIT, Ubuntu Font Licence 1.0, SIL OFL 1.1",
-        peran: "Hack (MIT), Ubuntu Light (Ubuntu Font Licence), Noto Emoji (OFL 1.1), emoji-icon-font (MIT); cadangan bila font Windows tidak ada.",
+        peran: "Hack (MIT), Ubuntu Light (Ubuntu Font Licence), Noto Emoji (OFL 1.1), emoji-icon-font (MIT); cadangan bila font sistem tidak ada.",
         url: "https://github.com/emilk/egui/tree/master/crates/epaint_default_fonts",
     },
+    #[cfg(target_os = "macos")]
+    Komponen {
+        nama: "Helvetica Neue, Menlo, Apple Symbols",
+        lisensi: "Milik Apple, bawaan macOS",
+        peran: "Dipakai dari folder font macOS; tidak disertakan di LELEMOVE.",
+        url: "https://developer.apple.com/fonts/",
+    },
+    #[cfg(windows)]
     Komponen {
         nama: "Segoe UI, Segoe MDL2 Assets, Consolas",
         lisensi: "Milik Microsoft, bawaan Windows",
@@ -229,7 +238,7 @@ fn atribusi(ui: &mut Ui) {
     ui.add_space(10.0);
     let pustaka: Vec<Vec<&str>> = ATRIBUSI.lines().filter(|l| !l.trim().is_empty()).map(|l| l.splitn(3, '|').collect()).collect();
     ui.label(RichText::new(format!("Pustaka Rust ({})", pustaka.len())).family(tebal()).size(14.5).color(TINTA));
-    ui.add(egui::Label::new(kecil("Semua pustaka di bawah ini ikut tertanam di LELEMOVE.exe, pindah.exe, dan installer. Semuanya berlisensi permisif. Arahkan kursor ke nama untuk melihat alamat repositorinya.", REDUP)).wrap());
+    ui.add(egui::Label::new(kecil(if cfg!(windows) { "Semua pustaka di bawah ini ikut tertanam di LELEMOVE.exe, pindah.exe, dan installer. Semuanya berlisensi permisif. Arahkan kursor ke nama untuk melihat alamat repositorinya." } else { "Semua pustaka di bawah ini ikut tertanam di LELEMOVE.app. Semuanya berlisensi permisif. Arahkan kursor ke nama untuk melihat alamat repositorinya." }, REDUP)).wrap());
     ui.add_space(4.0);
     egui::Grid::new("daftar-pustaka").striped(true).num_columns(2).spacing(vec2(16.0, 3.0)).show(ui, |ui| {
         for p in &pustaka {
@@ -264,7 +273,7 @@ fn tentang(ui: &mut Ui, i: &Info) {
     ui.label(RichText::new("LELEMOVE").family(tebal()).size(22.0).color(gaya::HIJAU));
     ui.label(RichText::new(format!("Versi {VERSI}")).color(TINTA));
     ui.add_space(6.0);
-    paragraf(ui, "Salin file antar OneDrive, SharePoint, Google Drive, dan folder komputer, ke arah mana pun. Menyalin dan mencocokkan; file di sumber tidak diubah, kecuali Anda sendiri memilih Pindahkan setelah verifikasi (yang dihapus masuk ke Recycle Bin / Sampah).");
+    paragraf(ui, "Salin file antar OneDrive, SharePoint, Google Drive, dan folder komputer, ke arah mana pun. Menyalin dan mencocokkan; file di sumber tidak diubah, kecuali Anda sendiri memilih Pindahkan setelah verifikasi (yang dihapus masuk ke Recycle Bin / Tong Sampah / Sampah).");
     ui.add_space(8.0);
     egui::Grid::new("tentang").num_columns(2).spacing(vec2(14.0, 4.0)).show(ui, |ui| {
         let mut baris = |k: &str, v: &str| {
@@ -273,8 +282,8 @@ fn tentang(ui: &mut Ui, i: &Info) {
             ui.end_row();
         };
         baris("Mesin penyalin", if i.versi_rclone.is_empty() { "rclone (belum terpasang)" } else { &i.versi_rclone });
-        baris("Dibangun dengan", "Rust, egui/eframe, toolchain GNU");
-        baris("Sistem", "Windows 10 dan 11, dipasang per pengguna tanpa hak admin");
+        baris("Dibangun dengan", if cfg!(windows) { "Rust, egui/eframe, toolchain GNU" } else { "Rust, egui/eframe" });
+        baris("Sistem", if cfg!(windows) { "Windows 10 dan 11, dipasang per pengguna tanpa hak admin" } else { "macOS 11 Big Sur atau lebih baru (Apple Silicon dan Intel)" });
         baris("Data dikirim ke pengembang", "Tidak ada (lihat tab Privasi)");
     });
     ui.add_space(10.0);

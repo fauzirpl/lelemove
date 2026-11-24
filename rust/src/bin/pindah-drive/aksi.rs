@@ -4,7 +4,6 @@
 use eframe::egui;
 use serde_json::Value;
 use std::io::{BufRead, BufReader, Read};
-use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::mpsc::Sender;
@@ -13,8 +12,7 @@ use std::thread;
 use pindah_drive::mesin::akun::{Akun, Pustaka, Sambungan, Situs};
 use pindah_drive::mesin::jadwal::Jadwal;
 use pindah_drive::mesin::riwayat::Catatan;
-
-const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+use pindah_drive::win::PerintahExt;
 
 /// Kabar dari utas latar ke jendela.
 pub enum Kabar {
@@ -106,7 +104,9 @@ pub fn mulai_masukan(exe: &Path, args: &[String], masukan: Option<String>, tx: S
         .stdin(if masukan.is_some() { Stdio::piped() } else { Stdio::null() })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .creation_flags(CREATE_NO_WINDOW)
+        // Grup proses sendiri: Batal (bunuh_pohon) ikut menghentikan rclone di bawahnya (macOS).
+        .tanpa_jendela()
+        .grup_sendiri()
         .spawn()?;
     if let (Some(m), Some(mut s)) = (masukan, anak.stdin.take()) {
         let _ = s.write_all(m.as_bytes());

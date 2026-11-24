@@ -35,7 +35,8 @@ pengaturan lama langsung terbaca.
 
 ## Daftar isi
 
-- [Pasang](#pasang) · [Cara memakai](#cara-memakai) · [Cara kerja penyalinan](#cara-kerja-penyalinan)
+- [Pasang](#pasang) · [macOS (uji coba)](#macos-uji-coba) · [Cara memakai](#cara-memakai) ·
+  [Cara kerja penyalinan](#cara-kerja-penyalinan)
 - [Layanan yang didukung](#layanan-yang-didukung) · [Filter file](#filter-file) ·
   [Riwayat & laporan](#riwayat--laporan) · [Pindahkan](#pindahkan-hapus-sumber-setelah-verifikasi) ·
   [Jadwal backup](#jadwal-backup-otomatis)
@@ -68,6 +69,27 @@ Installer belum ditandatangani secara digital, jadi Windows SmartScreen memperin
 pertama dibuka; klik *More info* > *Run anyway*. Keaslian unduhan bisa dicek dengan
 `Get-FileHash .\LELEMOVE-Setup-<versi>.exe -Algorithm SHA256` lalu dicocokkan dengan berkas
 `.sha256` di halaman rilis yang sama.
+
+### macOS (uji coba)
+
+Versi macOS sedang diuji dan belum ada di Releases. Paket ujinya, `LELEMOVE-<versi>-macOS.dmg`,
+dibuat otomatis oleh [workflow macOS](https://github.com/fauzirpl/lelemove/actions/workflows/macos.yml):
+buka run terakhir yang berhasil, lalu unduh artefak **LELEMOVE-macOS** (perlu masuk GitHub).
+
+- macOS 11 Big Sur atau lebih baru. Satu aplikasi untuk Apple Silicon dan Intel, rclone sudah di dalamnya.
+- Buka berkas .dmg, seret **LELEMOVE** ke **Applications**, lalu buka dari Applications. Jadwal
+  backup hanya bisa dibuat bila aplikasinya ada di Applications.
+- Aplikasi belum ditandatangani dengan Apple Developer ID, jadi macOS menahannya saat pertama dibuka.
+  Buka *Pengaturan Sistem > Privasi & Keamanan*, gulir ke bawah, lalu klik *Buka Saja* untuk
+  LELEMOVE. Cara lain, lewat Terminal: `xattr -dr com.apple.quarantine /Applications/LELEMOVE.app`.
+- Fiturnya sama dengan versi Windows, dengan padanan macOS: file yang dipindahkan masuk ke
+  **Tong Sampah** (bisa dikembalikan), jadwal backup dijalankan **launchd** (`~/Library/LaunchAgents`),
+  hasil penyalinan latar dikabarkan lewat Pusat Notifikasi, Mac tidak tidur selama menyalin, dan
+  folder OneDrive di `~/Library/CloudStorage` dikenali.
+- Data kerja ada di `~/Library/Application Support/pindah-drive`, akun rclone di `~/.config/rclone/rclone.conf`.
+- Saat pertama membuka Desktop, Dokumen, Unduhan, atau disk eksternal, macOS meminta izin; klik *Izinkan*.
+- Seperti rilis Windows di Releases, versi ini tidak membawa client ID Google: buat sendiri lewat
+  *Pengaturan > Client ID Google*.
 
 ## Cara memakai
 
@@ -482,11 +504,15 @@ object storage `<akun>:<bucket>/<folder>`, untuk SMB `<akun>:<share>/<folder>`. 
 ```
 rust/                          kode sumber versi 2 (satu crate Rust)
   src/mesin/                   mesin: akun, rute, job & log rclone, semua perintah
-  src/win.rs                   pembungkus Win32 (proses, mutex, folder dikenal, layar tetap menyala)
-  src/gaya.rs                  tampilan egui bersama (warna, huruf Segoe UI, ikon Segoe MDL2, tombol)
+  src/win.rs                   lapisan sistem Windows (Win32: proses, mutex, folder dikenal, layar tetap menyala)
+  src/mac.rs                   padanan macOS dengan nama fungsi yang sama (libc, NSFileManager, osascript)
+  src/notifikasi_mac.rs        notifikasi macOS (osascript); notifikasi.rs = toast Windows
+  src/gaya.rs                  tampilan egui bersama (warna, huruf Segoe UI / Helvetica Neue,
+                               ikon Segoe MDL2 / simbol Unicode, tombol)
   src/bin/pindah.rs            pindah.exe: baris perintah & menu teks
   src/mesin/lanjut.rs          lanjut otomatis saat jaringan putus (keputusan, jeda, uji sambungan)
-  src/mesin/jadwal.rs          jadwal backup: jadwal.json, XML Task Scheduler, schtasks
+  src/mesin/jadwal.rs          jadwal backup: jadwal.json, XML Task Scheduler + schtasks (Windows),
+                               plist LaunchAgent + launchctl (macOS)
   src/mesin/penyedia.rs        daftar layanan: backend rclone, isian, login, tempat sampah, host API
   src/mesin/filter.rs          filter file -> aturan --filter / --max-age rclone
   src/mesin/riwayat.rs         riwayat.jsonl, CSV, laporan HTML siap cetak
@@ -496,16 +522,21 @@ rust/                          kode sumber versi 2 (satu crate Rust)
   src/bin/pindah-drive/filter.rs dialog Filter file
   src/bin/pindah-drive/riwayat.rs dialog Riwayat & laporan
   src/bin/pindah-drive/layanan.rs dialog Tambah akun layanan lain, isian, pertanyaan lanjutan, impor
-  src/bin/setup.rs             installer; tanpa muatan menjadi uninstall.exe
-  src/bin/tanam-ikon.rs        alat build: menanam ikon & manifest (UpdateResourceW)
+  src/bin/setup.rs             installer Windows; tanpa muatan menjadi uninstall.exe
+  src/bin/tanam-ikon.rs        alat build Windows: menanam ikon & manifest (UpdateResourceW)
+                               (setup/main.rs dan tanam-ikon/main.rs: pembungkus, kosong di macOS)
   aset/app.manifest            asInvoker + Common Controls 6
   aset/atribusi.txt            daftar pustaka Rust + lisensi; dibuat ulang buat-installer.ps1 (cargo tree)
 docs/                          tanya-jawab.md, ketentuan.md, privasi.md: ditanam ke aplikasi
                                (include_str!), dan privasi.md bisa dipakai sebagai halaman kebijakan
                                privasi untuk "Publish app" di Google Cloud Console
-aset/ikon.ico                  ikon aplikasi (lele); dibuat ulang dengan: python aset\buat-ikon.py aset\ikon.ico pratinjau.png
+aset/ikon.ico, aset/ikon.icns  ikon aplikasi (lele) Windows dan macOS; dibuat ulang dengan:
+                               python aset\buat-ikon.py aset\ikon.ico pratinjau.png aset\ikon.icns
 buat-installer.ps1             membuat dist\LELEMOVE-Setup-<versi>.exe (rclone ikut dibundel;
                                -TanpaClient = tanpa client ID Google, untuk rilis publik)
+buat-dmg.sh                    membuat dist/macos/LELEMOVE-<versi>-macOS.dmg di Mac (universal;
+                               rclone resmi diunduh dan dicek SHA-256-nya; tanpa client ID Google)
+.github/workflows/macos.yml    uji unit di Mac + .dmg sebagai artefak, setiap push ke main / fitur/macos
 skills/pindah-drive/SKILL.md   panduan untuk Claude; .claude-plugin/ = manifest plugin lokal
 arsip-v1-powershell/           sumber versi 1.x (PowerShell + WPF + C#), tidak dipakai lagi
 ```
@@ -525,6 +556,12 @@ menyediakan `libshlwapi.a`. Uji unit: `cargo test --release --lib --bin pindah-d
 `HTTPS_PROXY=http://127.0.0.1:9` (semua permintaan rclone gagal seperti jaringan putus),
 `PINDAH_DRIVE_JEDA_ULANG=3` (jeda dalam detik), dan `PINDAH_DRIVE_MAKS_ULANG=3`.
 
+Versi macOS dibangun di Mac: `rustup target add aarch64-apple-darwin x86_64-apple-darwin`, lalu
+`./buat-dmg.sh`. Tanpa Mac, kode macOS tetap bisa diperiksa dari Windows dengan
+`cargo check --target aarch64-apple-darwin --all-targets` (setelah `rustup target add aarch64-apple-darwin`);
+uji unitnya dijalankan workflow macOS di GitHub Actions. Fungsi khusus sistem ada di `win.rs` dan
+`mac.rs` dengan nama yang sama (`lib.rs` memilih salah satunya), sehingga kode lain cukup memanggil `win::...`.
+
 Untuk menguji jadwal tanpa menyentuh data asli: set `PINDAH_DRIVE_DATA` ke folder kosong, lalu
 jalankan `target\release\pindah.exe jadwal -Tambah ...` dengan jam 1-2 menit dari sekarang.
 Tugas yang dibuat saat variabel itu terpasang membawa `--data "<folder>"`, sehingga pemicu dari
@@ -535,7 +572,8 @@ Cara kerjanya: setiap tombol di jendela menjalankan `pindah.exe <perintah> -Mesi
 tersembunyi. Teks keluarannya masuk ke *Log aktivitas*, sedangkan satu baris `##HASIL {json}`
 berisi angka hasilnya. Progres penyalinan dibaca dari `job.json` dan log rclone. Daftar folder
 di panel Dari/Ke dimuat di thread latar (`rclone lsf --dirs-only` untuk cloud, `read_dir` untuk
-komputer ini). Ikon memakai huruf Segoe MDL2 Assets bawaan Windows 10/11; petak layanan lain
+komputer ini). Ikon memakai huruf Segoe MDL2 Assets bawaan Windows 10/11; di macOS simbol Unicode
+dari huruf bawaan egui (uji `ikon_unicode_ada_di_huruf_bawaan` memastikan semuanya ada); petak layanan lain
 memakai inisial dan warna dari `penyedia.rs`. Pratinjau jendela untuk dokumentasi:
 
 ```powershell

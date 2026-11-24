@@ -528,7 +528,7 @@ mod uji {
     #[test]
     fn remote() {
         assert_eq!(remote_dari("pd-onedrive:Kerja/DLH"), "pd-onedrive");
-        assert_eq!(remote_dari("D:\\Data"), "");
+        assert_eq!(remote_dari(crate::win::CONTOH_DATA), "");
         assert_eq!(remote_dari("pd-gdrive:"), "pd-gdrive");
         assert_eq!(label_bawaan("pd-gdrive-2", "google"), "Google Drive 2");
         assert_eq!(label_bawaan("pd-onedrive", "onedrive"), "OneDrive");

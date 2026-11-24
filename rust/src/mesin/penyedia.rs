@@ -55,6 +55,11 @@ pub struct Kolom {
     pub ket: &'static str,
 }
 
+#[cfg(windows)]
+const CONTOH_KUNCI_SSH: &str = "C:\\Users\\nama\\.ssh\\id_ed25519";
+#[cfg(target_os = "macos")]
+const CONTOH_KUNCI_SSH: &str = "/Users/nama/.ssh/id_ed25519";
+
 #[derive(Debug)]
 pub struct Penyedia {
     pub kunci: &'static str,
@@ -467,7 +472,7 @@ pub static SEMUA: &[Penyedia] = &[
             port("22"),
             teks("user", "Nama pengguna", "", true),
             rahasia("pass", "Kata sandi", false),
-            ket(teks("key_file", "Berkas kunci SSH (opsional)", "C:\\Users\\nama\\.ssh\\id_ed25519", false), "Isi bila login memakai kunci, bukan kata sandi."),
+            ket(teks("key_file", "Berkas kunci SSH (opsional)", CONTOH_KUNCI_SSH, false), "Isi bila login memakai kunci, bukan kata sandi."),
         ],
         tetap: &[],
         sampah: None,

@@ -24,6 +24,40 @@ pub use windows_sys::Win32::UI::WindowsAndMessaging::{
     MB_RETRYCANCEL, MB_YESNO,
 };
 
+// ------------------------------------------------------------------ nama & teks khas sistem
+// Padanan macOS ada di mac.rs dengan nama yang sama.
+
+pub const NAMA_OS: &str = "Windows";
+/// Tempat file yang dihapus dan masih bisa dipulihkan.
+pub const NAMA_SAMPAH: &str = "Recycle Bin";
+/// Penjalan jadwal backup.
+pub const PENJADWAL: &str = "Task Scheduler Windows";
+/// Sebutan satu entri jadwal di sistem ("tugas Windows hilang").
+pub const NAMA_TUGAS: &str = "tugas Windows";
+/// Pintasan cetak di browser (laporan HTML -> PDF).
+pub const PINTASAN_CETAK: &str = "Ctrl+P";
+/// Contoh folder di komputer untuk petunjuk isian.
+pub const CONTOH_DATA: &str = "D:\\Data";
+pub const CONTOH_SALINAN: &str = "D:\\Salinan";
+
+/// Pengganti `creation_flags` yang juga ada di macOS (di sana tanpa efek atau berbeda).
+pub trait PerintahExt {
+    /// Program konsol tanpa jendela konsol baru bila proses ini sendiri tidak punya konsol.
+    fn tanpa_jendela(&mut self) -> &mut Self;
+    /// Proses anak memimpin grup prosesnya sendiri, sehingga `bunuh_pohon` ikut menghentikan
+    /// turunannya. Di Windows taskkill /T sudah menelusuri pohon proses, jadi tanpa efek.
+    fn grup_sendiri(&mut self) -> &mut Self;
+}
+
+impl PerintahExt for Command {
+    fn tanpa_jendela(&mut self) -> &mut Self {
+        self.creation_flags(bendera_anak())
+    }
+    fn grup_sendiri(&mut self) -> &mut Self {
+        self
+    }
+}
+
 /// String UTF-16 berakhiran nol untuk API Win32.
 pub fn lebar(s: &str) -> Vec<u16> {
     OsStr::new(s).encode_wide().chain(Some(0)).collect()
@@ -229,6 +263,12 @@ pub fn mulai_terlepas(exe: &Path, args: &[String]) -> std::io::Result<u32> {
     Err(std::io::Error::last_os_error())
 }
 
+/// Menjalankan program konsol interaktif (mis. `rclone config`) di jendela konsol baru.
+pub fn buka_di_terminal(exe: &Path, args: &[&str]) -> std::io::Result<()> {
+    const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
+    Command::new(exe).args(args).creation_flags(CREATE_NEW_CONSOLE).spawn().map(|_| ())
+}
+
 // ------------------------------------------------------------------ sistem
 
 /// Mencegah Windows tidur otomatis selama penyalinan (dilepas otomatis saat proses berakhir).
@@ -408,6 +448,94 @@ pub fn folder(f: Folder) -> Option<PathBuf> {
         CoTaskMemFree(p as *const c_void);
         Some(PathBuf::from(s))
     }
+}
+
+/// Folder data aplikasi per pengguna (%LOCALAPPDATA%).
+pub fn folder_data() -> PathBuf {
+    PathBuf::from(std::env::var("LOCALAPPDATA").unwrap_or_default())
+}
+
+/// Folder profil pengguna (%USERPROFILE%).
+pub fn folder_rumah() -> PathBuf {
+    PathBuf::from(std::env::var("USERPROFILE").unwrap_or_default())
+}
+
+pub fn nama_komputer() -> String {
+    std::env::var("COMPUTERNAME").unwrap_or_default()
+}
+
+pub fn nama_pengguna() -> String {
+    std::env::var("USERNAME").unwrap_or_default()
+}
+
+/// Waktu lokal: (tahun, bulan, tanggal, jam, menit, detik, hari dalam minggu 0 = Minggu).
+pub fn jam_lokal() -> (u16, u16, u16, u16, u16, u16, u8) {
+    use windows_sys::Win32::System::SystemInformation::GetLocalTime;
+    let mut t = unsafe { std::mem::zeroed() };
+    unsafe { GetLocalTime(&mut t) };
+    (t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond, t.wDayOfWeek as u8)
+}
+
+/// Folder tersembunyi atau milik sistem ($RECYCLE.BIN, System Volume Information, dsb.).
+pub fn tersembunyi(m: &std::fs::Metadata, _nama: &OsStr) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    m.file_attributes() & 0x6 != 0 // 0x2 tersembunyi, 0x4 sistem
+}
+
+/// File OneDrive yang "hanya online" (isinya belum ada di disk).
+pub fn hanya_cloud(m: &std::fs::Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    m.file_attributes() & crate::mesin::dasar::ATRIBUT_HANYA_CLOUD != 0
+}
+
+/// Label segmen akar di bilah alamat bila jalur tidak berawalan huruf drive.
+pub fn nama_akar() -> String {
+    "\\".into()
+}
+
+/// Drive yang ada: (akar "D:\", nama tampilan "Data (D:)").
+pub fn daftar_drive() -> Vec<(String, String)> {
+    use windows_sys::Win32::Storage::FileSystem::{GetDriveTypeW, GetLogicalDrives, GetVolumeInformationW};
+    let mask = unsafe { GetLogicalDrives() };
+    let mut v = Vec::new();
+    for i in 0..26u8 {
+        if mask & (1 << i) == 0 {
+            continue;
+        }
+        let huruf = (b'A' + i) as char;
+        let akar = format!("{huruf}:\\");
+        let w = lebar(&akar);
+        let jenis = unsafe { GetDriveTypeW(w.as_ptr()) };
+        let mut nama = [0u16; 261];
+        // Drive jaringan tidak ditanya labelnya: bisa lama bila servernya tidak terjangkau.
+        let ok = jenis != 4
+            && unsafe {
+                GetVolumeInformationW(
+                    w.as_ptr(),
+                    nama.as_mut_ptr(),
+                    nama.len() as u32,
+                    null_mut(),
+                    null_mut(),
+                    null_mut(),
+                    null_mut(),
+                    0,
+                )
+            } != 0;
+        let label = if ok { String::from_utf16_lossy(&nama[..nama.iter().position(|&c| c == 0).unwrap_or(0)]) } else { String::new() };
+        let label = if label.trim().is_empty() {
+            match jenis {
+                2 => "Drive lepas",
+                4 => "Drive jaringan",
+                5 => "CD/DVD",
+                _ => "Disk lokal",
+            }
+            .to_string()
+        } else {
+            label
+        };
+        v.push((akar, format!("{label} ({huruf}:)")));
+    }
+    v
 }
 
 /// Tinggi area kerja layar utama dalam satuan logis (piksel 96 DPI), tanpa taskbar.

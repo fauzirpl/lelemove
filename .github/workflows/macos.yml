@@ -1,0 +1,86 @@
+# Versi macOS: uji unit di Mac, lalu LELEMOVE.app universal (Apple Silicon + Intel) dalam .dmg.
+# Hasilnya artefak unduhan di halaman run ini; rilis tetap dibuat manual.
+name: macOS
+
+on:
+  push:
+    branches: [main, fitur/macos]
+    paths:
+      - 'rust/**'
+      - 'aset/**'
+      - 'buat-dmg.sh'
+      - '.github/workflows/macos.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dmg:
+    name: Uji dan kemas .dmg
+    runs-on: macos-14
+    timeout-minutes: 60
+    env:
+      CARGO_TERM_COLOR: always
+      MACOSX_DEPLOYMENT_TARGET: '11.0'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust (Apple Silicon + Intel)
+        run: |
+          rustup update stable --no-self-update
+          rustup default stable
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          rustc --version
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: cargo-macos-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: cargo-macos-
+
+      - name: Uji unit (macOS)
+        working-directory: rust
+        run: cargo test --locked --lib --bin pindah-drive
+
+      - name: Kemas LELEMOVE.app dan .dmg
+        run: sh ./buat-dmg.sh
+
+      - name: Jalankan program dari bundel
+        run: |
+          M=dist/macos/LELEMOVE.app/Contents/MacOS
+          lipo -archs "$M/LELEMOVE" "$M/pindah" "$M/rclone"
+          "$M/rclone" version | head -n 1
+          "$M/pindah" bantuan | head -n 3
+          if arch -x86_64 /usr/bin/true 2>/dev/null; then
+            arch -x86_64 "$M/pindah" bantuan | head -n 1
+          else
+            echo "Rosetta tidak ada di runner; bagian Intel tidak dicoba."
+          fi
+
+      - name: Tangkapan layar jendela
+        continue-on-error: true
+        run: |
+          export PINDAH_DRIVE_DATA="$RUNNER_TEMP/data" RCLONE_CONFIG="$RUNNER_TEMP/rclone.conf"
+          mkdir -p "$PINDAH_DRIVE_DATA" && touch "$RCLONE_CONFIG"
+          APP="$PWD/dist/macos/LELEMOVE.app/Contents/MacOS/LELEMOVE"
+          perl -e 'alarm 90; exec @ARGV' "$APP" --pratinjau "$PWD/dist/macos/pratinjau-utama.png" --tunda 4000
+          perl -e 'alarm 90; exec @ARGV' "$APP" --pratinjau "$PWD/dist/macos/pratinjau-jadwal.png" --dialog jadwal-baru --tunda 4000
+          ls -la dist/macos
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LELEMOVE-macOS
+          path: |
+            dist/macos/*.dmg
+            dist/macos/*.sha256
+            dist/macos/pratinjau-*.png
+          if-no-files-found: error
+          retention-days: 14

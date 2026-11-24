@@ -11,12 +11,27 @@ pub const REMOTE_ONEDRIVE: &str = "pd-onedrive";
 pub const REMOTE_SHAREPOINT: &str = "pd-sharepoint";
 
 /// File sistem OneDrive/Windows yang tidak perlu ikut disalin.
+#[cfg(windows)]
 pub const KECUALIAN: &[&str] = &[
     "desktop.ini",
     "Thumbs.db",
     "~$*",
     ".849C9593-D756-4E56-8D6E-42412F2A707B",
     "Personal Vault.lnk",
+];
+
+/// Di macOS ditambah berkas catatan Finder (.DS_Store, .localized) dan berkas AppleDouble (._*)
+/// yang dibuat Finder di disk berformat non-Mac.
+#[cfg(target_os = "macos")]
+pub const KECUALIAN: &[&str] = &[
+    "desktop.ini",
+    "Thumbs.db",
+    "~$*",
+    ".849C9593-D756-4E56-8D6E-42412F2A707B",
+    "Personal Vault.lnk",
+    ".DS_Store",
+    ".localized",
+    "._*",
 ];
 
 /// FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS (0x400000) | FILE_ATTRIBUTE_OFFLINE (0x1000):
@@ -49,7 +64,8 @@ pub fn jalur() -> &'static Jalur {
     J.get_or_init(|| {
         let data = match std::env::var("PINDAH_DRIVE_DATA") {
             Ok(d) if !d.is_empty() => PathBuf::from(d), // untuk pengujian
-            _ => PathBuf::from(std::env::var("LOCALAPPDATA").unwrap_or_default()).join("pindah-drive"),
+            // %LOCALAPPDATA%\pindah-drive  /  ~/Library/Application Support/pindah-drive
+            _ => crate::win::folder_data().join("pindah-drive"),
         };
         let dir_app = std::env::current_exe()
             .ok()
@@ -72,20 +88,31 @@ pub fn pastikan_dir() {
     let _ = std::fs::create_dir_all(&jalur().log);
 }
 
-/// Waktu lokal Windows: (tahun, bulan, tanggal, jam, menit, detik).
+/// Waktu lokal: (tahun, bulan, tanggal, jam, menit, detik).
 pub fn waktu_lokal() -> (u16, u16, u16, u16, u16, u16) {
-    use windows_sys::Win32::System::SystemInformation::GetLocalTime;
-    let mut t = unsafe { std::mem::zeroed() };
-    unsafe { GetLocalTime(&mut t) };
-    (t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond)
+    let (y, mo, d, h, mi, s, _) = crate::win::jam_lokal();
+    (y, mo, d, h, mi, s)
 }
 
 /// Hari dalam minggu, waktu lokal: 0 = Minggu ... 6 = Sabtu.
 pub fn hari_ini() -> u8 {
-    use windows_sys::Win32::System::SystemInformation::GetLocalTime;
-    let mut t = unsafe { std::mem::zeroed() };
-    unsafe { GetLocalTime(&mut t) };
-    t.wDayOfWeek as u8
+    crate::win::jam_lokal().6
+}
+
+/// Nama berkas program di folder aplikasi: "pindah" -> pindah.exe (Windows) / pindah (macOS).
+pub fn nama_exe(dasar: &str) -> String {
+    format!("{dasar}{}", std::env::consts::EXE_SUFFIX)
+}
+
+/// "tugas Windows" -> "Tugas Windows".
+pub fn kapital(s: &str) -> String {
+    let mut c = s.chars();
+    c.next().map(|a| a.to_uppercase().chain(c).collect()).unwrap_or_default()
+}
+
+/// Program mesin (pindah.exe / pindah) di samping program ini.
+pub fn exe_mesin() -> PathBuf {
+    jalur().dir_app.join(nama_exe("pindah"))
 }
 
 /// Berkas log baru: log\<jenis>-yyyyMMdd-HHmmss.<ext>

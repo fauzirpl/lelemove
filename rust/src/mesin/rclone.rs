@@ -1,12 +1,11 @@
 //! Menemukan dan menjalankan rclone.
 
 use std::ffi::OsStr;
-use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 
-use super::dasar::jalur;
-use crate::win;
+use super::dasar::{jalur, nama_exe};
+use crate::win::PerintahExt;
 
 pub fn cari_rclone() -> Option<PathBuf> {
     let ada = |p: &Path| p.is_file();
@@ -16,18 +15,36 @@ pub fn cari_rclone() -> Option<PathBuf> {
             return Some(p);
         }
     }
-    let lokal = jalur().dir_app.join("rclone.exe");
+    let exe = nama_exe("rclone");
+    let lokal = jalur().dir_app.join(&exe);
     if ada(&lokal) {
         return Some(lokal);
     }
     if let Some(path) = std::env::var_os("PATH") {
         for d in std::env::split_paths(&path) {
-            let p = d.join("rclone.exe");
+            let p = d.join(&exe);
             if ada(&p) {
                 return Some(p);
             }
         }
     }
+    cari_rclone_terpasang()
+}
+
+/// Aplikasi dari Finder/Dock mendapat PATH minimal (/usr/bin:/bin:/usr/sbin:/sbin), jadi
+/// lokasi Homebrew (Apple Silicon, lalu Intel) dan MacPorts dicari langsung.
+#[cfg(target_os = "macos")]
+fn cari_rclone_terpasang() -> Option<PathBuf> {
+    ["/opt/homebrew/bin/rclone", "/usr/local/bin/rclone", "/opt/local/bin/rclone"]
+        .iter()
+        .map(PathBuf::from)
+        .chain(std::iter::once(crate::win::folder_rumah().join("bin").join("rclone")))
+        .find(|p| p.is_file())
+}
+
+#[cfg(windows)]
+fn cari_rclone_terpasang() -> Option<PathBuf> {
+    let ada = |p: &Path| p.is_file();
     let lad = PathBuf::from(std::env::var("LOCALAPPDATA").unwrap_or_default());
     // winget memasang di sini; PATH di jendela yang sudah terbuka belum diperbarui.
     let link = lad.join("Microsoft\\WinGet\\Links\\rclone.exe");
@@ -53,6 +70,7 @@ pub fn cari_rclone() -> Option<PathBuf> {
     None
 }
 
+#[cfg(windows)]
 fn cari_berkas(dir: &Path, nama: &str, dalam: u32) -> Option<PathBuf> {
     let isi = std::fs::read_dir(dir).ok()?;
     let mut sub = Vec::new();
@@ -100,7 +118,7 @@ pub fn panggil<S: AsRef<OsStr>>(args: &[S], mode: Mode) -> Hasil {
         return Hasil { kode: -1, out: String::new(), err: "rclone tidak ditemukan".into() };
     };
     let mut c = Command::new(rc);
-    c.args(args).stdin(Stdio::null()).creation_flags(win::bendera_anak());
+    c.args(args).stdin(Stdio::null()).tanpa_jendela();
     match mode {
         Mode::Tangkap => match c.output() {
             Ok(o) => Hasil {
@@ -131,7 +149,7 @@ pub fn panggil_masukan<S: AsRef<OsStr>>(args: &[S], masukan: &str) -> Hasil {
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .creation_flags(win::bendera_anak())
+        .tanpa_jendela()
         .spawn();
     let mut anak = match anak {
         Ok(a) => a,
@@ -164,7 +182,7 @@ pub fn obscure(rahasia: &str) -> Result<String, String> {
 /// rclone yang berjalan lama (salin); keluaran ke konsol/log-file.
 pub fn mulai<S: AsRef<OsStr>>(args: &[S]) -> std::io::Result<Child> {
     let rc = cari_rclone().ok_or_else(|| std::io::Error::other("rclone tidak ditemukan"))?;
-    Command::new(rc).args(args).stdin(Stdio::null()).creation_flags(win::bendera_anak()).spawn()
+    Command::new(rc).args(args).stdin(Stdio::null()).tanpa_jendela().spawn()
 }
 
 pub fn versi() -> String {

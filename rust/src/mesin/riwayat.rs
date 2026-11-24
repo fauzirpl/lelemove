@@ -229,8 +229,8 @@ fn esc(s: &str) -> String {
 }
 
 fn kepala_html(judul: &str) -> String {
-    let komputer = std::env::var("COMPUTERNAME").unwrap_or_default();
-    let pengguna = std::env::var("USERNAME").unwrap_or_default();
+    let komputer = crate::win::nama_komputer();
+    let pengguna = crate::win::nama_pengguna();
     format!(
         r#"<!doctype html>
 <html lang="id"><head><meta charset="utf-8"><title>{j}</title>
@@ -303,7 +303,8 @@ pub fn html_riwayat(daftar: &[Catatan]) -> String {
             esc(&ringkas(c)),
         );
     }
-    t += "</table>\n<p class=\"catatan\">Simpan sebagai PDF lewat menu Cetak browser (Ctrl+P &gt; Save as PDF / Microsoft Print to PDF).</p>\n</body></html>\n";
+    t += "</table>\n";
+    t += CATATAN_CETAK;
     t
 }
 
@@ -362,10 +363,16 @@ pub fn html_verifikasi(c: &Catatan) -> String {
             );
         }
     }
-    t += "<p class=\"catatan\">Simpan sebagai PDF lewat menu Cetak browser (Ctrl+P &gt; Save as PDF / Microsoft Print to PDF).</p>\n</body></html>\n";
+    t += CATATAN_CETAK;
     t
 }
 
+/// Petunjuk simpan-ke-PDF di akhir laporan HTML.
+#[cfg(windows)]
+const CATATAN_CETAK: &str = "<p class=\"catatan\">Simpan sebagai PDF lewat menu Cetak browser (Ctrl+P &gt; Save as PDF / Microsoft Print to PDF).</p>\n</body></html>\n";
+
+#[cfg(target_os = "macos")]
+const CATATAN_CETAK: &str = "<p class=\"catatan\">Simpan sebagai PDF lewat menu Cetak browser (Cmd+P &gt; PDF &gt; Simpan sebagai PDF).</p>\n</body></html>\n";
 #[cfg(test)]
 mod uji {
     use super::*;

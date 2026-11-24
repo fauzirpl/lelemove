@@ -7,6 +7,7 @@ use pindah_drive::gaya::{self, kecil, tebal, tombol, tombol_utama, HIJAU, KUNING
 use pindah_drive::mesin::dasar::waktu_tampil;
 use pindah_drive::mesin::riwayat::{self as mr, Catatan};
 
+use pindah_drive::win;
 use crate::dialog::Hasil;
 
 const TITIK: &str = "\u{00B7}";
@@ -122,7 +123,7 @@ pub fn tampil(ui: &mut Ui, r: &mut Riwayat) -> Option<Hasil> {
                             ui.horizontal(|ui| {
                                 ui.spacing_mut().item_spacing.x = 12.0;
                                 if !c.laporan.is_empty() && std::path::Path::new(&c.laporan).is_file() {
-                                    if ui.link(kecil("Laporan per file", TAUTAN)).on_hover_text("Buka laporan HTML siap cetak (Ctrl+P untuk PDF).").clicked() {
+                                    if ui.link(kecil("Laporan per file", TAUTAN)).on_hover_text(format!("Buka laporan HTML siap cetak ({} untuk PDF).", win::PINTASAN_CETAK)).clicked() {
                                         h = Some(Hasil::RiwayatLaporan(c.id.clone(), r.saring));
                                     }
                                     if ui.link(kecil("CSV per file", TAUTAN)).clicked() {
@@ -155,7 +156,7 @@ pub fn tampil(ui: &mut Ui, r: &mut Riwayat) -> Option<Hasil> {
             }
             if ui
                 .add_enabled(ada, tombol("Laporan HTML\u{2026}"))
-                .on_hover_text("Laporan siap cetak; simpan sebagai PDF lewat Ctrl+P di browser.")
+                .on_hover_text(format!("Laporan siap cetak; simpan sebagai PDF lewat {} di browser.", win::PINTASAN_CETAK))
                 .clicked()
             {
                 h = Some(Hasil::RiwayatEkspor { html: true, daftar: tersaring(r), saring: r.saring });

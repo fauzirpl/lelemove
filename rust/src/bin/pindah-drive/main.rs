@@ -39,7 +39,7 @@ use pindah_drive::gaya::{
     KUNING, LATAR2, MAP, MERAH, PILIH, PUTIH, REDUP, TAUTAN, TINTA,
 };
 use pindah_drive::mesin::akun::{self, Akun, Sambungan};
-use pindah_drive::mesin::dasar::{angka, bil, format_ukuran as ukuran, jalur, ke_byte, teks, waktu_lokal, waktu_tampil};
+use pindah_drive::mesin::dasar::{angka, bil, exe_mesin, format_ukuran as ukuran, jalur, kapital, ke_byte, teks, waktu_lokal, waktu_tampil};
 use pindah_drive::mesin::filter::{self as mf, Filter};
 use pindah_drive::mesin::jadwal as mj;
 use pindah_drive::mesin::penyedia as mp;
@@ -54,6 +54,8 @@ use aksi::{Aksi, Isi, Kabar, Setelah};
 use dialog::{AkunBaru, AkunGoogle, ClientId, Dialog, Hasil, Jelajah, Ketik, Konfirmasi, Pemuat, Pengaturan, SharePoint, Tanya};
 
 const IKON: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../aset/ikon.ico"));
+/// Nama berkas program mesin, untuk pesan galat.
+const MESIN: &str = if cfg!(windows) { "pindah.exe" } else { "pindah" };
 const TITIK: &str = "\u{00B7}";
 const ELIPSIS: &str = "\u{2026}";
 const CENTANG: &str = "\u{2713}";
@@ -278,7 +280,7 @@ impl App {
             ctx,
             tx,
             rx,
-            exe_mesin: jalur().dir_app.join("pindah.exe"),
+            exe_mesin: exe_mesin(),
             rclone: None,
             versi_rclone: String::new(),
             status_siap: false,
@@ -328,7 +330,7 @@ impl App {
             logo: None,
         };
         if !app.exe_mesin.is_file() {
-            app.set_pesan(&format!("pindah.exe tidak ditemukan di {}", jalur().dir_app.display()), MERAH);
+            app.set_pesan(&format!("{MESIN} tidak ditemukan di {}", jalur().dir_app.display()), MERAH);
         }
         app.segarkan_status();
         app.perbarui_progres();
@@ -585,8 +587,8 @@ impl App {
                 self.set_pesan(&format!("{judul}{ELIPSIS}"), TINTA);
             }
             Err(e) => {
-                self.set_pesan(&format!("pindah.exe tidak bisa dijalankan: {e}"), MERAH);
-                self.tulis_log(&format!("Kesalahan: pindah.exe tidak bisa dijalankan: {e}"));
+                self.set_pesan(&format!("{MESIN} tidak bisa dijalankan: {e}"), MERAH);
+                self.tulis_log(&format!("Kesalahan: {MESIN} tidak bisa dijalankan: {e}"));
                 self.salin_setelah_uji = false;
             }
         }
@@ -795,13 +797,11 @@ impl App {
 
     /// Jendela konsol `rclone config` untuk layanan yang tidak ada di daftar (semua backend rclone).
     fn buka_rclone_config(&mut self) {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
         let Some(rc) = rclone::cari_rclone() else {
             self.set_pesan("Pasang rclone dulu (tombol di daftar kiri).", MERAH);
             return;
         };
-        match std::process::Command::new(rc).arg("config").creation_flags(CREATE_NEW_CONSOLE).spawn() {
+        match win::buka_di_terminal(&rc, &["config"]) {
             Ok(_) => {
                 self.set_pesan("Jendela rclone config terbuka. Setelah selesai, pilih Tambah akun > Layanan lain > Pakai remote rclone yang sudah ada.", TINTA);
                 self.tulis_log("--- rclone config dibuka di jendela terpisah");
@@ -889,7 +889,14 @@ impl App {
         let Some((n, lain, _, _)) = self.bisa_pindahkan.clone() else { return };
         let s = self.jalur_sumber();
         if adalah_lokal(&s) && !win::drive_tetap(Path::new(&s)) {
-            self.set_pesan("Folder sumber ada di drive jaringan atau flashdisk tanpa Recycle Bin; LELEMOVE tidak menghapus di sana.", KUNING);
+            self.set_pesan(
+                if cfg!(windows) {
+                    "Folder sumber ada di drive jaringan atau flashdisk tanpa Recycle Bin; LELEMOVE tidak menghapus di sana."
+                } else {
+                    "Folder sumber ada di volume jaringan tanpa Tong Sampah; LELEMOVE tidak menghapus di sana."
+                },
+                KUNING,
+            );
             return;
         }
         let mut isi = format!(
@@ -1264,14 +1271,14 @@ impl App {
                         self.set_pesan("Backup terjadwal berjalan di latar belakang.", HIJAU);
                         self.verifikasi = kosong();
                     }
-                    Err(e) => self.buka_jadwal(Some((format!("pindah.exe tidak bisa dijalankan: {e}"), MERAH))),
+                    Err(e) => self.buka_jadwal(Some((format!("{MESIN} tidak bisa dijalankan: {e}"), MERAH))),
                 }
             }
             Hasil::JadwalAktif(id, aktif) => {
                 let (judul, saklar, ok) = if aktif {
                     ("Mengaktifkan jadwal", "-Aktifkan", "Jadwal aktif.")
                 } else {
-                    ("Menonaktifkan jadwal", "-Nonaktifkan", "Jadwal nonaktif; tugas Windows-nya tidak berjalan sampai diaktifkan lagi.")
+                    ("Menonaktifkan jadwal", "-Nonaktifkan", if cfg!(windows) { "Jadwal nonaktif; tugas Windows-nya tidak berjalan sampai diaktifkan lagi." } else { "Jadwal nonaktif; tugas launchd-nya tidak berjalan sampai diaktifkan lagi." })
                 };
                 self.aksi_jadwal(judul, v!["jadwal", "-Id", id, saklar], ok);
             }
@@ -1279,7 +1286,7 @@ impl App {
                 let nama = mj::cari(&id).map(|j| j.nama).unwrap_or_else(|| id.clone());
                 self.tanya(
                     "Hapus jadwal",
-                    format!("Hapus jadwal \"{nama}\"?\n\nTugas Windows-nya ikut dihapus. File yang sudah dicadangkan di tujuan TIDAK terhapus."),
+                    format!("Hapus jadwal \"{nama}\"?\n\n{}-nya ikut dihapus. File yang sudah dicadangkan di tujuan TIDAK terhapus.", kapital(win::NAMA_TUGAS)),
                     "Hapus jadwal",
                     true,
                     Konfirmasi::HapusJadwal(id),
@@ -1312,7 +1319,7 @@ impl App {
                         match std::fs::write(&p, mr::html_verifikasi(&c)) {
                             Ok(()) => {
                                 win::buka(&p.to_string_lossy());
-                                ("Laporan dibuka di browser. Tekan Ctrl+P untuk menyimpannya sebagai PDF.".to_string(), HIJAU)
+                                (format!("Laporan dibuka di browser. Tekan {} untuk menyimpannya sebagai PDF.", win::PINTASAN_CETAK), HIJAU)
                             }
                             Err(e) => (format!("Laporan tidak bisa dibuat: {e}"), MERAH),
                         }
@@ -1606,7 +1613,7 @@ impl App {
             } else if adalah_lokal(&s) {
                 ("Folder tidak ditemukan.".into(), MERAH)
             } else {
-                ("Tulis alamat lengkap, misalnya D:\\Data.".into(), KUNING)
+                (format!("Tulis alamat lengkap, misalnya {}.", win::CONTOH_DATA), KUNING)
             }
         } else {
             let a = self.akun_dari(&rem);
@@ -1646,7 +1653,7 @@ impl App {
             } else if adalah_lokal(&t) {
                 ("Disalin ke folder ini; dibuat saat penyalinan dimulai.".into(), REDUP)
             } else {
-                ("Tulis alamat lengkap, misalnya D:\\Salinan.".into(), KUNING)
+                (format!("Tulis alamat lengkap, misalnya {}.", win::CONTOH_SALINAN), KUNING)
             };
             return;
         }
@@ -1702,7 +1709,7 @@ impl App {
             }
         }
         if self.lok_tujuan.is_empty() && (t.is_empty() || !adalah_lokal(&t)) {
-            self.set_pesan("Tulis folder tujuan lengkap, misalnya D:\\Salinan.", MERAH);
+            self.set_pesan(&format!("Tulis folder tujuan lengkap, misalnya {}.", win::CONTOH_SALINAN), MERAH);
             return None;
         }
         if self.rclone.is_none() {
@@ -2469,7 +2476,7 @@ impl App {
                         let t = format!("Pindahkan: hapus {} file ini dari sumber{ELIPSIS}", angka(n));
                         if ui
                             .link(kecil(&t, TAUTAN))
-                            .on_hover_text("Opsional. Hanya file yang terbukti sama di tujuan yang dihapus, dan masuk ke Recycle Bin / Sampah sehingga masih bisa dipulihkan.")
+                            .on_hover_text(format!("Opsional. Hanya file yang terbukti sama di tujuan yang dihapus, dan masuk ke {} / Sampah sehingga masih bisa dipulihkan.", win::NAMA_SAMPAH))
                             .clicked()
                         {
                             pilih = 3;
@@ -2595,14 +2602,11 @@ impl App {
         if !self.lok(sisi).is_empty() {
             return None;
         }
-        let d = self.dalam(sisi).to_lowercase();
+        let d = self.dalam(sisi);
         self.pintasan
             .iter()
             .enumerate()
-            .filter(|(_, p)| {
-                let f = p.folder.trim_end_matches('\\').to_lowercase();
-                d == f || d.starts_with(&format!("{f}\\"))
-            })
+            .filter(|(_, p)| rute::di_dalam(&d, &p.folder))
             .max_by_key(|(_, p)| p.folder.len())
             .map(|(i, _)| i)
     }
@@ -2632,7 +2636,7 @@ impl App {
                         let r = baris_lokasi(ui, "pengaturan", ik::RIWAYAT, "Riwayat & laporan", "", REDUP, None, "", false, true);
                         riwayat_ = r.baris.on_hover_text("Semua penyalinan, verifikasi, dan pemindahan; laporan CSV dan siap cetak untuk audit.").clicked();
                         let r = baris_lokasi(ui, "pengaturan", ik::JADWAL, "Jadwal backup", "", REDUP, None, "", false, true);
-                        jadwal = r.baris.on_hover_text("Salin otomatis setiap hari atau pada hari tertentu, lewat Task Scheduler Windows.").clicked();
+                        jadwal = r.baris.on_hover_text(format!("Salin otomatis setiap hari atau pada hari tertentu, lewat {}.", win::PENJADWAL)).clicked();
                         let r = baris_lokasi(ui, "pengaturan", ik::BANTUAN, "Bantuan & info", "", REDUP, None, "", false, true);
                         bantuan = r.baris.on_hover_text("Tanya jawab, ketentuan, privasi, atribusi, dan tentang LELEMOVE.").clicked();
                         let r = baris_lokasi(ui, "pengaturan", ik::PENGATURAN, "Pengaturan", "", REDUP, None, "", false, true);
@@ -2776,7 +2780,12 @@ impl App {
         if pasang {
             self.tanya(
                 "Pasang rclone",
-                "LELEMOVE memakai rclone, program open source (lisensi MIT) untuk menyalin file antar-layanan cloud.\n\nrclone akan diunduh (sekitar 25 MB) dan dipasang lewat winget dari repositori resmi. Dengan melanjutkan, Anda menyetujui ketentuan sumber dan paket winget.\n\nPasang sekarang?".into(),
+                if cfg!(windows) {
+                    "LELEMOVE memakai rclone, program open source (lisensi MIT) untuk menyalin file antar-layanan cloud.\n\nrclone akan diunduh (sekitar 25 MB) dan dipasang lewat winget dari repositori resmi. Dengan melanjutkan, Anda menyetujui ketentuan sumber dan paket winget.\n\nPasang sekarang?"
+                } else {
+                    "LELEMOVE memakai rclone, program open source (lisensi MIT) untuk menyalin file antar-layanan cloud.\n\nrclone akan diunduh (sekitar 25 MB) dan dipasang lewat Homebrew.\n\nPasang sekarang?"
+                }
+                .into(),
                 "Pasang",
                 false,
                 Konfirmasi::PasangRclone,
@@ -2874,8 +2883,10 @@ impl App {
                         acc.push(p.as_os_str());
                     }
                     std::path::Component::RootDir => {
-                        acc.push("\\");
-                        v.push((awalan.clone(), acc.to_string_lossy().to_string()));
+                        acc.push(std::path::MAIN_SEPARATOR_STR);
+                        // macOS: jalur tanpa huruf drive; segmen akar memakai nama volume sistem.
+                        let label = if awalan.is_empty() { win::nama_akar() } else { awalan.clone() };
+                        v.push((label, acc.to_string_lossy().to_string()));
                     }
                     std::path::Component::Normal(n) => {
                         acc.push(n);
@@ -2989,7 +3000,7 @@ impl App {
         let telusuri = {
             let mut u = ui.new_child(UiBuilder::new().max_rect(r_tel));
             gaya::tombol_ikon(&mut u, ik::BUKA_MAP, 26.0, boleh)
-                .on_hover_text(if lokal { "Pilih folder lewat jendela Windows (bisa membuat folder baru)" } else { "Pilih folder di jendela terpisah" })
+                .on_hover_text(if lokal { format!("Pilih folder lewat jendela {} (bisa membuat folder baru)", win::NAMA_OS) } else { "Pilih folder di jendela terpisah".to_string() })
                 .clicked()
         };
 
@@ -3049,7 +3060,7 @@ impl App {
                     .min_size(r.size())
                     .vertical_align(Align::Center)
                     .margin(Margin::symmetric(8, 4))
-                    .hint_text(if lokal { "D:\\Data" } else { "Folder/Subfolder" }),
+                    .hint_text(if lokal { win::CONTOH_DATA } else { "Folder/Subfolder" }),
             );
             if self.panel[sisi].fokus_edit {
                 te.request_focus();
@@ -3551,76 +3562,37 @@ fn jenis_tampil(j: &str) -> String {
 
 /// Isi folder di komputer ini (hanya subfolder, tanpa folder tersembunyi/sistem). Jalur kosong = daftar drive.
 fn isi_lokal(p: &str) -> Isi {
-    use std::os::windows::fs::MetadataExt;
     if p.trim().is_empty() {
-        return Isi::Drive(daftar_drive());
+        return Isi::Drive(win::daftar_drive());
     }
     if !adalah_lokal(p) {
-        return Isi::Galat("Tulis alamat lengkap, misalnya D:\\Data.".into());
+        return Isi::Galat(format!("Tulis alamat lengkap, misalnya {}.", win::CONTOH_DATA));
     }
     let path = Path::new(p);
     if !path.is_dir() {
         return if path.exists() { Isi::Galat("Ini berkas, bukan folder.".into()) } else { Isi::BelumAda };
     }
     match std::fs::read_dir(path) {
-        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => Isi::Galat("Akses ke folder ini ditolak Windows.".into()),
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => Isi::Galat(
+            if cfg!(windows) {
+                "Akses ke folder ini ditolak Windows."
+            } else {
+                "Akses ke folder ini ditolak macOS. Izinkan di Pengaturan Sistem > Privasi & Keamanan > File dan Folder."
+            }
+            .into(),
+        ),
         Err(e) => Isi::Galat(e.to_string()),
         Ok(it) => {
-            // 0x2 = tersembunyi, 0x4 = sistem ($RECYCLE.BIN, System Volume Information, dsb.)
+            // Tanpa folder tersembunyi/sistem ($RECYCLE.BIN di Windows; .Trash, /usr di macOS).
             let mut n: Vec<String> = it
                 .flatten()
-                .filter(|e| e.metadata().is_ok_and(|m| m.is_dir() && m.file_attributes() & 0x6 == 0))
+                .filter(|e| e.metadata().is_ok_and(|m| m.is_dir() && !win::tersembunyi(&m, &e.file_name())))
                 .map(|e| e.file_name().to_string_lossy().to_string())
                 .collect();
             n.sort_by_key(|a| a.to_lowercase());
             Isi::Folder(n)
         }
     }
-}
-
-/// Drive yang ada: (akar "D:\", nama tampilan "Data (D:)").
-fn daftar_drive() -> Vec<(String, String)> {
-    use windows_sys::Win32::Storage::FileSystem::{GetDriveTypeW, GetLogicalDrives, GetVolumeInformationW};
-    let mask = unsafe { GetLogicalDrives() };
-    let mut v = Vec::new();
-    for i in 0..26u8 {
-        if mask & (1 << i) == 0 {
-            continue;
-        }
-        let huruf = (b'A' + i) as char;
-        let akar = format!("{huruf}:\\");
-        let w = win::lebar(&akar);
-        let jenis = unsafe { GetDriveTypeW(w.as_ptr()) };
-        let mut nama = [0u16; 261];
-        // Drive jaringan tidak ditanya labelnya: bisa lama bila servernya tidak terjangkau.
-        let ok = jenis != 4
-            && unsafe {
-                GetVolumeInformationW(
-                    w.as_ptr(),
-                    nama.as_mut_ptr(),
-                    nama.len() as u32,
-                    std::ptr::null_mut(),
-                    std::ptr::null_mut(),
-                    std::ptr::null_mut(),
-                    std::ptr::null_mut(),
-                    0,
-                )
-            } != 0;
-        let label = if ok { String::from_utf16_lossy(&nama[..nama.iter().position(|&c| c == 0).unwrap_or(0)]) } else { String::new() };
-        let label = if label.trim().is_empty() {
-            match jenis {
-                2 => "Drive lepas",
-                4 => "Drive jaringan",
-                5 => "CD/DVD",
-                _ => "Disk lokal",
-            }
-            .to_string()
-        } else {
-            label
-        };
-        v.push((akar, format!("{label} ({huruf}:)")));
-    }
-    v
 }
 
 /// Baris di daftar lokasi kiri; `menu` = tombol ⋯ (hanya akun cloud).
@@ -3817,14 +3789,14 @@ fn rute_contoh(cocok: i64, lain: i64) -> (i64, i64, String, String) {
 }
 
 /// Ke mana berkas yang "dipindahkan" dari sumber ini pergi.
-fn tempat_sampah(sumber: &str) -> &'static str {
+fn tempat_sampah(sumber: &str) -> String {
     let rem = akun::remote_dari(sumber);
     if rem.is_empty() {
-        "Recycle Bin Windows"
+        format!("{} {}", win::NAMA_SAMPAH, win::NAMA_OS)
     } else if akun::jenis_dari_nama(&rem) == "google" {
-        "Sampah Google Drive (dipulihkan dalam 30 hari)"
+        "Sampah Google Drive (dipulihkan dalam 30 hari)".into()
     } else {
-        "Recycle bin OneDrive/SharePoint"
+        "Recycle bin OneDrive/SharePoint".into()
     }
 }
 
@@ -3847,7 +3819,7 @@ fn pesan_ekspor(h: Option<Result<PathBuf, String>>, buka: bool) -> Option<(Strin
             if buka {
                 win::buka(&p.to_string_lossy());
             }
-            let ket = if buka { " Tekan Ctrl+P di browser untuk menyimpannya sebagai PDF." } else { "" };
+            let ket = if buka { format!(" Tekan {} di browser untuk menyimpannya sebagai PDF.", win::PINTASAN_CETAK) } else { String::new() };
             Some((format!("Tersimpan: {}.{ket}", p.display()), HIJAU))
         }
         Err(e) => Some((e, MERAH)),
@@ -3867,11 +3839,11 @@ fn main() -> eframe::Result {
             // Hanya untuk pengujian (tugas dibuat saat PINDAH_DRIVE_DATA terpasang).
             std::env::set_var("PINDAH_DRIVE_DATA", d);
         }
-        let exe = jalur().dir_app.join("pindah.exe");
+        let exe = exe_mesin();
         if let Err(e) = win::mulai_terlepas(&exe, &v!["jadwal", "-Jalankan", "-Id", id]) {
             let _ = pindah_drive::notifikasi::kirim(
                 "Backup terjadwal gagal dimulai",
-                &[format!("pindah.exe tidak bisa dijalankan: {e}")],
+                &[format!("{MESIN} tidak bisa dijalankan: {e}")],
             );
         }
         return Ok(());

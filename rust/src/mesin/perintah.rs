@@ -5,7 +5,6 @@
 
 use regex::Regex;
 use serde_json::{json, Map, Value};
-use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::LazyLock;
@@ -20,6 +19,7 @@ use super::lanjut;
 use super::penyedia::{self, JenisKolom, Penyedia};
 use super::rclone::{self, cari_rclone, daftar_remote, panggil, token_kedaluwarsa, Mode};
 use super::rute::*;
+use crate::win::PerintahExt;
 use crate::{notifikasi, v, win};
 
 pub const PERINTAH: &[&str] = &[
@@ -290,6 +290,50 @@ fn argumen_tujuan(tujuan: &str) -> Vec<String> {
     Vec::new()
 }
 
+/// Program pemasang rclone milik sistem: winget (Windows) atau Homebrew (macOS).
+struct Pemasang {
+    exe: PathBuf,
+    args: &'static [&'static str],
+    ket: &'static str,
+    setuju: &'static str,
+}
+
+#[cfg(windows)]
+const TANPA_PEMASANG: [&str; 2] = [
+    "winget tidak tersedia di komputer ini.",
+    "Unduh rclone dari https://rclone.org/downloads/ lalu taruh rclone.exe di folder aplikasi ini.",
+];
+
+#[cfg(target_os = "macos")]
+const TANPA_PEMASANG: [&str; 2] = [
+    "Homebrew tidak tersedia di Mac ini.",
+    "Unduh rclone untuk macOS dari https://rclone.org/downloads/ lalu taruh berkas rclone di /usr/local/bin.",
+];
+
+#[cfg(windows)]
+fn pemasang_rclone() -> Option<Pemasang> {
+    cari_winget().map(|exe| Pemasang {
+        exe,
+        args: &[
+            "install", "--id", "Rclone.Rclone", "--exact", "--source", "winget",
+            "--accept-source-agreements", "--accept-package-agreements", "--disable-interactivity",
+        ],
+        ket: "Dipasang lewat winget dari repositori resmi winget (paket Rclone.Rclone, sekitar 25 MB).",
+        setuju: "Unduh & pasang rclone sekarang (menyetujui ketentuan sumber/paket winget)?",
+    })
+}
+
+#[cfg(target_os = "macos")]
+fn pemasang_rclone() -> Option<Pemasang> {
+    ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"].iter().map(PathBuf::from).find(|p| p.is_file()).map(|exe| Pemasang {
+        exe,
+        args: &["install", "rclone"],
+        ket: "Dipasang lewat Homebrew (formula rclone, sekitar 25 MB).",
+        setuju: "Unduh & pasang rclone sekarang lewat Homebrew?",
+    })
+}
+
+#[cfg(windows)]
 fn cari_winget() -> Option<PathBuf> {
     if let Some(path) = std::env::var_os("PATH") {
         for d in std::env::split_paths(&path) {
@@ -374,7 +418,7 @@ fn hapus_folder_kosong_lokal(akar: &Path, dihapus: &[PathBuf]) {
         .filter_map(|p| p.strip_prefix(akar).ok().map(|r| r.to_string_lossy().replace('\\', "/")))
         .collect();
     for d in folder_induk(&rel) {
-        let _ = std::fs::remove_dir(akar.join(d.replace('/', "\\"))); // gagal bila tidak kosong: dibiarkan
+        let _ = std::fs::remove_dir(akar.join(d.replace('/', std::path::MAIN_SEPARATOR_STR))); // gagal bila tidak kosong: dibiarkan
     }
 }
 
@@ -702,7 +746,7 @@ impl Mesin {
                 info(&format!("Sumber : {s}"));
                 info(&format!("Tujuan : {}", t.clone().unwrap_or_default()));
             }
-            _ => info("Belum dipilih. Contoh: pindah periksa -Sumber \"D:\\OneDrive\\Backup\""),
+            _ => info(&format!("Belum dipilih. Contoh: pindah periksa -Sumber \"{}\"", win::CONTOH_DATA)),
         }
         if let Some(job) = baca_job() {
             if job_berjalan(&job) {
@@ -734,24 +778,17 @@ impl Mesin {
             ok(&format!("rclone sudah terpasang: {}", rc.display()));
             return 0;
         }
-        let Some(winget) = cari_winget() else {
-            gagal("winget tidak tersedia di komputer ini.");
-            info("Unduh rclone dari https://rclone.org/downloads/ lalu taruh rclone.exe di folder aplikasi ini.");
+        let Some(p) = pemasang_rclone() else {
+            gagal(TANPA_PEMASANG[0]);
+            info(TANPA_PEMASANG[1]);
             return 1;
         };
         info("rclone adalah program open source (lisensi MIT) untuk menyalin file antar-layanan cloud.");
-        info("Dipasang lewat winget dari repositori resmi winget (paket Rclone.Rclone, sekitar 25 MB).");
-        if !self.konfirmasi("Unduh & pasang rclone sekarang (menyetujui ketentuan sumber/paket winget)?") {
+        info(p.ket);
+        if !self.konfirmasi(p.setuju) {
             return 1;
         }
-        let _ = Command::new(winget)
-            .args([
-                "install", "--id", "Rclone.Rclone", "--exact", "--source", "winget",
-                "--accept-source-agreements", "--accept-package-agreements", "--disable-interactivity",
-            ])
-            .stdin(Stdio::null())
-            .creation_flags(win::bendera_anak())
-            .status();
+        let _ = Command::new(&p.exe).args(p.args).stdin(Stdio::null()).tanpa_jendela().status();
         if let Some(rc) = cari_rclone() {
             ok(&format!("rclone terpasang: {}", rc.display()));
             return 0;
@@ -1529,7 +1566,7 @@ impl Mesin {
             };
             if self.o.hapus {
                 if let Err(e) = jadwal::hapus_tugas(&id) {
-                    gagal(&format!("Tugas Windows tidak bisa dihapus: {e}"));
+                    gagal(&format!("{} tidak bisa dihapus: {e}", kapital(win::NAMA_TUGAS)));
                     return 1;
                 }
                 jadwal::hapus_data(&id);
@@ -1541,7 +1578,7 @@ impl Mesin {
                 // Tugas yang hilang (dihapus dari Task Scheduler) dibuat ulang.
                 let h = if jadwal::tugas_ada(&id) { jadwal::atur_aktif_tugas(&id, j.aktif) } else { jadwal::pasang_tugas(&j) };
                 if let Err(e) = h {
-                    gagal(&format!("Tugas Windows tidak bisa diubah: {e}"));
+                    gagal(&format!("{} tidak bisa diubah: {e}", kapital(win::NAMA_TUGAS)));
                     return 1;
                 }
                 jadwal::simpan(&j);
@@ -1552,13 +1589,13 @@ impl Mesin {
         judul("Backup terjadwal");
         let semua = jadwal::baca_semua();
         if semua.is_empty() {
-            info("Belum ada. Contoh: pindah jadwal -Tambah -Nama \"Arsip\" -Sumber \"D:\\Data\" -Tujuan \"pd-gdrive:Arsip\" -Jam 22:00 [-Hari sen,rab,jum]");
+            info(&format!("Belum ada. Contoh: pindah jadwal -Tambah -Nama \"Arsip\" -Sumber \"{}\" -Tujuan \"pd-gdrive:Arsip\" -Jam 22:00 [-Hari sen,rab,jum]", win::CONTOH_DATA));
         }
         for j in &semua {
             let status = if !j.aktif {
                 "nonaktif".to_string()
             } else if !jadwal::tugas_ada(&j.id) {
-                format!("tugas Windows hilang; pasang ulang: pindah jadwal -Aktifkan -Id {}", j.id)
+                format!("{} hilang; pasang ulang: pindah jadwal -Aktifkan -Id {}", win::NAMA_TUGAS, j.id)
             } else {
                 format!("berikutnya {}", jadwal::berikutnya(j).unwrap_or_default())
             };
@@ -1625,7 +1662,7 @@ impl Mesin {
             filter,
         };
         if let Err(e) = jadwal::pasang_tugas(&j) {
-            gagal(&format!("Tugas Windows tidak bisa dibuat: {e}"));
+            gagal(&format!("{} tidak bisa dibuat: {e}", kapital(win::NAMA_TUGAS)));
             return 1;
         }
         jadwal::simpan(&j);
@@ -1633,7 +1670,7 @@ impl Mesin {
         if !j.filter.kosong() {
             info(&format!("Filter: {}", j.filter.uraian()));
         }
-        info(&format!("Berikutnya: {}. Tugas Windows: {}", jadwal::berikutnya(&j).unwrap_or_default(), jadwal::nama_tugas(&id)));
+        info(&format!("Berikutnya: {}. {}: {}", jadwal::berikutnya(&j).unwrap_or_default(), kapital(win::NAMA_TUGAS), jadwal::nama_tugas(&id)));
         self.catat("Id", id);
         0
     }
@@ -2294,7 +2331,7 @@ impl Mesin {
         );
 
         if self.o.latar {
-            let exe = std::env::current_exe().unwrap_or_else(|_| jalur().dir_app.join("pindah.exe"));
+            let exe = std::env::current_exe().unwrap_or_else(|_| super::dasar::exe_mesin());
             return match win::mulai_terlepas(&exe, &v!["salin", "-LogLatar", &log, "-BatasKecepatan", &batas]) {
                 Ok(pid) => {
                     perbarui_job(&[("PidInduk", json!(pid)), ("Latar", json!(true))], false);
@@ -2580,16 +2617,20 @@ impl Mesin {
         }
         let lokal = adalah_lokal(&src);
         if lokal && !win::drive_tetap(Path::new(&src)) {
-            gagal("Folder sumber ada di drive jaringan atau flashdisk yang tidak punya Recycle Bin; file di sana akan hilang permanen.");
+            gagal(if cfg!(windows) {
+                "Folder sumber ada di drive jaringan atau flashdisk yang tidak punya Recycle Bin; file di sana akan hilang permanen."
+            } else {
+                "Folder sumber ada di volume jaringan yang tidak punya Tong Sampah; file di sana akan hilang permanen."
+            });
             info("LELEMOVE tidak menghapusnya. Hapus sendiri bila sudah yakin.");
             return 1;
         }
-        let tempat = if lokal {
-            "Recycle Bin Windows"
+        let tempat: String = if lokal {
+            format!("{} {}", win::NAMA_SAMPAH, win::NAMA_OS)
         } else {
             let p = penyedia::cari(jenis_dari_nama(&remote_dari(&src)));
             match p.and_then(|p| p.sampah) {
-                Some(s) => s,
+                Some(s) => s.to_string(),
                 None => {
                     let n = p.map_or("Layanan ini", |p| p.nama);
                     gagal(&format!("{n} tidak punya tempat sampah: file yang dihapus akan hilang permanen."));
@@ -2634,7 +2675,7 @@ impl Mesin {
         let logs = log.to_string_lossy().to_string();
         let dihapus = if lokal {
             let akar = PathBuf::from(&src);
-            let berkas: Vec<PathBuf> = cocok.iter().map(|p| akar.join(p.replace('/', "\\"))).collect();
+            let berkas: Vec<PathBuf> = cocok.iter().map(|p| akar.join(p.replace('/', std::path::MAIN_SEPARATOR_STR))).collect();
             let n = win::ke_recycle_bin(&berkas);
             let catatan: String = berkas
                 .iter()
@@ -2690,7 +2731,7 @@ impl Mesin {
             ..Default::default()
         });
         self.catat("Dihapus", dihapus as i64);
-        self.catat("Tempat", tempat);
+        self.catat("Tempat", tempat.as_str());
         if semua {
             ok(&format!("{} file dipindahkan: kini hanya ada di {dst}.", angka(dihapus as i64)));
         } else {
@@ -3010,14 +3051,14 @@ pub fn tampilkan_bantuan() {
     polos("  pustaka -Akun <sharepoint> -SitusId <id>           daftar pustaka dokumen situs");
     polos("  pustaka -Akun <sharepoint> -Pustaka <id> [-SitusNama X -PustakaNama Y]   pakai pustaka");
     polos("  periksa [-Sumber X] [-Tujuan Y]     ukuran sumber vs ruang tujuan");
-    polos("          X/Y: D:\\Folder  atau  <akun>:<folder>, mis. pd-onedrive:Kerja  pd-gdrive-2:Arsip");
+    polos(&format!("          X/Y: {}  atau  <akun>:<folder>, mis. pd-onedrive:Kerja  pd-gdrive-2:Arsip", win::CONTOH_DATA));
     polos("  uji                         dry run, deteksi file yang akan terlewat");
     polos("  salin [-Latar] [-Ya]        mulai menyalin (bisa dilanjutkan)");
     polos("        [-BatasKecepatan 5M]  batasi kecepatan (5M = 5 MB/dtk, 500K, off); diingat untuk berikutnya");
     polos("  status | berhenti           pantau / hentikan penyalinan latar");
     polos("  verifikasi                  cocokkan isi sumber dan tujuan");
     polos("  pindahkan [-Ya]             verifikasi ulang, lalu hapus dari SUMBER file yang terbukti sama");
-    polos("                              (ke Recycle Bin / Sampah; file yang tidak cocok tidak disentuh)");
+    polos(&format!("                              (ke {} / Sampah; file yang tidak cocok tidak disentuh)", win::NAMA_SAMPAH));
     polos("  penyedia                    daftar layanan yang bisa ditambahkan (Dropbox, NAS, S3, ...)");
     polos("  hubungkan -Akun pd-<x> -Jenis <jenis> [-Opsi kunci=nilai ...] [-RahasiaStdin]");
     polos("            akun selain Google/Microsoft; rahasia dikirim sebagai JSON lewat stdin");
