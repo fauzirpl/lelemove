@@ -57,7 +57,7 @@ jobs:
       - name: Jalankan program dari bundel
         run: |
           M=dist/macos/LELEMOVE.app/Contents/MacOS
-          lipo -archs "$M/LELEMOVE" "$M/pindah" "$M/rclone"
+          for b in LELEMOVE pindah rclone; do printf '%s: ' "$b"; lipo -archs "$M/$b"; done
           "$M/rclone" version | head -n 1
           "$M/pindah" bantuan | head -n 3
           if arch -x86_64 /usr/bin/true 2>/dev/null; then
