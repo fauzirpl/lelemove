@@ -22,7 +22,8 @@ concurrency:
 jobs:
   dmg:
     name: Uji dan kemas .dmg
-    runs-on: macos-14
+    # macos-latest: image Apple Silicon terbaru (image lama seperti macos-14 sudah dipensiunkan).
+    runs-on: macos-latest
     timeout-minutes: 60
     env:
       CARGO_TERM_COLOR: always
