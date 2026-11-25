@@ -794,6 +794,7 @@ Sekali pertjoema, tetap pertjoema!
 
 | Versi | Isi oetama |
 |---|---|
+| [2.4.1](https://github.com/fauzirpl/lelemove/releases/tag/v2.4.1) | Menoe *Cadangan email* sendiri di daftar kiri (tab *Cadangkan ke komputer* dan *Pulihkan ke server*); *Migrasi email* kembali choesoes server ke server |
 | [2.4.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.4.0) | Tjadangan email ke kompoeter (.eml) dan pemoelihan ke server, termasoek dari berkas .mbox Google Takeout atau Thunderbird; baris *Dukung LELEMOVE* di djendela oetama |
 | [2.3.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.3.0) | Versi macOS (beta; Apple Silicon + Intel, .dmg), migrasi email (beta) dari Gmail/Outlook/IMAP ke server email sendiri, tautan doekoengan Saweria, naskah README berëdjaan zaman perdjoeangan |
 | [2.2.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.2.0) | 29 lajanan penjimpanan (Dropbox, Box, pCloud, MEGA, iCloud, Nextcloud, SMB/NAS, SFTP, FTP, S3, R2, B2, Azure, ...), pertanjaan landjoetan/2FA, pakai remote rclone jang soedah ada |

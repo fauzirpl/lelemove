@@ -765,6 +765,7 @@ Dukungan bersifat sukarela: semua fitur tetap terbuka untuk semua orang.
 
 | Versi | Isi utama |
 |---|---|
+| [2.4.1](https://github.com/fauzirpl/lelemove/releases/tag/v2.4.1) | Menu *Cadangan email* sendiri di daftar kiri (tab *Cadangkan ke komputer* dan *Pulihkan ke server*); *Migrasi email* kembali khusus server ke server |
 | [2.4.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.4.0) | Cadangan email ke komputer (.eml) dan pemulihan ke server, termasuk dari berkas .mbox Google Takeout atau Thunderbird; baris *Dukung LELEMOVE* di jendela utama |
 | [2.3.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.3.0) | Versi macOS (beta; Apple Silicon + Intel, .dmg), migrasi email (beta) dari Gmail/Outlook/IMAP ke server email sendiri, tautan dukungan Saweria, README edisi ejaan zaman perjuangan |
 | [2.2.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.2.0) | 29 layanan penyimpanan (Dropbox, Box, pCloud, MEGA, iCloud, Nextcloud, SMB/NAS, SFTP, FTP, S3, R2, B2, Azure, ...), pertanyaan lanjutan/2FA, pakai remote rclone yang sudah ada |
