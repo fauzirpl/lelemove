@@ -38,7 +38,8 @@ https://github.com/user-attachments/assets/e3d6832b-8cc2-4dd4-a695-b0be344245aa
 - **Jadwal backup** lewat Task Scheduler (Windows) atau launchd (macOS).
 - **Riwayat & laporan**: CSV dan laporan siap cetak berisi status setiap file, untuk audit.
 - **Migrasi email** (beta): pindahkan semua folder email dari Gmail, Outlook/Microsoft 365, atau server
-  IMAP lain ke server email sendiri, lengkap dengan status baca, bintang, dan tanggal asli.
+  IMAP lain ke server email sendiri, lengkap dengan status baca, bintang, dan tanggal asli; atau
+  cadangkan ke komputer (.eml) lalu pulihkan lagi, termasuk dari berkas .mbox Google Takeout.
 - **Baris perintah** (`pindah.exe`) untuk semua fitur di atas.
 
 Ditulis dalam **Rust** (jendela memakai egui), tanpa PowerShell, jadi tetap jalan di komputer
@@ -349,7 +350,35 @@ Lewat baris perintah (kata sandi lewat stdin, atau diketik tanpa tampak):
 ```powershell
 .\pindah.exe email -Sumber gmail:nama@gmail.com -Tujuan imap://nama@kantor.go.id@mail.kantor.go.id -HanyaPeriksa
 .\pindah.exe email -Sumber outlook:nama@outlook.com -Tujuan imap://nama@mail.server.id -Ya
+.\pindah.exe email -Sumber gmail:nama@gmail.com -Tujuan "D:\Cadangan Email" -Ya            # cadangkan ke komputer (.eml)
+.\pindah.exe email -Sumber "D:\Cadangan Email" -Tujuan imap://nama@mail.server.id -Ya      # pulihkan dari cadangan
+.\pindah.exe email -Sumber "D:\Takeout\Mail\All mail Including Spam and Trash.mbox" -Tujuan imap://nama@mail.server.id -Ya
 ```
+
+### Cadangan di komputer dan pemulihan
+
+Selain ke server baru, email dapat pula disimpan ke **folder di komputer**, lalu dipulihkan ke
+server mana pun kapan saja. Cocok untuk akun yang hendak ditutup, atau bila server baru
+belum siap.
+
+- **Cadangkan**: di bagian **Ke**, pilih *Folder di komputer*. Setiap email menjadi satu berkas
+  **.eml** (dapat dibuka langsung di Outlook, Thunderbird, atau Windows Mail) di dalam folder
+  yang sama dengan kotak suratnya (INBOX, Sent, Kerja/Proyek, ...). Nama berkas diawali tanggal,
+  mis. `2024-01-05 1030 Rapat besok [1a2b3c4d].eml`, dan tanggal berkasnya disamakan dengan tanggal
+  terima email. Status baca, bintang, dan tanggal asli dicatat di `.lelemove-indeks.jsonl` di
+  setiap folder.
+- **Perbarui cadangan**: jalankan lagi kapan saja; hanya email baru yang diunduh. Email yang
+  dihapus di server tidak ikut dihapus dari cadangan.
+- **Pulihkan**: di bagian **Dari**, pilih *Cadangan di komputer (.eml / .mbox)*, lalu pilih folder
+  cadangan tadi. Folder, status baca, bintang, dan tanggal asli kembali seperti semula; email
+  yang sudah ada di server dilewati.
+- **Dari Google Takeout**: unduh email Gmail sebagai berkas **.mbox** lewat
+  [takeout.google.com](https://takeout.google.com), lalu pilih berkas itu sebagai sumber. Jalan ini
+  tidak terkena batas unduhan IMAP Gmail (kira-kira 2,5 GB per hari). Label Gmail menjadi folder,
+  email tanpa label masuk ke Archive, dan obrolan Khat dilewati.
+- **Dari Thunderbird**: pilih folder profil Thunderbird yang berisi berkas mbox (mis.
+  `Mail\Local Folders`); setiap berkas menjadi satu folder.
+- Cadangan .eml berisi seluruh email apa adanya, tidak dienkripsi: simpanlah di tempat yang aman.
 
 ### Outlook: butuh client ID Azure
 
@@ -602,7 +631,10 @@ rust/                          kode sumber versi 2 (satu crate Rust)
   src/mesin/filter.rs          filter file -> aturan --filter / --max-age rclone
   src/mesin/riwayat.rs         riwayat.jsonl, CSV, laporan HTML siap cetak
   src/mesin/imap.rs            klien IMAP kecil (TLS sistem lewat native-tls, PLAIN/XOAUTH2, LIST, FETCH, APPEND)
-  src/mesin/email.rs           migrasi email: peta folder (Gmail/Outlook/cPanel), cocok Message-ID, sambung ulang
+  src/mesin/email.rs           migrasi & cadangan email: sumber/tujuan server atau komputer, peta folder
+                               (Gmail/Outlook/cPanel), cocok Message-ID, sambung ulang
+  src/mesin/email_lokal.rs     cadangan .eml di komputer: indeks per folder, nama berkas, tanggal berkas
+  src/mesin/mbox.rs            baca mbox (Google Takeout berlabel, Thunderbird) untuk pemulihan email
   src/mesin/oauth.rs           login OAuth Google/Microsoft untuk IMAP (PKCE, pengalihan ke localhost)
   src/mesin/kode.rs            base64, SHA-256, percent-encoding (tanpa crate tambahan)
   src/bin/pindah-drive/        LELEMOVE.exe: jendela aplikasi (egui) + dialog

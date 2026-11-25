@@ -13,12 +13,14 @@
 pub mod akun;
 pub mod dasar;
 pub mod email;
+pub mod email_lokal;
 pub mod filter;
 pub mod imap;
 pub mod jadwal;
 pub mod job;
 pub mod kode;
 pub mod lanjut;
+pub mod mbox;
 pub mod oauth;
 pub mod penyedia;
 pub mod perintah;

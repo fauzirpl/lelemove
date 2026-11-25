@@ -76,12 +76,13 @@ pub mod ik_unicode {
     pub const DESKTOP: char = '\u{1F5B5}';
     pub const DOKUMEN: char = '\u{1F5CB}';
     pub const EMAIL: char = '\u{2709}';
+    pub const HATI: char = '\u{2665}';
 
     /// Semua glyph di atas (untuk uji ketersediaan huruf).
-    pub const SEMUA: [char; 29] = [
+    pub const SEMUA: [char; 30] = [
         MAP, NAIK, PANAH, TUKAR, KOMPUTER, DISK, AWAN, MAP_SINKRON, TAMBAH, LAIN, SEGARKAN, CARI, MAIN, HENTI,
         SELESAI, AWAS, GALAT, SPEEDO, PENGATURAN, BANTUAN, JADWAL, RIWAYAT, BUKA_MAP, BAWAH, KANAN, TUTUP,
-        DESKTOP, DOKUMEN, EMAIL,
+        DESKTOP, DOKUMEN, EMAIL, HATI,
     ];
 }
 
@@ -116,6 +117,8 @@ pub mod ik_mdl2 {
     pub const DESKTOP: char = '\u{E7F4}';
     pub const DOKUMEN: char = '\u{E8A5}';
     pub const EMAIL: char = '\u{E715}';
+    /// HeartFill.
+    pub const HATI: char = '\u{E00B}';
 }
 
 /// Ikon map di daftar folder, dilukis sendiri (dua warna kuning) agar mirip map di Explorer.

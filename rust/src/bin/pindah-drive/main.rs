@@ -60,6 +60,8 @@ const MESIN: &str = if cfg!(windows) { "pindah.exe" } else { "pindah" };
 const TITIK: &str = "\u{00B7}";
 const ELIPSIS: &str = "\u{2026}";
 const CENTANG: &str = "\u{2713}";
+/// Hati di baris "Dukung LELEMOVE": merah hangat, beda dari merah galat.
+const MERAH_HATI: Color32 = Color32::from_rgb(0xE0, 0x4F, 0x6A);
 /// Jeda sebelum akun yang gagal karena internet/DNS diuji lagi.
 const UJI_ULANG_JARINGAN: Duration = Duration::from_secs(30);
 /// Panel kiri (sumber) dan kanan (tujuan).
@@ -2709,8 +2711,15 @@ impl App {
                 egui::TopBottomPanel::bottom("lokasi-bawah")
                     .frame(Frame::new().fill(LATAR2).inner_margin(Margin { left: 0, right: 0, top: 6, bottom: 0 }))
                     .show_inside(ui, |ui| {
+                        let r = baris_lokasi(ui, "dukung", ik::HATI, "Dukung LELEMOVE", "", REDUP, None, "", false, true);
+                        if r.baris.on_hover_text(format!("LELEMOVE gratis. Bila terbantu, dukung pengembangannya lewat Saweria ({}).", pindah_drive::SAWERIA)).clicked() {
+                            win::buka(pindah_drive::SAWERIA);
+                        }
                         let r = baris_lokasi(ui, "pengaturan", ik::EMAIL, "Migrasi email", "", REDUP, None, "", false, true);
-                        email_ = r.baris.on_hover_text("Pindahkan semua email dari Gmail, Outlook, atau server lain ke server email Anda.").clicked();
+                        email_ = r
+                            .baris
+                            .on_hover_text("Pindahkan semua email dari Gmail, Outlook, atau server lain ke server email Anda, cadangkan ke komputer, atau pulihkan dari cadangan/.mbox.")
+                            .clicked();
                         let r = baris_lokasi(ui, "pengaturan", ik::RIWAYAT, "Riwayat & laporan", "", REDUP, None, "", false, true);
                         riwayat_ = r.baris.on_hover_text("Semua penyalinan, verifikasi, dan pemindahan; laporan CSV dan siap cetak untuk audit.").clicked();
                         let r = baris_lokasi(ui, "pengaturan", ik::JADWAL, "Jadwal backup", "", REDUP, None, "", false, true);
@@ -3743,6 +3752,8 @@ fn baris_lokasi(
             p.text(rp.center(), Align2::CENTER_CENTER, glyph, FontId::new(12.0, keluarga_ikon()), if boleh { TAUTAN } else { ABU });
         } else if jenis == "pengaturan" {
             p.text(rp.center(), Align2::CENTER_CENTER, glyph, FontId::new(14.0, keluarga_ikon()), REDUP);
+        } else if jenis == "dukung" {
+            p.text(rp.center(), Align2::CENTER_CENTER, glyph, FontId::new(14.0, keluarga_ikon()), MERAH_HATI);
         } else {
             gaya::petak_lukis(p, rp, jenis, glyph, titik, latar);
         }

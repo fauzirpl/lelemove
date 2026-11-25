@@ -1,5 +1,8 @@
-//! Migrasi email IMAP -> IMAP (perintah `pindah email`): Gmail, Outlook/Microsoft 365, atau
-//! server IMAP lain sebagai sumber; server email sendiri (IMAP + kata sandi) sebagai tujuan.
+//! Migrasi dan cadangan email (perintah `pindah email`). Sumber: Gmail, Outlook/Microsoft 365,
+//! server IMAP lain, folder cadangan .eml, atau berkas mbox (Google Takeout, Thunderbird). Tujuan:
+//! server email sendiri (IMAP + kata sandi) atau folder cadangan .eml di komputer. Jadi satu mesin
+//! untuk tiga arah: server -> server (migrasi), server -> komputer (cadangkan), dan komputer ->
+//! server (pulihkan).
 //!
 //! Seperti penyalinan file, migrasi hanya MENYALIN: sumber dibuka baca-saja (EXAMINE), tidak ada
 //! email yang dihapus atau ditandai di sumber, dan di tujuan hanya ditambahkan email yang belum
@@ -9,10 +12,14 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashSet;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use super::dasar::*;
+use super::email_lokal::{self as lokal, crlf, Cadangan};
 use super::imap::{bendera_salin, dari_utf7, ke_utf7, Folder, Galat, Hasil, Imap, Keamanan, Ringkas};
+use super::mbox::{tampak_mbox, Mbox};
 use super::oauth::{self, Klien, Penyedia, Token};
 
 /// Satu kali FETCH isi: paling banyak sekian email atau sekian byte (hemat memori).
@@ -106,6 +113,89 @@ impl Akun {
             Jenis::Outlook => format!("Outlook {}", self.pengguna),
             Jenis::Imap => format!("{} di {}", self.pengguna, self.host),
         }
+    }
+}
+
+/// Satu sisi migrasi: akun email di server, atau tempat di komputer (folder cadangan .eml; sebagai
+/// sumber juga berkas .mbox atau folder berisi mbox Thunderbird).
+#[derive(Clone, Debug, PartialEq)]
+pub enum Ujung {
+    Server(Akun),
+    Lokal(PathBuf),
+}
+
+impl Ujung {
+    /// Akun ("gmail:...", "imap://..."), jalur ("D:\Cadangan", "/Users/...", "~/Email"), atau
+    /// jalur berawalan "folder:" / "mbox:" (mis. jalur relatif).
+    pub fn urai(s: &str) -> Result<Ujung, String> {
+        let t = s.trim().trim_matches('"').trim();
+        for awalan in ["folder:", "lokal:", "mbox:", "file:"] {
+            if t.get(..awalan.len()).is_some_and(|x| x.eq_ignore_ascii_case(awalan)) {
+                let p = t[awalan.len()..].trim();
+                if p.is_empty() {
+                    return Err("Jalur folder di komputer masih kosong.".into());
+                }
+                return Ok(Ujung::Lokal(perluas_rumah(p)));
+            }
+        }
+        if lokal::tampak_jalur(t) {
+            return Ok(Ujung::Lokal(perluas_rumah(t)));
+        }
+        Akun::urai(t).map(Ujung::Server)
+    }
+
+    /// Bentuk teks yang bisa diurai lagi (disimpan di email.json).
+    pub fn alamat(&self) -> String {
+        match self {
+            Ujung::Server(a) => a.alamat(),
+            Ujung::Lokal(p) => {
+                let s = p.display().to_string();
+                if lokal::tampak_jalur(&s) {
+                    s
+                } else {
+                    format!("folder:{s}")
+                }
+            }
+        }
+    }
+
+    pub fn tampil(&self) -> String {
+        match self {
+            Ujung::Server(a) => a.tampil(),
+            Ujung::Lokal(p) if p.is_file() => format!("berkas {}", p.display()),
+            Ujung::Lokal(p) => format!("folder {}", p.display()),
+        }
+    }
+
+    pub fn akun(&self) -> Option<&Akun> {
+        match self {
+            Ujung::Server(a) => Some(a),
+            Ujung::Lokal(_) => None,
+        }
+    }
+
+    pub fn lokal(&self) -> bool {
+        matches!(self, Ujung::Lokal(_))
+    }
+}
+
+/// "~/Email" -> folder rumah pengguna + "Email".
+fn perluas_rumah(p: &str) -> PathBuf {
+    if let Some(sisa) = p.strip_prefix("~/").or_else(|| p.strip_prefix("~\\")) {
+        if let Some(rumah) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
+            return PathBuf::from(rumah).join(sisa);
+        }
+    }
+    PathBuf::from(p)
+}
+
+/// Nama pekerjaan menurut arah: dipakai di judul, notifikasi, dan riwayat.
+pub fn nama_kerja(sumber: &Ujung, tujuan: &Ujung) -> &'static str {
+    match (sumber.lokal(), tujuan.lokal()) {
+        (false, true) => "Cadangan email",
+        (true, false) => "Pemulihan email",
+        (true, true) => "Konversi email",
+        (false, false) => "Migrasi email",
     }
 }
 
@@ -248,6 +338,9 @@ pub struct Tujuan {
     pub awalan: String,
     pub pemisah: char,
     pub folder: Vec<Folder>,
+    /// Nama folder dalam UTF-7 IMAP (server). False: folder di komputer, nama biasa yang aman
+    /// sebagai nama direktori.
+    pub utf7: bool,
 }
 
 impl Tujuan {
@@ -285,6 +378,9 @@ impl Tujuan {
             k.remove(0);
         }
         let bagian: Vec<String> = k.iter().map(|x| x.replace(self.pemisah, "_")).collect();
+        if !self.utf7 {
+            return bagian.iter().map(|x| lokal::aman_nama(x, 80)).collect::<Vec<_>>().join("/");
+        }
         ke_utf7(&format!("{}{}", self.awalan, bagian.join(&self.pemisah.to_string())))
     }
 }
@@ -346,7 +442,7 @@ pub fn susun_rencana(sumber: &[Folder], awalan_sumber: &str, t: &Tujuan, jenis: 
             _ => t.nama_untuk(&komp),
         };
         r.ada = t.ada(&r.tujuan);
-        r.tampil_tujuan = dari_utf7(&r.tujuan);
+        r.tampil_tujuan = if t.utf7 { dari_utf7(&r.tujuan) } else { r.tujuan.clone() };
         v.push(r);
     }
     v.sort_by_key(|r| (r.arsip, !r.sumber.eq_ignore_ascii_case("INBOX"), r.lewati.is_some(), r.tampil_sumber.to_lowercase()));
@@ -461,6 +557,214 @@ impl Sisi {
     }
 }
 
+// ------------------------------------------------------------------ sumber & tujuan
+
+/// Folder berisi .eml (atau indeks cadangan) di mana pun di bawah `p`: cadangan .eml; bila tidak,
+/// berkas mbox (folder Thunderbird). None: tidak ada keduanya.
+fn isi_folder_lokal(p: &Path) -> Option<bool> {
+    let mut tumpuk = vec![p.to_path_buf()];
+    let mut ada_mbox = false;
+    while let Some(d) = tumpuk.pop() {
+        for e in fs::read_dir(&d).ok()?.flatten() {
+            let n = e.file_name().to_string_lossy().to_lowercase();
+            let Ok(t) = e.file_type() else { continue };
+            if t.is_dir() {
+                tumpuk.push(e.path());
+            } else if n.ends_with(".eml") || n == lokal::INDEKS {
+                return Some(true);
+            } else if !ada_mbox && t.is_file() && tampak_mbox(&e.path()) {
+                ada_mbox = true;
+            }
+        }
+    }
+    ada_mbox.then_some(false)
+}
+
+/// Sumber email. Nama folder sumber lokal diubah ke UTF-7 IMAP saat didaftar (dan dikembalikan
+/// saat dipakai) agar peta folder memperlakukan semua sumber sama.
+enum Asal {
+    Imap(Sisi),
+    Eml(Cadangan),
+    Mbox { jalur: PathBuf, isi: Option<Mbox> },
+}
+
+fn galat_lokal(p: &Path, e: std::io::Error) -> Galat {
+    Galat::Ditolak(format!("{}: {e}", p.display()))
+}
+
+impl Asal {
+    fn keterangan(&self) -> String {
+        match self {
+            Asal::Imap(s) => format!("{} ({}:{}, {})", s.akun.tampil(), s.akun.host, s.akun.port, s.akun.keamanan.nama()),
+            Asal::Eml(c) => format!("folder cadangan {}", c.akar.display()),
+            Asal::Mbox { jalur, .. } => format!("mbox {}", jalur.display()),
+        }
+    }
+
+    fn jenis(&self) -> Jenis {
+        match self {
+            Asal::Imap(s) => s.akun.jenis,
+            _ => Jenis::Imap,
+        }
+    }
+
+    fn lokal(&self) -> bool {
+        !matches!(self, Asal::Imap(_))
+    }
+
+    fn sambung(&mut self, arsip: bool) -> Hasil<()> {
+        match self {
+            Asal::Imap(s) => s.coba(None, |_, _| Ok(())),
+            Asal::Eml(c) if c.akar.is_dir() => Ok(()),
+            Asal::Eml(c) => Err(Galat::Ditolak(format!("folder {} tidak ada", c.akar.display()))),
+            Asal::Mbox { jalur, isi } => {
+                if isi.is_none() {
+                    info("Membaca mbox (sekali, untuk mencatat letak setiap email).");
+                    let m = Mbox::buka(jalur, arsip, info).map_err(|e| galat_lokal(jalur, e))?;
+                    let lewat = if m.dilewati > 0 { format!(", {} dilewati (chat, terhapus, atau tanpa label)", angka(m.dilewati as i64)) } else { String::new() };
+                    info(&format!("{} email terbaca{}{lewat}.", angka(m.jumlah_email() as i64), if m.takeout { " (Google Takeout)" } else { "" }));
+                    *isi = Some(m);
+                }
+                Ok(())
+            }
+        }
+    }
+
+    /// Daftar folder dan awalan ruang nama.
+    fn daftar(&mut self) -> Hasil<(Vec<Folder>, String)> {
+        let utf7 = |v: Vec<Folder>| v.into_iter().map(|f| Folder { nama: ke_utf7(&f.nama), ..f }).collect();
+        match self {
+            Asal::Imap(s) => {
+                let (f, ns) = s.coba(None, |s, _| Ok((s.daftar_folder()?, s.namespace()?)))?;
+                Ok((f, ns.map(|(a, _)| a).unwrap_or_default()))
+            }
+            Asal::Eml(c) => Ok((utf7(c.daftar_folder().map_err(|e| galat_lokal(&c.akar, e))?), String::new())),
+            Asal::Mbox { isi, .. } => Ok((utf7(isi.as_ref().map(Mbox::daftar_folder).unwrap_or_default()), String::new())),
+        }
+    }
+
+    fn jumlah(&mut self, folder: &str) -> Hasil<u64> {
+        match self {
+            Asal::Imap(s) => s.coba(Some(folder), |_, n| Ok(n as u64)),
+            Asal::Eml(c) => c.jumlah(&dari_utf7(folder)).map_err(|e| galat_lokal(&c.akar, e)),
+            Asal::Mbox { isi, .. } => Ok(isi.as_ref().map(|m| m.jumlah(&dari_utf7(folder))).unwrap_or(0)),
+        }
+    }
+
+    fn ringkasan(&mut self, folder: &str) -> Hasil<Vec<Ringkas>> {
+        match self {
+            Asal::Imap(s) => s.coba(Some(folder), |s, n| s.ringkasan(n)),
+            Asal::Eml(c) => c.ringkasan(&dari_utf7(folder)).map_err(|e| galat_lokal(&c.akar, e)),
+            Asal::Mbox { isi, .. } => Ok(isi.as_ref().map(|m| m.ringkasan(&dari_utf7(folder))).unwrap_or_default()),
+        }
+    }
+
+    fn ambil(&mut self, folder: &str, uid: &[u32]) -> Hasil<Vec<(u32, Vec<u8>)>> {
+        match self {
+            Asal::Imap(s) => s.coba(Some(folder), |s, _| s.ambil(uid)),
+            // Berkas .eml dari program lain bisa memakai LF saja; IMAP butuh CRLF.
+            Asal::Eml(c) => Ok(c.ambil(&dari_utf7(folder), uid).map_err(|e| galat_lokal(&c.akar, e))?.into_iter().map(|(u, d)| (u, crlf(&d))).collect()),
+            Asal::Mbox { jalur, isi } => match isi.as_mut() {
+                Some(m) => m.ambil(uid).map_err(|e| galat_lokal(jalur, e)),
+                None => Ok(Vec::new()),
+            },
+        }
+    }
+
+    fn tutup(&mut self) {
+        if let Asal::Imap(s) = self {
+            s.tutup();
+        }
+    }
+}
+
+/// Tujuan email: server IMAP atau folder cadangan .eml.
+enum Ke {
+    Imap(Sisi),
+    Eml(Cadangan),
+}
+
+impl Ke {
+    fn keterangan(&self) -> String {
+        match self {
+            Ke::Imap(s) => format!("{} ({}:{}, {})", s.akun.tampil(), s.akun.host, s.akun.port, s.akun.keamanan.nama()),
+            Ke::Eml(c) => format!("folder cadangan {}", c.akar.display()),
+        }
+    }
+
+    fn sambung(&mut self) -> Hasil<()> {
+        match self {
+            Ke::Imap(s) => s.coba(None, |_, _| Ok(())),
+            Ke::Eml(c) => fs::create_dir_all(&c.akar).map_err(|e| galat_lokal(&c.akar, e)),
+        }
+    }
+
+    /// Ruang nama, pemisah, dan folder yang sudah ada.
+    fn gambaran(&mut self) -> Hasil<Tujuan> {
+        match self {
+            Ke::Imap(s) => {
+                let (f, ns) = s.coba(None, |s, _| Ok((s.daftar_folder()?, s.namespace()?)))?;
+                let pemisah = ns
+                    .as_ref()
+                    .and_then(|(_, p)| *p)
+                    .or_else(|| f.iter().find(|f| f.nama.eq_ignore_ascii_case("INBOX")).and_then(|f| f.pemisah))
+                    .or_else(|| f.iter().find_map(|f| f.pemisah))
+                    .unwrap_or('/');
+                Ok(Tujuan { awalan: ns.map(|(a, _)| a).unwrap_or_default(), pemisah, folder: f, utf7: true })
+            }
+            Ke::Eml(c) => Ok(Tujuan { awalan: String::new(), pemisah: '/', folder: c.daftar_folder().map_err(|e| galat_lokal(&c.akar, e))?, utf7: false }),
+        }
+    }
+
+    fn ada_folder(&mut self, folder: &str) -> Hasil<bool> {
+        match self {
+            Ke::Imap(s) => s.coba(None, |s, _| {
+                Ok(s.daftar_folder()?.iter().any(|f| f.nama == folder || (folder.eq_ignore_ascii_case("INBOX") && f.nama.eq_ignore_ascii_case("INBOX"))))
+            }),
+            Ke::Eml(c) => Ok(c.ada_folder(folder)),
+        }
+    }
+
+    fn buat_folder(&mut self, folder: &str) -> Hasil<()> {
+        match self {
+            Ke::Imap(s) => s.coba(None, |s, _| s.buat_folder(folder)),
+            Ke::Eml(c) => c.buat_folder(folder).map_err(|e| galat_lokal(&c.akar, e)),
+        }
+    }
+
+    /// Kunci (Message-ID) email yang sudah ada di folder tujuan.
+    fn kunci(&mut self, folder: &str) -> Hasil<HashSet<String>> {
+        match self {
+            Ke::Imap(s) => {
+                s.lupakan_folder();
+                Ok(s.coba(Some(folder), |s, n| s.ringkasan(n))?.into_iter().map(|m| m.kunci).collect())
+            }
+            Ke::Eml(c) => c.kunci(folder).map_err(|e| galat_lokal(&c.akar, e)),
+        }
+    }
+
+    /// Menambah satu email. Galat menulis ke komputer (disk penuh, tidak boleh menulis) bukan
+    /// masalah satu email, jadi dilaporkan sebagai Putus agar migrasi berhenti dengan jelas.
+    fn tambah(&mut self, folder: &str, bendera: &[String], tanggal: &str, kunci: &str, isi: &[u8]) -> Hasil<()> {
+        match self {
+            Ke::Imap(s) => s.coba(None, |s, _| s.tambah(folder, bendera, tanggal, isi)),
+            Ke::Eml(c) => c.simpan(folder, bendera, tanggal, kunci, isi).map_err(|e| Galat::Putus(format!("gagal menyimpan ke {}: {e}", c.akar.display()))),
+        }
+    }
+
+    fn selesai_folder(&mut self) {
+        if let Ke::Imap(s) = self {
+            s.lupakan_folder();
+        }
+    }
+
+    fn tutup(&mut self) {
+        if let Ke::Imap(s) = self {
+            s.tutup();
+        }
+    }
+}
+
 // ------------------------------------------------------------------ migrasi
 
 #[derive(Clone, Debug, Default, Serialize)]
@@ -477,8 +781,8 @@ pub struct HasilFolder {
 }
 
 pub struct Migrasi {
-    src: Sisi,
-    dst: Sisi,
+    src: Asal,
+    dst: Ke,
     pub opsi: OpsiMigrasi,
     /// Cetak "##PROGRES {json}" untuk jendela aplikasi.
     pub mesin: bool,
@@ -490,10 +794,39 @@ pub struct Migrasi {
 }
 
 impl Migrasi {
-    pub fn baru(sumber: Akun, kred_sumber: Kred, tujuan: Akun, kred_tujuan: Kred, abaikan_sertifikat: bool, opsi: OpsiMigrasi, mesin: bool) -> Migrasi {
-        Migrasi {
-            src: Sisi { akun: sumber, kred: kred_sumber, abaikan_sertifikat, imap: None, buka: None },
-            dst: Sisi { akun: tujuan, kred: kred_tujuan, abaikan_sertifikat, imap: None, buka: None },
+    /// Kredensial wajib untuk sisi server. Sumber lokal: folder berisi .eml (cadangan), berkas
+    /// mbox, atau folder berisi mbox. Tujuan lokal: folder (dibuat bila belum ada).
+    pub fn baru(
+        sumber: Ujung,
+        kred_sumber: Option<Kred>,
+        tujuan: Ujung,
+        kred_tujuan: Option<Kred>,
+        abaikan_sertifikat: bool,
+        opsi: OpsiMigrasi,
+        mesin: bool,
+    ) -> Result<Migrasi, String> {
+        let sisi = |akun: Akun, kred: Option<Kred>| -> Result<Sisi, String> {
+            let kred = kred.ok_or_else(|| format!("Kredensial {} belum ada.", akun.tampil()))?;
+            Ok(Sisi { akun, kred, abaikan_sertifikat, imap: None, buka: None })
+        };
+        let src = match sumber {
+            Ujung::Server(a) => Asal::Imap(sisi(a, kred_sumber)?),
+            Ujung::Lokal(p) if p.is_file() => Asal::Mbox { jalur: p, isi: None },
+            Ujung::Lokal(p) if p.is_dir() => match isi_folder_lokal(&p) {
+                Some(true) => Asal::Eml(Cadangan::baru(p)),
+                Some(false) => Asal::Mbox { jalur: p, isi: None },
+                None => return Err(format!("{} tidak berisi email (.eml) maupun berkas mbox.", p.display())),
+            },
+            Ujung::Lokal(p) => return Err(format!("{} tidak ada.", p.display())),
+        };
+        let dst = match tujuan {
+            Ujung::Server(a) => Ke::Imap(sisi(a, kred_tujuan)?),
+            Ujung::Lokal(p) if p.is_file() => return Err(format!("Tujuan {} adalah berkas; pilih folder untuk cadangan.", p.display())),
+            Ujung::Lokal(p) => Ke::Eml(Cadangan::baru(p)),
+        };
+        Ok(Migrasi {
+            src,
+            dst,
             opsi,
             mesin,
             folder: Vec::new(),
@@ -501,7 +834,7 @@ impl Migrasi {
             selesai_email: 0,
             progres_terakhir: None,
             contoh_gagal: Vec::new(),
-        }
+        })
     }
 
     pub fn contoh_gagal(&self) -> &[String] {
@@ -527,26 +860,18 @@ impl Migrasi {
         ));
     }
 
-    /// Menyambung dan login ke kedua server, lalu menyusun peta folder.
+    /// Menyambung dan login ke server (atau membaca sumber di komputer), lalu menyusun peta folder.
     pub fn siapkan(&mut self) -> Result<Vec<Rencana>, String> {
-        info(&format!("Sumber: {} ({}:{}, {})", self.src.akun.tampil(), self.src.akun.host, self.src.akun.port, self.src.akun.keamanan.nama()));
-        self.src.coba(None, |_, _| Ok(())).map_err(|e| e.to_string())?;
-        ok("Sumber tersambung.");
-        info(&format!("Tujuan: {} ({}:{}, {})", self.dst.akun.tampil(), self.dst.akun.host, self.dst.akun.port, self.dst.akun.keamanan.nama()));
-        self.dst.coba(None, |_, _| Ok(())).map_err(|e| e.to_string())?;
-        ok("Tujuan tersambung.");
+        info(&format!("Sumber: {}", self.src.keterangan()));
+        self.src.sambung(self.opsi.arsip_gmail).map_err(|e| e.to_string())?;
+        ok(if self.src.lokal() { "Sumber terbaca." } else { "Sumber tersambung." });
+        info(&format!("Tujuan: {}", self.dst.keterangan()));
+        self.dst.sambung().map_err(|e| e.to_string())?;
+        ok(if matches!(self.dst, Ke::Eml(_)) { "Folder tujuan siap." } else { "Tujuan tersambung." });
 
-        let (f_sumber, ns_sumber) = self.src.coba(None, |s, _| Ok((s.daftar_folder()?, s.namespace()?))).map_err(|e| e.to_string())?;
-        let (f_tujuan, ns_tujuan) = self.dst.coba(None, |s, _| Ok((s.daftar_folder()?, s.namespace()?))).map_err(|e| e.to_string())?;
-        let awalan_sumber = ns_sumber.map(|(a, _)| a).unwrap_or_default();
-        let pemisah = ns_tujuan
-            .as_ref()
-            .and_then(|(_, p)| *p)
-            .or_else(|| f_tujuan.iter().find(|f| f.nama.eq_ignore_ascii_case("INBOX")).and_then(|f| f.pemisah))
-            .or_else(|| f_tujuan.iter().find_map(|f| f.pemisah))
-            .unwrap_or('/');
-        let t = Tujuan { awalan: ns_tujuan.map(|(a, _)| a).unwrap_or_default(), pemisah, folder: f_tujuan };
-        Ok(susun_rencana(&f_sumber, &awalan_sumber, &t, self.src.akun.jenis, &self.opsi))
+        let (f_sumber, awalan_sumber) = self.src.daftar().map_err(|e| e.to_string())?;
+        let t = self.dst.gambaran().map_err(|e| e.to_string())?;
+        Ok(susun_rencana(&f_sumber, &awalan_sumber, &t, self.src.jenis(), &self.opsi))
     }
 
     /// Hanya memeriksa: jumlah email per folder dan berapa yang belum ada di tujuan.
@@ -559,7 +884,7 @@ impl Migrasi {
                 self.folder.push(h);
                 continue;
             }
-            let daftar = self.src.coba(Some(&r.sumber), |s, n| s.ringkasan(n)).map_err(|e| e.to_string())?;
+            let daftar = self.src.ringkasan(&r.sumber).map_err(|e| e.to_string())?;
             let mut ada = if r.ada { self.kunci_tujuan(&r.tujuan)? } else { HashSet::new() };
             for m in &daftar {
                 if r.arsip && terlihat.contains(&m.kunci) {
@@ -591,9 +916,7 @@ impl Migrasi {
     }
 
     fn kunci_tujuan(&mut self, folder: &str) -> Result<HashSet<String>, String> {
-        self.dst.lupakan_folder();
-        let d = self.dst.coba(Some(folder), |s, n| s.ringkasan(n)).map_err(|e| e.to_string())?;
-        Ok(d.into_iter().map(|m| m.kunci).collect())
+        self.dst.kunci(folder).map_err(|e| e.to_string())
     }
 
     /// Menyalin semua folder menurut rencana. Galat per email dicatat lalu dilanjutkan; galat
@@ -602,7 +925,7 @@ impl Migrasi {
         // Jumlah email semua folder (EXAMINE saja, ringan) untuk bilah progres.
         let aktif: Vec<&Rencana> = rencana.iter().filter(|r| r.lewati.is_none()).collect();
         for r in &aktif {
-            self.total_email += self.src.coba(Some(&r.sumber), |_, n| Ok(n as u64)).map_err(|e| e.to_string())?;
+            self.total_email += self.src.jumlah(&r.sumber).map_err(|e| e.to_string())?;
         }
         for r in rencana.iter().filter(|r| r.lewati.is_some()) {
             self.folder.push(HasilFolder {
@@ -639,11 +962,11 @@ impl Migrasi {
     fn salin_folder(&mut self, r: &Rencana, terlihat: &mut HashSet<String>, urutan: usize, jumlah: usize) -> Result<HasilFolder, String> {
         let idx = self.folder.len();
         self.folder.push(HasilFolder { sumber: r.tampil_sumber.clone(), tujuan: r.tampil_tujuan.clone(), ..Default::default() });
-        let mut daftar: Vec<Ringkas> = self.src.coba(Some(&r.sumber), |s, n| s.ringkasan(n)).map_err(|e| e.to_string())?;
-        let ada_awal = self.dst.coba(None, |s, _| Ok(s.daftar_folder()?.iter().any(|f| f.nama == r.tujuan || (r.tujuan.eq_ignore_ascii_case("INBOX") && f.nama.eq_ignore_ascii_case("INBOX"))))).map_err(|e| e.to_string())?;
+        let mut daftar: Vec<Ringkas> = self.src.ringkasan(&r.sumber).map_err(|e| e.to_string())?;
+        let ada_awal = self.dst.ada_folder(&r.tujuan).map_err(|e| e.to_string())?;
         if !ada_awal {
             info(&format!("Membuat folder {} di tujuan.", r.tampil_tujuan));
-            self.dst.coba(None, |s, _| s.buat_folder(&r.tujuan)).map_err(|e| format!("folder {} tidak bisa dibuat: {e}", r.tampil_tujuan))?;
+            self.dst.buat_folder(&r.tujuan).map_err(|e| format!("folder {} tidak bisa dibuat: {e}", r.tampil_tujuan))?;
         }
         let mut ada = if ada_awal { self.kunci_tujuan(&r.tujuan)? } else { HashSet::new() };
 
@@ -682,7 +1005,7 @@ impl Migrasi {
                 j += 1;
             }
             let uid: Vec<u32> = antre[i..j].iter().map(|m| m.uid).collect();
-            let isi = self.src.coba(Some(&r.sumber), |s, _| s.ambil(&uid)).map_err(|e| e.to_string())?;
+            let isi = self.src.ambil(&r.sumber, &uid).map_err(|e| e.to_string())?;
             for m in &antre[i..j] {
                 if ada.contains(&m.kunci) {
                     // Email ganda di sumber (Message-ID sama): cukup satu di tujuan.
@@ -691,11 +1014,12 @@ impl Migrasi {
                     continue;
                 }
                 let Some((_, data)) = isi.iter().find(|(u, _)| *u == m.uid) else {
-                    self.catat_gagal(idx, &r.tampil_sumber, m, "isinya tidak dikirim server sumber (mungkin baru dihapus)");
+                    let alasan = if self.src.lokal() { "berkasnya tidak bisa dibaca" } else { "isinya tidak dikirim server sumber (mungkin baru dihapus)" };
+                    self.catat_gagal(idx, &r.tampil_sumber, m, alasan);
                     continue;
                 };
                 let bendera = bendera_salin(&m.bendera);
-                match self.dst.coba(None, |s, _| s.tambah(&r.tujuan, &bendera, &m.tanggal, data)) {
+                match self.dst.tambah(&r.tujuan, &bendera, &m.tanggal, &m.kunci, data) {
                     Ok(()) => {
                         ada.insert(m.kunci.clone());
                         self.folder[idx].disalin += 1;
@@ -709,7 +1033,7 @@ impl Migrasi {
             }
             i = j;
         }
-        self.dst.lupakan_folder();
+        self.dst.selesai_folder();
         Ok(self.folder[idx].clone())
     }
 
@@ -777,6 +1101,7 @@ mod uji {
             awalan: "INBOX.".into(),
             pemisah: '.',
             folder: vec![f("INBOX", '.', &[]), f("INBOX.Sent", '.', &["\\Sent"]), f("INBOX.Trash", '.', &[])],
+            utf7: true,
         };
         let r = susun_rencana(&sumber, "", &t, Jenis::Gmail, &OpsiMigrasi { sertakan_sampah: false, arsip_gmail: true });
         let peta: Vec<(&str, &str, bool, bool)> = r.iter().map(|x| (x.tampil_sumber.as_str(), x.tampil_tujuan.as_str(), x.lewati.is_none(), x.ada)).collect();
@@ -808,7 +1133,7 @@ mod uji {
             f("Calendar/Birthdays", '/', &[]),
             f("Proyek/Sent Items", '/', &[]),
         ];
-        let t = Tujuan { awalan: String::new(), pemisah: '/', folder: vec![f("INBOX", '/', &[]), f("Sent", '/', &[])] };
+        let t = Tujuan { awalan: String::new(), pemisah: '/', folder: vec![f("INBOX", '/', &[]), f("Sent", '/', &[])], utf7: true };
         let r = susun_rencana(&sumber, "", &t, Jenis::Outlook, &OpsiMigrasi { sertakan_sampah: true, arsip_gmail: true });
         let cari = |s: &str| r.iter().find(|x| x.tampil_sumber == s).unwrap();
         assert_eq!(cari("Sent Items").tampil_tujuan, "Sent");
@@ -824,9 +1149,49 @@ mod uji {
     fn awalan_sumber_inbox_titik() {
         // Sumber cPanel (INBOX.) ke server tanpa awalan.
         let sumber = vec![f("INBOX", '.', &[]), f("INBOX.Laporan.2024", '.', &[]), f("INBOX.Drafts", '.', &[])];
-        let t = Tujuan { awalan: String::new(), pemisah: '/', folder: vec![f("INBOX", '/', &[])] };
+        let t = Tujuan { awalan: String::new(), pemisah: '/', folder: vec![f("INBOX", '/', &[])], utf7: true };
         let r = susun_rencana(&sumber, "INBOX.", &t, Jenis::Imap, &OpsiMigrasi::default());
         let tujuan: Vec<&str> = r.iter().map(|x| x.tampil_tujuan.as_str()).collect();
         assert_eq!(tujuan, vec!["INBOX", "Drafts", "Laporan/2024"]);
+    }
+
+    #[test]
+    fn ujung_akun_atau_jalur() {
+        assert!(matches!(Ujung::urai("gmail:a@gmail.com").unwrap(), Ujung::Server(_)));
+        assert_eq!(Ujung::urai("D:\\Cadangan Email").unwrap(), Ujung::Lokal(PathBuf::from("D:\\Cadangan Email")));
+        assert_eq!(Ujung::urai("\"D:\\Ada Spasi\"").unwrap(), Ujung::Lokal(PathBuf::from("D:\\Ada Spasi")));
+        assert_eq!(Ujung::urai("folder:cadangan").unwrap(), Ujung::Lokal(PathBuf::from("cadangan")));
+        assert_eq!(Ujung::urai("mbox:/x/Takeout/semua.mbox").unwrap(), Ujung::Lokal(PathBuf::from("/x/Takeout/semua.mbox")));
+        assert!(Ujung::urai("folder:").is_err() && Ujung::urai("nama").is_err());
+        // Bentuk tersimpan bisa diurai lagi.
+        for s in ["D:\\Cadangan", "folder:relatif", "imap://u@h"] {
+            assert_eq!(Ujung::urai(s).unwrap().alamat(), s);
+        }
+        let srv = Ujung::urai("imap://u@h").unwrap();
+        let lok = Ujung::urai("D:\\x").unwrap();
+        assert_eq!(nama_kerja(&srv, &lok), "Cadangan email");
+        assert_eq!(nama_kerja(&lok, &srv), "Pemulihan email");
+        assert_eq!(nama_kerja(&srv, &srv), "Migrasi email");
+    }
+
+    #[test]
+    fn rencana_ke_folder_komputer() {
+        // Gmail ke folder cadangan: nama biasa (bukan UTF-7), aman sebagai nama direktori.
+        let sumber = vec![
+            f("INBOX", '/', &[]),
+            f("[Gmail]/Sent Mail", '/', &["\\Sent"]),
+            f("Arsip &AOk-t&AOk-", '/', &[]),
+            f("Tanya: Jawab?", '/', &[]),
+            f("R&-D", '/', &[]),
+        ];
+        let t = Tujuan { awalan: String::new(), pemisah: '/', folder: vec![f("INBOX", '/', &[])], utf7: false };
+        let r = susun_rencana(&sumber, "", &t, Jenis::Gmail, &OpsiMigrasi::default());
+        let peta: Vec<(&str, &str, bool)> = r.iter().map(|x| (x.tampil_sumber.as_str(), x.tujuan.as_str(), x.ada)).collect();
+        assert_eq!(
+            peta,
+            vec![("INBOX", "INBOX", true), ("[Gmail]/Sent Mail", "Sent", false), ("Arsip été", "Arsip été", false), ("R&D", "R&D", false), ("Tanya: Jawab?", "Tanya_ Jawab_", false)]
+        );
+        // Sumber lokal: nama berisi "&" dikirim dalam UTF-7 lalu dikembalikan utuh.
+        assert_eq!(dari_utf7(&ke_utf7("R&D/été")), "R&D/été");
     }
 }

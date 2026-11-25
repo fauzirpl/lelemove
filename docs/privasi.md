@@ -12,6 +12,7 @@ LELEMOVE berjalan sepenuhnya di komputer Anda. Tidak ada server LELEMOVE, tidak 
 - Data itu dibaca dan ditulis hanya untuk menjalankan perintah Anda: menelusuri folder, memeriksa ukuran dan kuota, menyalin, dan mencocokkan hasil salinan.
 - Isi file tidak dianalisis, tidak dipakai untuk tujuan lain, dan tidak dibagikan kepada pihak mana pun selain layanan tujuan yang Anda pilih.
 - Migrasi email: email di akun lama (Gmail, Outlook, atau server IMAP lain) dibaca dan disalin ke server email yang Anda pilih. Isi email tidak dianalisis dan tidak dikirim ke tempat lain. Email di akun lama tidak diubah atau dihapus.
+- Cadangan email: bila Anda memilih folder di komputer sebagai tujuan, setiap email disimpan apa adanya (tidak dienkripsi) sebagai berkas .eml di folder itu, beserta catatan status baca, bintang, dan tanggalnya. Simpan folder cadangan di tempat yang aman. Saat memulihkan dari cadangan atau berkas .mbox, isinya hanya dibaca dan dikirim ke server email yang Anda pilih.
 
 ## Ke mana data mengalir
 

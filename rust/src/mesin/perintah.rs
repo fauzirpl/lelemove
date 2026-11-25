@@ -11,7 +11,7 @@ use std::sync::LazyLock;
 
 use super::akun::*;
 use super::dasar::*;
-use super::email::{self as em, Akun as AkunEmail, Jenis as JenisEmail, Kred, Migrasi, OpsiMigrasi};
+use super::email::{self as em, Akun as AkunEmail, Jenis as JenisEmail, Kred, Migrasi, OpsiMigrasi, Ujung};
 use super::oauth::{self, Klien};
 use super::filter::{baca_filter, simpan_filter, Filter};
 use super::jadwal;
@@ -2663,10 +2663,11 @@ impl Mesin {
         }
     }
 
-    /// pindah email -Sumber <akun> -Tujuan <akun> [-HanyaPeriksa] [-Ya]: salin semua folder email.
+    /// pindah email -Sumber <akun|jalur> -Tujuan <akun|jalur> [-HanyaPeriksa] [-Ya]: salin semua
+    /// folder email antar server, ke folder cadangan di komputer, atau dari cadangan/mbox ke server.
     fn email(&mut self) -> i32 {
-        judul("Migrasi email");
         if let Some(id) = self.o.client_microsoft.clone() {
+            judul("Migrasi email");
             if !em::client_microsoft_sah(&id) {
                 gagal("Client ID Microsoft harus berbentuk Application (client) ID dari Azure, mis. 0c3f1a2b-1234-4abc-9def-0123456789ab.");
                 return 1;
@@ -2692,27 +2693,48 @@ impl Mesin {
         set.tanpa_arsip = self.o.tanpa_arsip;
         set.abaikan_sertifikat = self.o.abaikan_sertifikat;
         if set.sumber.is_empty() || set.tujuan.is_empty() {
+            judul("Migrasi email");
             gagal("Sumber dan tujuan email belum diisi.");
             info("Contoh: pindah email -Sumber gmail:nama@gmail.com -Tujuan imap://nama@kantor.go.id@mail.kantor.go.id");
-            info("        pindah email -Sumber outlook:nama@outlook.com -Tujuan imap://nama@mail.server.id");
+            info("        pindah email -Sumber gmail:nama@gmail.com -Tujuan \"D:\\Cadangan Email\"          (cadangkan ke komputer)");
+            info("        pindah email -Sumber \"D:\\Cadangan Email\" -Tujuan imap://nama@mail.server.id     (pulihkan)");
+            info("        pindah email -Sumber \"D:\\Takeout\\Mail\\semua.mbox\" -Tujuan imap://nama@mail.server.id");
             return 1;
         }
-        let (sumber, tujuan) = match (AkunEmail::urai(&set.sumber), AkunEmail::urai(&set.tujuan)) {
+        let (sumber, tujuan) = match (Ujung::urai(&set.sumber), Ujung::urai(&set.tujuan)) {
             (Ok(s), Ok(t)) => (s, t),
             (Err(e), _) | (_, Err(e)) => {
+                judul("Migrasi email");
                 gagal(&e);
                 return 1;
             }
         };
-        if sumber.host == tujuan.host && sumber.pengguna.eq_ignore_ascii_case(&tujuan.pengguna) {
+        let kerja = em::nama_kerja(&sumber, &tujuan);
+        judul(kerja);
+        let sama = match (&sumber, &tujuan) {
+            (Ujung::Server(a), Ujung::Server(b)) => a.host == b.host && a.pengguna.eq_ignore_ascii_case(&b.pengguna),
+            (Ujung::Lokal(a), Ujung::Lokal(b)) => a == b || (a.canonicalize().ok().is_some() && a.canonicalize().ok() == b.canonicalize().ok()),
+            _ => false,
+        };
+        if sama {
             gagal("Sumber dan tujuan adalah kotak surat yang sama.");
             return 1;
         }
+        // Simpan bentuk baku (jalur "~/..." sudah diperluas, tanda kutip dibuang).
+        set.sumber = sumber.alamat();
+        set.tujuan = tujuan.alamat();
         em::simpan_setelan(&set);
         self.catat("Sumber", sumber.tampil());
         self.catat("Tujuan", tujuan.tampil());
-        let kred = self.kred_email(&sumber, "Sumber", set.login_google).and_then(|s| Ok((s, self.kred_email(&tujuan, "Tujuan", false)?)));
-        let (kred_s, kred_t) = match kred {
+        self.catat("Kerja", kerja);
+        let kred = |me: &mut Self, u: &Ujung, sisi: &str, google: bool| -> Result<Option<Kred>, String> {
+            match u {
+                Ujung::Server(a) => me.kred_email(a, sisi, google).map(Some),
+                Ujung::Lokal(_) => Ok(None),
+            }
+        };
+        let k = kred(self, &sumber, "Sumber", set.login_google).and_then(|s| Ok((s, kred(self, &tujuan, "Tujuan", false)?)));
+        let (kred_s, kred_t) = match k {
             Ok(k) => k,
             Err(e) => {
                 gagal(&e);
@@ -2720,11 +2742,18 @@ impl Mesin {
                 return 1;
             }
         };
-        if set.abaikan_sertifikat {
+        if set.abaikan_sertifikat && (!sumber.lokal() || !tujuan.lokal()) {
             awas("Sertifikat TLS tidak diperiksa (sertifikat swatanda diterima).");
         }
         let opsi = OpsiMigrasi { sertakan_sampah: set.sertakan_sampah, arsip_gmail: !set.tanpa_arsip };
-        let mut m = Migrasi::baru(sumber.clone(), kred_s, tujuan.clone(), kred_t, set.abaikan_sertifikat, opsi, self.o.mesin);
+        let mut m = match Migrasi::baru(sumber.clone(), kred_s, tujuan.clone(), kred_t, set.abaikan_sertifikat, opsi, self.o.mesin) {
+            Ok(m) => m,
+            Err(e) => {
+                gagal(&e);
+                self.catat("Galat", e);
+                return 1;
+            }
+        };
         let rencana = match m.siapkan() {
             Ok(r) => r,
             Err(e) => {
@@ -2754,8 +2783,9 @@ impl Mesin {
             let baru: u64 = m.folder.iter().map(|f| f.email - f.sudah_ada).sum();
             let byte: u64 = m.folder.iter().map(|f| f.byte).sum();
             ok(&format!("{} email belum ada di tujuan ({}).", angka(baru as i64), format_ukuran(byte as f64)));
-            if sumber.jenis == JenisEmail::Gmail && byte > 2_000_000_000 {
+            if sumber.akun().is_some_and(|a| a.jenis == JenisEmail::Gmail) && byte > 2_000_000_000 {
                 awas("Gmail membatasi unduhan IMAP sekitar 2,5 GB per hari: migrasi mungkin perlu dijalankan ulang esok hari (yang sudah tersalin dilewati).");
+                info("Jalan pintas untuk kotak surat besar: unduh berkas .mbox lewat Google Takeout (takeout.google.com), lalu pulihkan dari berkas itu.");
             }
             self.catat("Baru", baru as i64);
             self.catat("Byte", byte as i64);
@@ -2774,7 +2804,7 @@ impl Mesin {
         self.catat("Disalin", disalin as i64);
         self.catat("Gagal", gagal_n as i64);
         self.catat("Byte", byte as i64);
-        judul("Hasil migrasi email");
+        judul(&format!("Hasil {}", kerja.to_lowercase()));
         let (status, ket, kode) = match &hasil {
             Ok(()) if gagal_n == 0 => ("selesai", String::new(), 0),
             Ok(()) => ("sebagian", format!("{} email gagal disalin", angka(gagal_n as i64)), 1),
@@ -2811,7 +2841,7 @@ impl Mesin {
             }
         }
         let _ = notifikasi::kirim(
-            if kode == 0 { "Migrasi email selesai" } else { "Migrasi email belum tuntas" },
+            &format!("{kerja} {}", if kode == 0 { "selesai" } else { "belum tuntas" }),
             &[format!("{} -> {}", sumber.tampil(), tujuan.tampil()), format!("{} email disalin", angka(disalin as i64))],
         );
         kode
@@ -3283,9 +3313,11 @@ pub fn tampilkan_bantuan() {
     polos("  Filter (periksa, uji, salin, verifikasi, pindahkan; diingat untuk berikutnya):");
     polos("    -Sertakan \"pdf,docx\"  hanya jenis file ini   -Lewati \"*.tmp,node_modules/\"  lewati pola ini");
     polos("    -Sejak 2026-01-31     hanya yang diubah sejak tanggal itu   -TanpaFilter  hapus filter");
-    polos("  email -Sumber <akun> -Tujuan <akun> [-HanyaPeriksa] [-Ya]   migrasi email IMAP (semua folder)");
+    polos("  email -Sumber <akun|jalur> -Tujuan <akun|jalur> [-HanyaPeriksa] [-Ya]   migrasi/cadangan email (semua folder)");
     polos("        akun: gmail:nama@gmail.com | outlook:nama@outlook.com | imap://pengguna@server[:port]");
     polos("              (imap+starttls://, imap+polos://); kata sandi lewat -RahasiaStdin {\"Sumber\":..,\"Tujuan\":..}");
+    polos("        jalur: folder di komputer. Sebagai tujuan: cadangan .eml (satu berkas per email). Sebagai");
+    polos("              sumber: folder cadangan .eml, berkas .mbox (Google Takeout), atau folder mbox Thunderbird");
     polos("        [-Login google]  Gmail lewat login Google (bukan sandi aplikasi)   [-SertakanSampah] [-TanpaArsip]");
     polos("        [-AbaikanSertifikat]  terima sertifikat swatanda   -ClientMicrosoft <id>  client ID Azure (Outlook)");
     polos("  menu                        menu teks (bawaan bila tanpa perintah)");
