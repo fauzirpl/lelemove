@@ -494,14 +494,25 @@ impl App {
         }
     }
 
-    fn buka_email(&mut self) {
+    /// Dialog Migrasi email (mode Migrasi) atau Cadangan email (Cadangkan/Pulihkan; arahnya
+    /// mengikuti pemakaian terakhir). Penyalinan email yang sedang berjalan di latar selalu
+    /// ditampilkan lebih dulu, karena hanya satu yang bisa berjalan.
+    fn buka_email(&mut self, mode: email::Mode) {
         if let Some(e) = self.email_latar.take() {
             self.dialog = Some(Dialog::Email(e));
             return;
         }
-        let set = pindah_drive::mesin::email::baca_setelan();
-        let ms = pindah_drive::mesin::email::client_microsoft().is_some();
-        self.dialog = Some(Dialog::Email(email::Email::baru(&set, ms, self.ada_client_bawaan)));
+        use pindah_drive::mesin::email as em;
+        let ms = em::client_microsoft().is_some();
+        let e = if mode.cadangan() {
+            let mut e = email::Email::baru(&em::baca_setelan_cadangan(), mode, ms, self.ada_client_bawaan);
+            // Isian server yang masih kosong dilengkapi dari migrasi terakhir.
+            e.isi_dari(&em::baca_setelan());
+            e
+        } else {
+            email::Email::baru(&em::baca_setelan(), mode, ms, self.ada_client_bawaan)
+        };
+        self.dialog = Some(Dialog::Email(e));
     }
 
     fn terima_baris(&mut self, b: &str) {
@@ -955,18 +966,19 @@ impl App {
         self.tanya("Pindahkan", isi, "Lanjut", true, Konfirmasi::Pindahkan1);
     }
 
-    /// Migrasi email selesai: hasil per folder ke dialog (terbuka atau di latar), ringkasan ke bilah status.
+    /// Migrasi/cadangan email selesai: hasil per folder ke dialog (terbuka atau di latar), ringkasan ke bilah status.
     fn selesai_email(&mut self, kode: i32, h: Value, periksa: bool) {
         let n = |k: &str| h.get(k).and_then(Value::as_i64).unwrap_or(0);
         let galat = teks(h.get("Galat"));
+        let kerja = self.email_mut().map(|e| e.nama_kerja()).unwrap_or("Migrasi email");
         let (pesan, warna) = if !galat.is_empty() {
-            (format!("Migrasi email gagal: {galat}"), MERAH)
+            (format!("{kerja} gagal: {galat}"), MERAH)
         } else if periksa {
             (format!("Pemeriksaan email selesai: {} email akan disalin.", angka(n("Baru"))), HIJAU)
         } else if kode == 0 {
-            (format!("Migrasi email selesai: {} email disalin.", angka(n("Disalin"))), HIJAU)
+            (format!("{kerja} selesai: {} email disalin.", angka(n("Disalin"))), HIJAU)
         } else {
-            (format!("Migrasi email belum tuntas: {} disalin, {} gagal.", angka(n("Disalin")), angka(n("Gagal"))), KUNING)
+            (format!("{kerja} belum tuntas: {} disalin, {} gagal.", angka(n("Disalin")), angka(n("Gagal"))), KUNING)
         };
         self.set_pesan(&pesan, warna);
         if let Some(e) = self.email_mut() {
@@ -1184,8 +1196,9 @@ impl App {
         match h {
             Hasil::Batal => {}
             Hasil::EmailMulai { periksa, args, rahasia } => {
-                let judul = if periksa { "Memeriksa migrasi email" } else { "Migrasi email" };
-                self.jalankan_aksi_masukan(judul, args, Some(rahasia), Setelah::Email { periksa });
+                let kerja = self.email_mut().map(|e| e.nama_kerja()).unwrap_or("Migrasi email");
+                let judul = if periksa { format!("Memeriksa {}", kerja.to_lowercase()) } else { kerja.to_string() };
+                self.jalankan_aksi_masukan(&judul, args, Some(rahasia), Setelah::Email { periksa });
                 let mulai = self.aksi.is_some();
                 if let Some(e) = self.email_mut() {
                     if mulai {
@@ -2702,6 +2715,7 @@ impl App {
         let mut jadwal = false;
         let mut riwayat_ = false;
         let mut email_ = false;
+        let mut cadangan_ = false;
         egui::SidePanel::left("lokasi")
             .exact_width(lebar)
             .resizable(false)
@@ -2716,9 +2730,11 @@ impl App {
                             win::buka(pindah_drive::SAWERIA);
                         }
                         let r = baris_lokasi(ui, "pengaturan", ik::EMAIL, "Migrasi email", "", REDUP, None, "", false, true);
-                        email_ = r
+                        email_ = r.baris.on_hover_text("Pindahkan semua email dari Gmail, Outlook, atau server lain ke server email Anda.").clicked();
+                        let r = baris_lokasi(ui, "pengaturan", ik::CADANGAN, "Cadangan email", "", REDUP, None, "", false, true);
+                        cadangan_ = r
                             .baris
-                            .on_hover_text("Pindahkan semua email dari Gmail, Outlook, atau server lain ke server email Anda, cadangkan ke komputer, atau pulihkan dari cadangan/.mbox.")
+                            .on_hover_text("Cadangkan email ke komputer (.eml) dan pulihkan ke server, termasuk dari berkas .mbox Google Takeout.")
                             .clicked();
                         let r = baris_lokasi(ui, "pengaturan", ik::RIWAYAT, "Riwayat & laporan", "", REDUP, None, "", false, true);
                         riwayat_ = r.baris.on_hover_text("Semua penyalinan, verifikasi, dan pemindahan; laporan CSV dan siap cetak untuk audit.").clicked();
@@ -2902,7 +2918,10 @@ impl App {
             self.buka_riwayat(riwayat::Saring::Semua, None);
         }
         if email_ {
-            self.buka_email();
+            self.buka_email(email::Mode::Migrasi);
+        }
+        if cadangan_ {
+            self.buka_email(email::Mode::Cadangkan);
         }
     }
 
@@ -3545,9 +3564,16 @@ impl App {
                 }));
             }
             "riwayat" => self.buka_riwayat(riwayat::Saring::Semua, None),
-            "email" => self.buka_email(),
+            "email" => self.buka_email(email::Mode::Migrasi),
+            "email-cadangan" => self.buka_email(email::Mode::Cadangkan),
+            "email-pulihkan" => {
+                self.buka_email(email::Mode::Cadangkan);
+                if let Some(Dialog::Email(e)) = &mut self.dialog {
+                    e.mode = email::Mode::Pulihkan;
+                }
+            }
             "email-hasil" => {
-                self.buka_email();
+                self.buka_email(email::Mode::Migrasi);
                 if let Some(Dialog::Email(e)) = &mut self.dialog {
                     e.hasil = Some(email::contoh_hasil());
                     e.tahap = email::Tahap::Selesai { periksa: false, kode: 0 };

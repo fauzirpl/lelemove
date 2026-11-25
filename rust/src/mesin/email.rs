@@ -224,6 +224,16 @@ pub fn simpan_setelan(s: &Setelan) {
     tulis_json(&jalur().data.join("email.json"), &serde_json::to_value(s).unwrap_or(Value::Null));
 }
 
+/// Setelan cadangan/pemulihan terakhir (salah satu sisi di komputer), di <data>/email-cadangan.json,
+/// terpisah dari migrasi agar isian dialog Migrasi email tidak terisi jalur folder.
+pub fn baca_setelan_cadangan() -> Setelan {
+    baca_json(&jalur().data.join("email-cadangan.json")).and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default()
+}
+
+pub fn simpan_setelan_cadangan(s: &Setelan) {
+    tulis_json(&jalur().data.join("email-cadangan.json"), &serde_json::to_value(s).unwrap_or(Value::Null));
+}
+
 /// Client ID aplikasi Azure untuk login Outlook/Microsoft 365 (bukan rahasia).
 pub fn client_microsoft() -> Option<String> {
     let v = baca_json(&jalur().data.join("client-microsoft.json"))?;

@@ -50,8 +50,9 @@ ditoelis persis seperti jang tampil di aplikasi (edjaan sekarang), soepaja moeda
 - **Djadwal backup** lewat Task Scheduler (Windows) atau launchd (macOS).
 - **Riwajat & laporan**: CSV dan laporan siap tjetak berisi status setiap file, oentoek audit.
 - **Migrasi email** (beta): pindahkan semoea folder email dari Gmail, Outlook/Microsoft 365, atau server
-  IMAP lain ke server email sendiri, lengkap dengan status batja, bintang, dan tanggal asli; atau
-  tjadangkan ke kompoeter (.eml) laloe poelihkan lagi, termasoek dari berkas .mbox Google Takeout.
+  IMAP lain ke server email sendiri, lengkap dengan status batja, bintang, dan tanggal asli.
+- **Tjadangan email** (beta): tjadangkan semoea email ke kompoeter (.eml), laloe poelihkan ke server
+  mana poen, termasoek dari berkas .mbox Google Takeout atau Thunderbird.
 - **Baris perintah** (`pindah.exe`) oentoek semoea fitoer di atas.
 
 Ditoelis dalam **Rust** (djendela memakai egui), tanpa PowerShell, djadi tetap djalan di kompoeter
@@ -65,7 +66,7 @@ dan pengatoeran lama langsoeng terbatja.
   [Tjara kerdja penjalinan](#tjara-kerdja-penjalinan)
 - [Lajanan jang didoekoeng](#lajanan-jang-didoekoeng) · [Filter file](#filter-file) ·
   [Riwajat & laporan](#riwajat--laporan) · [Pindahkan](#pindahkan-hapoes-soember-setelah-verifikasi) ·
-  [Djadwal backup](#djadwal-backup-otomatis) · [Migrasi email](#migrasi-email)
+  [Djadwal backup](#djadwal-backup-otomatis) · [Migrasi email](#migrasi-email) · [Tjadangan email](#tjadangan-email)
 - [SharePoint](#sharepoint) · [Izin akoen](#izin-akoen) ·
   [Client ID Google](#penjalinan-matjet-pakai-client-id-google-sendiri) ·
   [Verifikasi](#verifikasi-seberapa-teliti) · [Batasan](#batasan) · [Privasi](#privasi)
@@ -145,6 +146,8 @@ dan **Ke** (toedjoean) berdampingan, bilah alat di atas, dan bilah penjalinan di
 - **Jadwal backup** (ikon kalender di dasar daftar kiri). Menjalin otomatis setiap hari atau
   pada hari tertentoe, tanpa perloe memboeka aplikasi. Lihat *Djadwal backup otomatis* di bawah.
 - **Migrasi email** (ikon soerat di dasar daftar kiri). Lihat *Migrasi email* di bawah.
+- **Cadangan email** (ikon oendoeh di dasar daftar kiri). Lihat *Tjadangan email* di bawah.
+- **Dukung LELEMOVE** (ikon hati, paling atas di dasar daftar kiri) memboeka halaman Saweria.
 - **Bantuan & info** (ikon ? di atas Pengaturan). Dialog bertab: *Tanya jawab*, *Ketentuan*
   pemakaian, kebidjakan *Privasi*, *Atribusi* (komponen, lajanan/API, dan semoea poestaka Rust
   beserta lisensinja), dan *Tentang* (versi, folder aplikasi, data, log, dan tautan dukungan).
@@ -375,31 +378,6 @@ Lewat baris perintah (kata sandi lewat stdin, atau diketik tanpa tampak):
 .\pindah.exe email -Sumber "D:\Takeout\Mail\All mail Including Spam and Trash.mbox" -Tujuan imap://nama@mail.server.id -Ya
 ```
 
-### Tjadangan di kompoeter dan pemoelihan
-
-Selain ke server baroe, email dapat poela disimpan ke **folder di kompoeter**, laloe dipoelihkan ke
-server mana poen kapan sadja. Tjotjok oentoek akoen jang hendak ditoetoep, atau bila server baroe
-beloem siap.
-
-- **Tjadangkan**: di bagian **Ke**, pilih *Folder di komputer*. Setiap email mendjadi satoe berkas
-  **.eml** (dapat diboeka langsoeng di Outlook, Thunderbird, atau Windows Mail) di dalam folder
-  jang sama dengan kotak soeratnja (INBOX, Sent, Kerja/Proyek, ...). Nama berkas diawali tanggal,
-  mis. `2024-01-05 1030 Rapat besok [1a2b3c4d].eml`, dan tanggal berkasnja disamakan dengan tanggal
-  terima email. Statoes batja, bintang, dan tanggal asli ditjatat di `.lelemove-indeks.jsonl` di
-  setiap folder.
-- **Perbaroei tjadangan**: djalankan lagi kapan sadja; hanja email baroe jang dioendoeh. Email jang
-  dihapoes di server tidak ikoet dihapoes dari tjadangan.
-- **Poelihkan**: di bagian **Dari**, pilih *Cadangan di komputer (.eml / .mbox)*, laloe pilih folder
-  tjadangan tadi. Folder, statoes batja, bintang, dan tanggal asli kembali seperti semoela; email
-  jang soedah ada di server dilewati.
-- **Dari Google Takeout**: oendoeh email Gmail sebagai berkas **.mbox** lewat
-  [takeout.google.com](https://takeout.google.com), laloe pilih berkas itoe sebagai soember. Djalan ini
-  tidak terkena batas oendoehan IMAP Gmail (kira-kira 2,5 GB per hari). Label Gmail mendjadi folder,
-  email tanpa label masoek ke Archive, dan obrolan Chat dilewati.
-- **Dari Thunderbird**: pilih folder profil Thunderbird jang berisi berkas mbox (mis.
-  `Mail\Local Folders`); setiap berkas mendjadi satoe folder.
-- Tjadangan .eml berisi seloeroeh email apa adanja, tidak dienkripsi: simpanlah di tempat jang aman.
-
 <a name="outlook-butuh-client-id-azure"></a>
 ### Outlook: boetoeh client ID Azure
 
@@ -417,6 +395,35 @@ Saoedara sendiri (pertjoema, tjoekoep diboeat sekali):
    migrasi berikoetnja (boekan rahasia).
 
 Pastikan IMAP aktif di akoen Outlook.com: *Pengaturan > Email > Teruskan dan IMAP*.
+
+<a name="tjadangan-di-kompoeter-dan-pemoelihan"></a>
+## Tjadangan email
+
+Simpan semoea email ke **folder di kompoeter**, laloe poelihkan ke server mana poen kapan sadja.
+Tjotjok oentoek akoen jang hendak ditoetoep, atau bila server baroe beloem siap. Boeka
+*Cadangan email* di dasar daftar kiri; di atasnja ada doea pilihan, *Cadangkan ke komputer* dan
+*Pulihkan ke server*. Akoen soember diisi sama seperti pada [Migrasi email](#migrasi-email).
+
+> **Beta.** Soedah dioedji dengan server IMAP oedji (tjadangan, djalan oelang, pemoelihan ke akoen
+> kosong jang hasilnja identik), tetapi beloem banjak dengan akoen Gmail dan Outlook soenggoehan.
+
+- **Tjadangkan ke komputer**: pilih akoen email dan folder toedjoean. Setiap email mendjadi satoe
+  berkas **.eml** (dapat diboeka langsoeng di Outlook, Thunderbird, atau Windows Mail) di dalam
+  folder jang sama dengan kotak soeratnja (INBOX, Sent, Kerja/Proyek, ...). Nama berkas diawali
+  tanggal, mis. `2024-01-05 1030 Rapat besok [1a2b3c4d].eml`, dan tanggal berkasnja disamakan dengan
+  tanggal terima email. Statoes batja, bintang, dan tanggal asli ditjatat di `.lelemove-indeks.jsonl`
+  di setiap folder.
+- **Perbaroei tjadangan**: djalankan lagi kapan sadja; hanja email baroe jang dioendoeh. Email jang
+  dihapoes di server tidak ikoet dihapoes dari tjadangan.
+- **Pulihkan ke server**: pilih folder tjadangan tadi dan server toedjoean. Folder, statoes batja,
+  bintang, dan tanggal asli kembali seperti semoela; email jang soedah ada di server dilewati.
+- **Dari Google Takeout**: oendoeh email Gmail sebagai berkas **.mbox** lewat
+  [takeout.google.com](https://takeout.google.com), laloe pilih berkas itoe (tombol *.mbox…*) di
+  *Pulihkan ke server*. Djalan ini tidak terkena batas oendoehan IMAP Gmail (kira-kira 2,5 GB per
+  hari). Label Gmail mendjadi folder, email tanpa label masoek ke Archive, dan obrolan Chat dilewati.
+- **Dari Thunderbird**: pilih folder profil Thunderbird jang berisi berkas mbox (mis.
+  `Mail\Local Folders`); setiap berkas mendjadi satoe folder.
+- Tjadangan .eml berisi seloeroeh email apa adanja, tidak dienkripsi: simpanlah di tempat jang aman.
 
 ## SharePoint
 Klik **Tambah akun > SharePoint**, login dengan akoen Microsoft kantor/sekolah, laloe tjari sitoesnja.

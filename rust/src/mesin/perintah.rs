@@ -2723,7 +2723,11 @@ impl Mesin {
         // Simpan bentuk baku (jalur "~/..." sudah diperluas, tanda kutip dibuang).
         set.sumber = sumber.alamat();
         set.tujuan = tujuan.alamat();
-        em::simpan_setelan(&set);
+        if sumber.lokal() || tujuan.lokal() {
+            em::simpan_setelan_cadangan(&set);
+        } else {
+            em::simpan_setelan(&set);
+        }
         self.catat("Sumber", sumber.tampil());
         self.catat("Tujuan", tujuan.tampil());
         self.catat("Kerja", kerja);
