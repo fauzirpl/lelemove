@@ -375,6 +375,12 @@ Anda sendiri (gratis, cukup dibuat sekali):
 
 Pastikan IMAP aktif di akun Outlook.com: *Pengaturan > Email > Teruskan dan IMAP*.
 
+> **Akun kantor (Microsoft 365).** Sebagian organisasi mewajibkan *persetujuan admin* untuk
+> tiap aplikasi luar. Bila login memunculkan "Need admin approval", client ID sendiri pun tidak
+> menembusnya (ini dinding dari IT kantor, bukan LELEMOVE; Thunderbird pun kena hal yang sama).
+> Jalan keluarnya: minta IT menyetujui, atau ambil email lewat **Thunderbird** (login Microsoft
+> biasa, lalu *Sinkronkan*) dan pulihkan folder mbox-nya lewat [Cadangan email](#cadangan-email).
+
 ## Cadangan email
 
 Simpan semua email ke **folder di komputer**, lalu pulihkan ke server mana pun kapan saja.

@@ -396,6 +396,12 @@ Saoedara sendiri (pertjoema, tjoekoep diboeat sekali):
 
 Pastikan IMAP aktif di akoen Outlook.com: *Pengaturan > Email > Teruskan dan IMAP*.
 
+> **Akoen kantor (Microsoft 365).** Sebagian organisasi mewadjibkan *persetoedjoean admin* oentoek
+> tiap aplikasi loear. Bila login memoentjoelkan "Need admin approval", client ID sendiri poen tidak
+> menemboesnja (ini dinding dari IT kantor, boekan LELEMOVE; Thunderbird poen kena hal jang sama).
+> Djalan keloearnja: minta IT menjetoedjoei, atau ambil email lewat **Thunderbird** (login Microsoft
+> biasa, laloe *Sinkronkan*) dan poelihkan folder mbox-nja lewat [Tjadangan email](#tjadangan-email).
+
 <a name="tjadangan-di-kompoeter-dan-pemoelihan"></a>
 ## Tjadangan email
 

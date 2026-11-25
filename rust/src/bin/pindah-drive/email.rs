@@ -465,6 +465,7 @@ fn isian_sumber_server(ui: &mut Ui, s: &mut Email) {
                 });
                 petunjuk(ui, "Microsoft tidak lagi menerima kata sandi untuk IMAP; login lewat aplikasi Azure milik Anda.");
             }
+            petunjuk(ui, "Akun Microsoft 365 kantor bisa terkena \"perlu persetujuan admin\" dari IT. Bila login diblokir, ambil email lewat Thunderbird lalu pulihkan folder mbox-nya di menu Cadangan email.");
         }
         _ => isian_server(ui, "sumber", &mut s.sumber, "imap.server-lama.com", "nama@domain-lama.com"),
     }
