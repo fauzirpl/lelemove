@@ -414,6 +414,7 @@ fn item(ui: &mut Ui, teks: &str, terpilih: bool) -> egui::Response {
 fn item_map(ui: &mut Ui, teks: &str, terpilih: bool) -> egui::Response {
     let w = ui.available_width();
     let (r, resp) = ui.allocate_exact_size(vec2(w, 26.0), egui::Sense::click());
+    pindah_drive::gaya::nama_tombol(&resp, true, teks);
     if ui.is_rect_visible(r) {
         let p = ui.painter();
         if terpilih {
@@ -442,14 +443,19 @@ fn isian(ui: &mut Ui, teks: &mut String, sandi: bool) -> egui::Response {
         TextEdit::singleline(teks)
             .password(sandi)
             .desired_width(f32::INFINITY)
-            .min_size(vec2(0.0, 32.0))
+            .min_size(vec2(0.0, 36.0))
             .vertical_align(Align::Center)
-            .margin(egui::Margin::symmetric(8, 4)),
+            .margin(gaya::JARAK_ISIAN),
     )
 }
 
 pub fn tampil(ctx: &egui::Context, d: &mut Dialog, p: &mut Pemuat) -> Option<Hasil> {
-    let r = egui::Modal::new(egui::Id::new("dialog-pindah-drive")).show(ctx, |ui| match d {
+    // Teks dialog tidak menempel ke tepi: 24 px di kiri-kanan, sedikit kurang di atas-bawah.
+    let bingkai = egui::Frame::popup(&ctx.style())
+        .inner_margin(egui::Margin { left: 24, right: 24, top: 22, bottom: 20 })
+        .corner_radius(14);
+    let tirai = egui::Color32::from_rgba_unmultiplied(0x08, 0x28, 0x24, 120);
+    let r = egui::Modal::new(egui::Id::new("dialog-pindah-drive")).frame(bingkai).backdrop_color(tirai).show(ctx, |ui| match d {
         Dialog::Tanya(t) => tanya(ui, t),
         Dialog::Ketik(k) => ketik(ui, k),
         Dialog::Filter(f) => crate::filter::tampil(ui, f),
@@ -862,7 +868,7 @@ fn sharepoint(ui: &mut Ui, s: &mut SharePoint, p: &mut Pemuat) -> Option<Hasil> 
                 .desired_width(w)
                 .min_size(vec2(w, 32.0))
                 .vertical_align(Align::Center)
-                .margin(egui::Margin::symmetric(8, 4)),
+                .margin(pindah_drive::gaya::JARAK_ISIAN),
         );
         if s.fokus {
             r.request_focus();

@@ -8,23 +8,61 @@ use eframe::egui::{
 use std::path::PathBuf;
 use std::sync::Arc;
 
+// Palet "kolam": diturunkan dari ikon LELEMOVE (petak hijau kolam, lele krem, garis gerak mint).
+// Netralnya sengaja condong hijau supaya menyatu dengan warna merek, bukan abu-abu kebiruan.
 pub const PUTIH: Color32 = Color32::from_rgb(0xFF, 0xFF, 0xFF);
-pub const TINTA: Color32 = Color32::from_rgb(0x1F, 0x23, 0x28);
-pub const TINTA_HOVER: Color32 = Color32::from_rgb(0x37, 0x3E, 0x47);
-pub const REDUP: Color32 = Color32::from_rgb(0x59, 0x63, 0x6E);
-pub const ABU: Color32 = Color32::from_rgb(0x8C, 0x95, 0x9F);
+pub const TINTA: Color32 = Color32::from_rgb(0x15, 0x23, 0x1F);
+pub const TINTA_HOVER: Color32 = Color32::from_rgb(0x2A, 0x3A, 0x35);
+pub const REDUP: Color32 = Color32::from_rgb(0x53, 0x64, 0x5E);
+pub const ABU: Color32 = Color32::from_rgb(0x86, 0x95, 0x90);
 pub const HIJAU: Color32 = Color32::from_rgb(0x1A, 0x7F, 0x37);
 pub const KUNING: Color32 = Color32::from_rgb(0x9A, 0x67, 0x00);
 pub const MERAH: Color32 = Color32::from_rgb(0xCF, 0x22, 0x2E);
-pub const TAUTAN: Color32 = Color32::from_rgb(0x09, 0x69, 0xDA);
-pub const GARIS: Color32 = Color32::from_rgb(0xD1, 0xD9, 0xE0);
-pub const LATAR2: Color32 = Color32::from_rgb(0xF6, 0xF8, 0xFA);
-pub const HOVER: Color32 = Color32::from_rgb(0xF3, 0xF4, 0xF6);
-pub const JALUR: Color32 = Color32::from_rgb(0xEA, 0xEE, 0xF2);
-/// Latar baris terpilih (daftar folder, lokasi yang sedang dibuka).
-pub const PILIH: Color32 = Color32::from_rgb(0xDD, 0xF4, 0xFF);
+pub const TAUTAN: Color32 = Color32::from_rgb(0x16, 0x60, 0xB8);
+pub const GARIS: Color32 = Color32::from_rgb(0xD2, 0xDC, 0xD8);
+/// Latar "berkabut" di belakang kartu panel, bilah status, dan bingkai isian.
+pub const LATAR2: Color32 = Color32::from_rgb(0xF3, 0xF7, 0xF5);
+pub const HOVER: Color32 = Color32::from_rgb(0xED, 0xF3, 0xF0);
+pub const JALUR: Color32 = Color32::from_rgb(0xE1, 0xEA, 0xE6);
+/// Latar baris terpilih (daftar folder): mint pudar.
+pub const PILIH: Color32 = Color32::from_rgb(0xDC, 0xF2, 0xEB);
 /// Garis tipis di dalam bingkai (pemisah baris, tepi panel yang tidak aktif).
-pub const GARIS_HALUS: Color32 = Color32::from_rgb(0xE6, 0xEA, 0xEF);
+pub const GARIS_HALUS: Color32 = Color32::from_rgb(0xE4, 0xEB, 0xE8);
+
+/// Hijau kolam (warna petak ikon): tombol utama, panel aktif, lencana arah salin.
+pub const KOLAM: Color32 = Color32::from_rgb(0x0E, 0x5A, 0x52);
+pub const KOLAM_HOVER: Color32 = Color32::from_rgb(0x14, 0x69, 0x5F);
+/// Latar daftar lokasi (sidebar gelap) beserta baris yang disorot dan yang terpilih.
+pub const KOLAM_TUA: Color32 = Color32::from_rgb(0x0B, 0x3D, 0x38);
+pub const KOLAM_SOROT: Color32 = Color32::from_rgb(0x12, 0x4B, 0x45);
+pub const KOLAM_PILIH: Color32 = Color32::from_rgb(0x17, 0x63, 0x5A);
+/// Mint (garis gerak di ikon): aksen di atas latar gelap.
+pub const MINT: Color32 = Color32::from_rgb(0x5F, 0xD3, 0xB4);
+/// Krem lele: tulisan merek di sidebar.
+pub const KREM: Color32 = Color32::from_rgb(0xF6, 0xEC, 0xD0);
+/// Teks di atas sidebar gelap: utama, keterangan, dan judul kelompok.
+pub const TEKS_SISI: Color32 = Color32::from_rgb(0xE9, 0xF2, 0xEF);
+pub const REDUP_SISI: Color32 = Color32::from_rgb(0x9D, 0xBD, 0xB5);
+pub const ABU_SISI: Color32 = Color32::from_rgb(0x7F, 0xA3, 0x9A);
+
+/// Padanan warna status untuk latar gelap (sidebar): warna terang agar tetap terbaca.
+pub fn di_gelap(w: Color32) -> Color32 {
+    if w == HIJAU {
+        MINT
+    } else if w == KUNING {
+        Color32::from_rgb(0xF2, 0xC4, 0x6D)
+    } else if w == MERAH {
+        Color32::from_rgb(0xFF, 0x8E, 0x86)
+    } else if w == ABU {
+        ABU_SISI
+    } else if w == REDUP {
+        REDUP_SISI
+    } else if w == TINTA {
+        TEKS_SISI
+    } else {
+        w
+    }
+}
 /// Warna map pada daftar folder (kuning map ala Explorer, sedikit diredam).
 pub const MAP: Color32 = Color32::from_rgb(0xDB, 0xA5, 0x2B);
 
@@ -181,17 +219,24 @@ pub fn petak_lukis(p: &egui::Painter, r: egui::Rect, jenis: &str, glyph: char, t
     }
 }
 
+/// Memberi nama dan peran "tombol" pada kontrol yang digambar sendiri, supaya terbaca oleh pembaca
+/// layar dan alat uji (UI Automation / VoiceOver). Kontrol bawaan egui sudah bernama sendiri.
+pub fn nama_tombol(resp: &egui::Response, aktif: bool, nama: &str) {
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, aktif, nama));
+}
+
 /// Tombol toolbar: glyph + teks tanpa bingkai; latar muncul saat disorot. `utama` = blok gelap.
 pub fn tombol_alat(ui: &mut Ui, glyph: char, teks: &str, utama: bool, aktif: bool) -> egui::Response {
     let huruf = FontId::new(13.5, tebal());
     let galley = ui.painter().layout_no_wrap(teks.to_string(), huruf, TINTA);
-    let lebar = 12.0 + 16.0 + 7.0 + galley.size().x + 14.0;
-    let (r, resp) = ui.allocate_exact_size(vec2(lebar, 34.0), if aktif { Sense::click() } else { Sense::hover() });
+    let lebar = 14.0 + 16.0 + 7.0 + galley.size().x + 16.0;
+    let (r, resp) = ui.allocate_exact_size(vec2(lebar, 36.0), if aktif { Sense::click() } else { Sense::hover() });
+    nama_tombol(&resp, aktif, teks);
     let p = ui.painter();
     let (isi, tinta) = if !aktif {
         (if utama { JALUR } else { Color32::TRANSPARENT }, ABU)
     } else if utama {
-        (if resp.hovered() { TINTA_HOVER } else { TINTA }, PUTIH)
+        (if resp.hovered() { KOLAM_HOVER } else { KOLAM }, PUTIH)
     } else if resp.is_pointer_button_down_on() {
         (JALUR, TINTA)
     } else if resp.hovered() {
@@ -199,11 +244,11 @@ pub fn tombol_alat(ui: &mut Ui, glyph: char, teks: &str, utama: bool, aktif: boo
     } else {
         (Color32::TRANSPARENT, TINTA)
     };
-    p.rect_filled(r, CornerRadius::same(6), isi);
+    p.rect_filled(r, CornerRadius::same(9), isi);
     if !utama && aktif && resp.hovered() {
-        p.rect_stroke(r, CornerRadius::same(6), Stroke::new(1.0_f32, GARIS), egui::StrokeKind::Inside);
+        p.rect_stroke(r, CornerRadius::same(9), Stroke::new(1.0_f32, GARIS), egui::StrokeKind::Inside);
     }
-    let x = r.left() + 12.0;
+    let x = r.left() + 14.0;
     p.text(egui::pos2(x + 8.0, r.center().y), Align2::CENTER_CENTER, glyph, FontId::new(14.0, keluarga_ikon()), tinta);
     p.galley_with_override_text_color(egui::pos2(x + 23.0, r.center().y - galley.size().y / 2.0), galley, tinta);
     if aktif {
@@ -225,9 +270,10 @@ pub fn label_kelompok(teks: &str, warna: Color32) -> RichText {
     RichText::new(teks).family(tebal()).size(11.0).color(warna).extra_letter_spacing(0.8)
 }
 
-/// Tombol kecil berisi satu glyph (segarkan, tukar, menu ⋯).
-pub fn tombol_ikon(ui: &mut Ui, glyph: char, sisi: f32, aktif: bool) -> egui::Response {
+/// Tombol kecil berisi satu glyph (segarkan, tukar, menu ⋯). `nama` dibacakan pembaca layar.
+pub fn tombol_ikon(ui: &mut Ui, glyph: char, sisi: f32, aktif: bool, nama: &str) -> egui::Response {
     let (r, resp) = ui.allocate_exact_size(vec2(sisi, sisi), if aktif { Sense::click() } else { Sense::hover() });
+    nama_tombol(&resp, aktif, nama);
     let p = ui.painter();
     if aktif && resp.hovered() {
         p.rect_filled(r, CornerRadius::same(5), if resp.is_pointer_button_down_on() { JALUR } else { HOVER });
@@ -348,10 +394,11 @@ pub fn pasang(ctx: &egui::Context) {
             (TextStyle::Monospace, FontId::monospace(12.5)),
         ]
         .into();
-        s.spacing.item_spacing = vec2(8.0, 6.0);
-        s.spacing.button_padding = vec2(14.0, 6.0);
-        s.spacing.interact_size = vec2(40.0, 30.0);
+        s.spacing.item_spacing = vec2(8.0, 7.0);
+        s.spacing.button_padding = vec2(16.0, 7.0);
+        s.spacing.interact_size = vec2(40.0, 32.0);
         s.spacing.combo_height = 320.0;
+        s.spacing.menu_margin = egui::Margin::same(8);
 
         let v = &mut s.visuals;
         *v = egui::Visuals::light();
@@ -360,14 +407,18 @@ pub fn pasang(ctx: &egui::Context) {
         v.extreme_bg_color = PUTIH;
         v.faint_bg_color = LATAR2;
         v.window_stroke = Stroke::new(1.0_f32, GARIS);
-        v.window_corner_radius = CornerRadius::same(10);
-        v.menu_corner_radius = CornerRadius::same(8);
+        v.window_corner_radius = CornerRadius::same(14);
+        v.menu_corner_radius = CornerRadius::same(10);
+        // Bayangan lembut berwarna kolam, bukan hitam.
+        let bayang = Color32::from_rgba_unmultiplied(0x0B, 0x3D, 0x38, 46);
+        v.window_shadow = egui::Shadow { offset: [0, 14], blur: 40, spread: 0, color: bayang };
+        v.popup_shadow = egui::Shadow { offset: [0, 8], blur: 22, spread: 0, color: bayang };
         v.hyperlink_color = TAUTAN;
-        v.selection.bg_fill = Color32::from_rgb(0xDD, 0xF4, 0xFF);
-        v.selection.stroke = Stroke::new(1.0_f32, TAUTAN);
+        v.selection.bg_fill = PILIH;
+        v.selection.stroke = Stroke::new(1.0_f32, KOLAM);
         v.widgets.noninteractive.bg_stroke = Stroke::new(1.0_f32, GARIS);
         v.widgets.noninteractive.fg_stroke = Stroke::new(1.0_f32, TINTA);
-        v.widgets.noninteractive.corner_radius = CornerRadius::same(6);
+        v.widgets.noninteractive.corner_radius = CornerRadius::same(8);
         for (w, isi) in [
             (&mut v.widgets.inactive, PUTIH),
             (&mut v.widgets.hovered, HOVER),
@@ -378,22 +429,27 @@ pub fn pasang(ctx: &egui::Context) {
             w.bg_fill = isi;
             w.bg_stroke = Stroke::new(1.0_f32, GARIS);
             w.fg_stroke = Stroke::new(1.0_f32, TINTA);
-            w.corner_radius = CornerRadius::same(6);
+            w.corner_radius = CornerRadius::same(8);
             w.expansion = 0.0;
         }
+        // Isian yang sedang diketik: garis tepi hijau kolam.
+        v.widgets.active.bg_stroke = Stroke::new(1.0_f32, KOLAM);
     });
 }
 
+/// Jarak teks dari tepi kotak isian (kiri-kanan, atas-bawah).
+pub const JARAK_ISIAN: egui::Margin = egui::Margin { left: 12, right: 12, top: 6, bottom: 6 };
+
 /// Tombol biasa: putih bergaris tepi.
 pub fn tombol(teks: &str) -> Button<'static> {
-    Button::new(RichText::new(teks).family(tebal()).size(13.5).color(TINTA)).min_size(vec2(0.0, 32.0))
+    Button::new(RichText::new(teks).family(tebal()).size(13.5).color(TINTA)).min_size(vec2(0.0, 34.0))
 }
 
-/// Tombol utama: satu-satunya blok gelap di layar.
+/// Tombol utama: satu-satunya blok hijau kolam di layar.
 pub fn tombol_utama(teks: &str) -> Button<'static> {
     Button::new(RichText::new(teks).family(tebal()).size(14.0).color(PUTIH))
-        .fill(TINTA)
-        .stroke(Stroke::new(1.0_f32, TINTA))
+        .fill(KOLAM)
+        .stroke(Stroke::new(1.0_f32, KOLAM))
         .min_size(vec2(0.0, 38.0))
 }
 

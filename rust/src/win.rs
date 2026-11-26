@@ -395,6 +395,61 @@ pub fn kunci_tunggal(nama: &str) -> Option<KunciTunggal> {
     }
 }
 
+/// Menampilkan jendela LELEMOVE yang sudah terbuka (dipulihkan bila diminimalkan, lalu dibawa ke
+/// depan). Dicari jendela terlihat berjudul `judul` milik proses dengan nama .exe yang sama dengan
+/// proses ini, supaya jendela lain yang kebetulan berjudul sama (mis. folder di Explorer) tidak
+/// ikut. false bila tidak ada.
+pub fn tampilkan_jendela(judul: &str) -> bool {
+    use windows_sys::Win32::Foundation::{BOOL, HWND, LPARAM};
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        EnumWindows, GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindowVisible,
+        SetForegroundWindow, ShowWindow, SW_RESTORE,
+    };
+    struct Cari {
+        judul: Vec<u16>,
+        exe: Option<std::ffi::OsString>,
+        ketemu: HWND,
+    }
+    unsafe extern "system" fn tiap(h: HWND, l: LPARAM) -> BOOL {
+        let c = &mut *(l as *mut Cari);
+        if IsWindowVisible(h) == 0 {
+            return 1;
+        }
+        let mut buf = [0u16; 128];
+        let n = GetWindowTextW(h, buf.as_mut_ptr(), buf.len() as i32).max(0) as usize;
+        if buf[..n] != c.judul[..] {
+            return 1;
+        }
+        let mut pid = 0u32;
+        GetWindowThreadProcessId(h, &mut pid);
+        if pid == std::process::id() {
+            return 1;
+        }
+        let exe = jalur_proses(pid).and_then(|p| p.file_name().map(|n| n.to_ascii_lowercase()));
+        if exe.is_some() && exe == c.exe {
+            c.ketemu = h;
+            return 0;
+        }
+        1
+    }
+    let mut c = Cari {
+        judul: judul.encode_utf16().collect(),
+        exe: std::env::current_exe().ok().and_then(|p| p.file_name().map(|n| n.to_ascii_lowercase())),
+        ketemu: null_mut(),
+    };
+    unsafe {
+        EnumWindows(Some(tiap), &mut c as *mut Cari as LPARAM);
+        if c.ketemu.is_null() {
+            return false;
+        }
+        if IsIconic(c.ketemu) != 0 {
+            ShowWindow(c.ketemu, SW_RESTORE);
+        }
+        SetForegroundWindow(c.ketemu);
+    }
+    true
+}
+
 pub fn mutex_ada(nama: &str) -> bool {
     let w = lebar(nama);
     unsafe {

@@ -34,6 +34,7 @@ fn cocok_cari(p: &Penyedia, kata: &str) -> bool {
 /// Satu kartu layanan: petak ikon, nama, keterangan singkat.
 fn kartu(ui: &mut Ui, p: &Penyedia, lebar: f32) -> egui::Response {
     let (r, resp) = ui.allocate_exact_size(vec2(lebar, 52.0), egui::Sense::click());
+    pindah_drive::gaya::nama_tombol(&resp, true, p.nama);
     if ui.is_rect_visible(r) {
         let pn = ui.painter();
         let latar = if resp.hovered() { gaya::HOVER } else { gaya::PUTIH };
@@ -68,7 +69,7 @@ pub fn pemilih(ui: &mut Ui, s: &mut Pemilih) -> Option<Hasil> {
             .desired_width(f32::INFINITY)
             .min_size(vec2(0.0, 30.0))
             .vertical_align(Align::Center)
-            .margin(egui::Margin::symmetric(8, 4)),
+            .margin(pindah_drive::gaya::JARAK_ISIAN),
     );
     if s.fokus {
         r.request_focus();
@@ -168,7 +169,7 @@ fn isian(ui: &mut Ui, teks: &mut String, contoh: &str, sandi: bool) -> egui::Res
             .desired_width(f32::INFINITY)
             .min_size(vec2(0.0, 30.0))
             .vertical_align(Align::Center)
-            .margin(egui::Margin::symmetric(8, 4)),
+            .margin(pindah_drive::gaya::JARAK_ISIAN),
     )
 }
 

@@ -325,7 +325,7 @@ pub fn isian(ui: &mut Ui, s: &mut Isian) -> Option<Hasil> {
                 .desired_width(f32::INFINITY)
                 .min_size(vec2(0.0, 30.0))
                 .vertical_align(Align::Center)
-                .margin(egui::Margin::symmetric(8, 4)),
+                .margin(pindah_drive::gaya::JARAK_ISIAN),
         );
     });
     ui.add_space(8.0);

@@ -337,6 +337,11 @@ pub fn mutex_ada(nama: &str) -> bool {
 /// Tidak ada padanannya di macOS: ikon Dock mengikuti bundel .app.
 pub fn set_app_id(_id: &str) {}
 
+/// Di macOS, membuka aplikasi yang sudah berjalan memang membawa jendelanya ke depan (LaunchServices).
+pub fn tampilkan_jendela(_judul: &str) -> bool {
+    false
+}
+
 pub enum Folder {
     Dokumen,
     /// Folder Applications.

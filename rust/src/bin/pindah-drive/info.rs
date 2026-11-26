@@ -372,7 +372,7 @@ fn pembaruan(ui: &mut Ui, i: &Info) -> Option<Hasil> {
 }
 
 fn tentang(ui: &mut Ui, i: &Info) -> Option<Hasil> {
-    ui.label(RichText::new("LELEMOVE").family(tebal()).size(22.0).color(gaya::HIJAU));
+    ui.label(RichText::new("LELEMOVE").family(tebal()).size(22.0).color(gaya::KOLAM));
     ui.label(RichText::new(format!("Versi {VERSI}")).color(TINTA));
     ui.add_space(6.0);
     let h = pembaruan(ui, i);

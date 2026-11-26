@@ -363,7 +363,7 @@ fn isian(ui: &mut Ui, t: &mut String, sandi: bool, petunjuk: &str, lebar: f32) -
             .desired_width(lebar)
             .min_size(vec2(0.0, 30.0))
             .vertical_align(Align::Center)
-            .margin(egui::Margin::symmetric(8, 4)),
+            .margin(pindah_drive::gaya::JARAK_ISIAN),
     )
 }
 

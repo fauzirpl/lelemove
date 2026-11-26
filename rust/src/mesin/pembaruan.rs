@@ -82,6 +82,36 @@ pub fn cek() -> Result<Rilis, String> {
     }
 }
 
+fn folder_unduhan() -> PathBuf {
+    std::env::temp_dir().join("lelemove-pembaruan")
+}
+
+/// Berkas di folder unduhan yang tidak diperlukan lagi oleh versi `kini`: unduhan setengah jadi
+/// dan installer/.dmg untuk versi `kini` atau yang lebih lama.
+fn usang(nama: &str, kini: &str) -> bool {
+    if nama.ends_with(".unduhan") {
+        return true;
+    }
+    let versi = nama.strip_prefix("LELEMOVE-Setup-").or_else(|| nama.strip_prefix("LELEMOVE-"));
+    match versi {
+        Some(v) if v.starts_with(|c: char| c.is_ascii_digit()) && (nama.ends_with(".exe") || nama.ends_with(".dmg")) => {
+            nomor(v) <= nomor(kini)
+        }
+        _ => false,
+    }
+}
+
+/// Menghapus installer lama dari folder unduhan (tiap installer ±40 MB). Dipanggil saat LELEMOVE
+/// dibuka; berkas yang masih dipakai (installer yang baru saja berjalan) dilewati tanpa galat.
+/// Mengembalikan jumlah berkas yang dihapus.
+pub fn bersihkan_unduhan() -> usize {
+    let Ok(isi) = fs::read_dir(folder_unduhan()) else { return 0 };
+    isi.flatten()
+        .filter(|e| usang(&e.file_name().to_string_lossy(), crate::VERSI))
+        .filter(|e| fs::remove_file(e.path()).is_ok())
+        .count()
+}
+
 /// Menjalankan `f` hingga `kali` percobaan, jeda bertambah (jeda, 2×jeda, ...). DNS di sebagian
 /// jaringan sesekali menolak nama yang sah, jadi satu kegagalan belum berarti apa-apa.
 fn ulangi<T>(kali: u32, jeda: Duration, mut f: impl FnMut() -> Result<T, String>) -> Result<T, String> {
@@ -113,7 +143,7 @@ pub fn unduh(r: &Rilis, kabar: &mut dyn FnMut(u64, u64)) -> Result<PathBuf, Stri
     if harap.len() != 64 || !harap.bytes().all(|c| c.is_ascii_hexdigit()) {
         return Err("isi berkas .sha256 di rilis tidak sah".into());
     }
-    let dir = std::env::temp_dir().join("lelemove-pembaruan");
+    let dir = folder_unduhan();
     fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let tujuan = dir.join(&nama);
     let sementara = dir.join(format!("{nama}.unduhan"));
@@ -263,6 +293,15 @@ mod uji {
     fn bandingkan_versi() {
         assert!(lebih_baru("v2.4.1", "2.4.0") && lebih_baru("2.10.0", "2.9.9") && lebih_baru("3.0", "2.99.99"));
         assert!(!lebih_baru("2.4.1", "2.4.1") && !lebih_baru("v2.4.0", "2.4.1"));
+    }
+
+    #[test]
+    fn unduhan_usang() {
+        assert!(usang("LELEMOVE-Setup-2.4.1.exe", "2.4.4") && usang("LELEMOVE-Setup-2.4.4.exe", "2.4.4"));
+        assert!(usang("LELEMOVE-2.4.0-macOS.dmg", "2.4.4") && usang("LELEMOVE-Setup-2.5.0.exe.unduhan", "2.4.4"));
+        // Versi lebih baru (sedang menunggu dipasang) dan berkas lain dibiarkan.
+        assert!(!usang("LELEMOVE-Setup-2.5.0.exe", "2.4.4") && !usang("LELEMOVE-2.10.0-macOS.dmg", "2.9.9"));
+        assert!(!usang("catatan.txt", "2.4.4") && !usang("LELEMOVE-Setup-baru.exe", "2.4.4"));
     }
 
     #[test]

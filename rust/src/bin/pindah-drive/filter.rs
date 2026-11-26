@@ -2,7 +2,7 @@
 //! diubah sejak tanggal tertentu. Disimpan di pengaturan.json dan dipakai periksa/uji/salin/
 //! verifikasi/pindahkan (lihat mesin::filter).
 
-use eframe::egui::{self, vec2, Align, Layout, RichText, TextEdit, Ui};
+use eframe::egui::{vec2, Align, Layout, RichText, TextEdit, Ui};
 
 use pindah_drive::gaya::{kecil, tebal, tombol, tombol_utama, HIJAU, MERAH, REDUP, TAUTAN, TINTA};
 use pindah_drive::mesin::filter::{awal_bulan_ini, awal_tahun_ini, tanggal_tampil, Filter};
@@ -57,7 +57,7 @@ fn isian(ui: &mut Ui, teks: &mut String, contoh: &str) {
             .desired_width(f32::INFINITY)
             .min_size(vec2(0.0, 30.0))
             .vertical_align(Align::Center)
-            .margin(egui::Margin::symmetric(8, 4)),
+            .margin(pindah_drive::gaya::JARAK_ISIAN),
     );
 }
 
@@ -106,7 +106,7 @@ pub fn tampil(ui: &mut Ui, s: &mut FilterIsian) -> Option<Hasil> {
                 .desired_width(140.0)
                 .min_size(vec2(0.0, 30.0))
                 .vertical_align(Align::Center)
-                .margin(egui::Margin::symmetric(8, 4)),
+                .margin(pindah_drive::gaya::JARAK_ISIAN),
         );
         ui.add_space(6.0);
         if ui.link(kecil("Awal bulan ini", TAUTAN)).clicked() {
