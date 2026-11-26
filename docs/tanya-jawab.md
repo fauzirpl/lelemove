@@ -96,3 +96,6 @@ Klik ⋯ > Lepas akun ini untuk menghapus sambungan di komputer ini. Untuk menca
 ### Bagaimana menghapus LELEMOVE sepenuhnya?
 
 Hapus lewat Settings > Apps > LELEMOVE. Tugas Windows untuk jadwal backup ikut dihapus. Koneksi akun (%APPDATA%\rclone\rclone.conf) dan pengaturan, daftar jadwal, riwayat, serta log (%LOCALAPPDATA%\pindah-drive) sengaja tidak ikut terhapus; hapus kedua folder itu sendiri bila tidak diperlukan lagi.
+### Bagaimana memperbarui LELEMOVE, dan apakah installernya aman?
+
+Buka Bantuan & info > Tentang > Periksa pembaruan, lalu Unduh & pasang. Installer diunduh dari halaman Releases LELEMOVE di GitHub dan dicocokkan dengan berkas SHA-256 di rilis yang sama, jadi unduhan yang rusak tidak akan dijalankan. Installer belum ditandatangani secara digital; itu sebabnya Windows SmartScreen dan macOS memperingatkan saat pertama dibuka. Pencocokan SHA-256 memastikan berkasnya utuh, tetapi tidak membuktikan siapa pembuatnya, jadi unduhlah hanya dari halaman Releases resmi.

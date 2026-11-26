@@ -1,6 +1,6 @@
 # LELEMOVE
 
-*Soesah membatja edjaan lama? [Baca dalam ejaan sekarang](README-ejaan-sekarang.md).*
+*Soesah membatja edjaan lama? [Baca dalam ejaan sekarang](README-ejaan-sekarang.md). English: [README.en.md](README.en.md).*
 
 > **MAKLOEMAT**
 >
@@ -71,7 +71,7 @@ dan pengatoeran lama langsoeng terbatja.
   [Client ID Google](#penjalinan-matjet-pakai-client-id-google-sendiri) ·
   [Verifikasi](#verifikasi-seberapa-teliti) · [Batasan](#batasan) · [Privasi](#privasi)
 - [Baris perintah](#baris-perintah) · [Oentoek pengembang](#oentoek-pengembang) · [Doekoeng](#doekoeng) ·
-  [Riwajat versi](#riwajat-versi)
+  [Lisensi](#lisensi) · [Riwajat versi](#riwajat-versi)
 
 ## Pasang
 
@@ -658,6 +658,8 @@ object storage `<akun>:<bucket>/<folder>`, oentoek SMB `<akun>:<share>/<folder>`
 ```
 rust/                          kode sumber versi 2 (satu crate Rust)
   src/mesin/                   mesin: akun, rute, job & log rclone, semua perintah
+  src/mesin/perintah/          satu berkas per kelompok perintah (akun, hubungkan, salin, verifikasi, email, ...)
+  src/mesin/pembaruan.rs       pembaruan dari GitHub Releases: cek versi, unduh, cocokkan SHA-256
   src/win.rs                   lapisan sistem Windows (Win32: proses, mutex, folder dikenal, layar tetap menyala)
   src/mac.rs                   padanan macOS dengan nama fungsi yang sama (libc, NSFileManager, osascript)
   src/notifikasi_mac.rs        notifikasi macOS (osascript); notifikasi.rs = toast Windows
@@ -678,6 +680,7 @@ rust/                          kode sumber versi 2 (satu crate Rust)
   src/mesin/oauth.rs           login OAuth Google/Microsoft untuk IMAP (PKCE, pengalihan ke localhost)
   src/mesin/kode.rs            base64, SHA-256, percent-encoding (tanpa crate tambahan)
   src/bin/pindah-drive/        LELEMOVE.exe: jendela aplikasi (egui) + dialog
+  src/bin/pindah-drive/app_*.rs bagian jendela utama (kabar utas latar, panel, lokasi, salin, tampilan, ...)
   src/bin/pindah-drive/info.rs dialog Bantuan & info (tanya jawab, ketentuan, privasi, atribusi, tentang)
   src/bin/pindah-drive/jadwal.rs dialog Jadwal backup (daftar + isian)
   src/bin/pindah-drive/filter.rs dialog Filter file
@@ -766,19 +769,24 @@ Kedoeanja menoelis ke nama berkas jang sama di `dist\`, djadi pindahkan doeloe i
 masih dipakai.
 
 ```powershell
-# 1. Naikkan "version" di rust\Cargo.toml (dan .claude-plugin\plugin.json), commit, lalu push.
-# 2. Bangun installer publik dan checksum-nya.
-.\buat-installer.ps1 -TanpaClient
-$exe = ".\dist\LELEMOVE-Setup-<versi>.exe"
-"$((Get-FileHash $exe -Algorithm SHA256).Hash.ToLower())  $(Split-Path $exe -Leaf)" | Set-Content -Encoding ascii "$exe.sha256"
-# 3. Terbitkan (tag dibuat di commit terakhir main).
-gh release create v<versi> $exe "$exe.sha256" --target main --title "LELEMOVE <versi>" --notes-file catatan-rilis.md
+# 1. Naikkan "version" di rust\Cargo.toml (dan .claude-plugin\plugin.json), tulis catatan rilis di
+#    catatan-rilis\<versi>.md (baris @@CHECKSUM@@ diisi otomatis), perbarui README, commit, lalu push.
+# 2. Beri tag. Workflow "Rilis" membangun installer Windows dan .dmg macOS, lalu membuat draf rilis.
+git tag v<versi>
+git push origin v<versi>
+# 3. Periksa drafnya (catatan dan empat berkas), lalu terbitkan.
+gh release edit v<versi> --draft=false --latest
 ```
 
-Berkas macOS tidak dibangoen di Windows. Workflow macOS memboeatnja pada setiap push ke main:
-oendoeh artefak **LELEMOVE-macOS** dari run commit jang sama
-(`gh run download <run-id> -n LELEMOVE-macOS`), laloe sertakan `LELEMOVE-<versi>-macOS.dmg` beserta
-berkas `.sha256`-nja dalam perintah `gh release create` di atas.
+Workflow *Rilis* memakai installer dari workflow Windows (dibangoen dengan `-TanpaClient`, diperiksa
+`alat/periksa_installer.py`, dan dioedji aloer pembaroeannja) serta berkas .dmg dari workflow macOS.
+Draf rilis beloem terlihat oleh oemoem dan beloem ditawarkan tombol *Periksa pembaruan* sampai
+diterbitkan.
+
+Bila perloe membangoen sendiri di kompoeter: djalankan `.\buat-installer.ps1 -TanpaClient`, laloe
+`python alat\periksa_installer.py <installer>`. Djangan mengoenggah installer jang beloem lolos
+pemeriksaan itoe. Alat oentoek menjoenting README dan mengoedji pembaroean didjelaskan di
+[alat/README.md](alat/README.md).
 
 Memakai sebagai plugin Claude Code:
 
@@ -797,6 +805,13 @@ Tautan jang sama ada di aplikasi (*Bantuan & info > Tentang*) dan di tombol *Spo
 Sokongan bersifat soekarela: semoea fitoer tetap terboeka oentoek semoea orang.
 
 Sekali pertjoema, tetap pertjoema!
+
+## Lisensi
+
+LELEMOVE dirilis dengan [lisensi MIT](LICENSE): bebas dipakai, dioebah, dan dibagikan, termasoek
+oentoek kantor dan oesaha, selama pemberitahoean hak tjipta dan lisensinja tetap disertakan. Tidak
+ada djaminan apa poen. rclone dan poestaka lain jang ikoet dibawa memakai lisensinja masing-masing
+(lihat *Bantuan & info > Atribusi*).
 
 <a name="riwayat-versi"></a>
 ## Riwajat versi

@@ -108,7 +108,7 @@ foreach ($exe in 'LELEMOVE.exe', 'pindah.exe', 'uninstall.exe') {
     if ($LASTEXITCODE -ne 0) { throw "tanam-ikon gagal untuk $exe" }
 }
 Copy-Item -LiteralPath $ikon -Destination (Join-Path $isi 'aset')
-foreach ($f in 'Pindah.cmd', 'README.md') {
+foreach ($f in 'Pindah.cmd', 'README.md', 'LICENSE') {
     $p = Join-Path $akar $f
     if (Test-Path -LiteralPath $p) { Copy-Item -LiteralPath $p -Destination $isi }
 }
