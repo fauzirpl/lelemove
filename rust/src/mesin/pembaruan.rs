@@ -82,6 +82,19 @@ pub fn cek() -> Result<Rilis, String> {
     }
 }
 
+/// Menjalankan `f` hingga `kali` percobaan, jeda bertambah (jeda, 2×jeda, ...). DNS di sebagian
+/// jaringan sesekali menolak nama yang sah, jadi satu kegagalan belum berarti apa-apa.
+fn ulangi<T>(kali: u32, jeda: Duration, mut f: impl FnMut() -> Result<T, String>) -> Result<T, String> {
+    let mut ke = 1;
+    loop {
+        match f() {
+            Err(_) if ke < kali => std::thread::sleep(jeda * ke),
+            hasil => return hasil,
+        }
+        ke += 1;
+    }
+}
+
 fn heks(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
@@ -104,10 +117,11 @@ pub fn unduh(r: &Rilis, kabar: &mut dyn FnMut(u64, u64)) -> Result<PathBuf, Stri
     fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let tujuan = dir.join(&nama);
     let sementara = dir.join(format!("{nama}.unduhan"));
-    {
+    // Unduhan yang terputus di tengah diulang dari awal.
+    ulangi(3, Duration::from_secs(2), || {
         let mut f = File::create(&sementara).map_err(|e| format!("{}: {e}", sementara.display()))?;
-        minta(&r.berkas, &mut |b| f.write_all(b), kabar).map_err(|e| format!("{nama}: {e}"))?;
-    }
+        minta(&r.berkas, &mut |b| f.write_all(b), kabar).map_err(|e| format!("{nama}: {e}"))
+    })?;
     let data = fs::read(&sementara).map_err(|e| e.to_string())?;
     let nyata = heks(&sha256(&data));
     if nyata != harap {
@@ -128,15 +142,20 @@ struct Jawaban {
     r: BufReader<TlsStream<TcpStream>>,
 }
 
-/// GET https satu kali (tanpa mengikuti pengalihan): status dan header.
-fn buka(url: &str, terima: &str) -> Result<Jawaban, String> {
-    let sisa = url.strip_prefix("https://").ok_or_else(|| format!("bukan alamat https: {url}"))?;
-    let (host, jalur) = sisa.split_once('/').map(|(h, j)| (h, format!("/{j}"))).unwrap_or((sisa, "/".into()));
+/// Sambungan TLS ke `host`:443.
+fn sambung(host: &str) -> Result<TlsStream<TcpStream>, String> {
     let a = (host, 443).to_socket_addrs().map_err(|e| format!("{host} tidak ditemukan ({e})"))?.next().ok_or("alamat kosong")?;
     let tcp = TcpStream::connect_timeout(&a, Duration::from_secs(20)).map_err(|e| format!("{host}: {e}"))?;
     let _ = tcp.set_read_timeout(Some(Duration::from_secs(60)));
     let tls = native_tls::TlsConnector::new().map_err(|e| e.to_string())?;
-    let mut s = tls.connect(host, tcp).map_err(|e| format!("sambungan aman ke {host} gagal: {e}"))?;
+    tls.connect(host, tcp).map_err(|e| format!("sambungan aman ke {host} gagal: {e}"))
+}
+
+/// GET https satu kali (tanpa mengikuti pengalihan): status dan header.
+fn buka(url: &str, terima: &str) -> Result<Jawaban, String> {
+    let sisa = url.strip_prefix("https://").ok_or_else(|| format!("bukan alamat https: {url}"))?;
+    let (host, jalur) = sisa.split_once('/').map(|(h, j)| (h, format!("/{j}"))).unwrap_or((sisa, "/".into()));
+    let mut s = ulangi(5, Duration::from_secs(1), || sambung(host))?;
     let req = format!("GET {jalur} HTTP/1.1\r\nHost: {host}\r\nUser-Agent: LELEMOVE/{}\r\nAccept: {terima}\r\nConnection: close\r\n\r\n", crate::VERSI);
     s.write_all(req.as_bytes()).map_err(|e| e.to_string())?;
     let mut r = BufReader::with_capacity(1 << 16, s);
@@ -244,6 +263,22 @@ mod uji {
     fn bandingkan_versi() {
         assert!(lebih_baru("v2.4.1", "2.4.0") && lebih_baru("2.10.0", "2.9.9") && lebih_baru("3.0", "2.99.99"));
         assert!(!lebih_baru("2.4.1", "2.4.1") && !lebih_baru("v2.4.0", "2.4.1"));
+    }
+
+    #[test]
+    fn coba_ulang() {
+        let mut n = 0;
+        let lalu_berhasil = ulangi(5, Duration::ZERO, || {
+            n += 1;
+            if n < 3 { Err("putus".to_string()) } else { Ok(n) }
+        });
+        assert_eq!(lalu_berhasil, Ok(3));
+        let mut n = 0;
+        let selalu_gagal = ulangi(3, Duration::ZERO, || -> Result<(), String> {
+            n += 1;
+            Err(format!("putus {n}"))
+        });
+        assert_eq!(selalu_gagal, Err("putus 3".to_string()));
     }
 
     #[test]
