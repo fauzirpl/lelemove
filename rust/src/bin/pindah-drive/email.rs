@@ -694,7 +694,7 @@ pub fn tampil(ui: &mut Ui, s: &mut Email) -> Option<Hasil> {
                 ui.label(RichText::new(t).color(*w));
             }
             ui.add_space(14.0);
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            pindah_drive::gaya::baris_tombol(ui, |ui| {
                 let mut mulai = None;
                 if ui.add_enabled(!sibuk, tombol_utama(s.label_mulai())).clicked() {
                     mulai = Some(false);
@@ -719,7 +719,7 @@ pub fn tampil(ui: &mut Ui, s: &mut Email) -> Option<Hasil> {
         Tahap::Jalan { periksa } => {
             progres(ui, s, periksa);
             ui.add_space(14.0);
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            pindah_drive::gaya::baris_tombol(ui, |ui| {
                 if ui.add(tombol("Hentikan")).clicked() {
                     h = Some(Hasil::EmailHenti);
                 }
@@ -734,7 +734,7 @@ pub fn tampil(ui: &mut Ui, s: &mut Email) -> Option<Hasil> {
             ui.add_space(8.0);
             tabel_hasil(ui, s, periksa);
             ui.add_space(14.0);
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            pindah_drive::gaya::baris_tombol(ui, |ui| {
                 let label = if periksa { s.label_mulai() } else { "Jalankan lagi" };
                 if ui.add_enabled(!sibuk, tombol_utama(label)).clicked() {
                     match s.perintah(false) {

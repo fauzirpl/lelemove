@@ -3,7 +3,7 @@
 //! Daftar layanannya ada di mesin::penyedia; dialog di sini hanya mengumpulkan isian. Login
 //! dijalankan pindah.exe (`hubungkan`), dengan isian rahasia dikirim lewat stdin.
 
-use eframe::egui::{self, vec2, Align, ComboBox, Key, Layout, RichText, ScrollArea, TextEdit, Ui};
+use eframe::egui::{self, vec2, Align, ComboBox, Key, RichText, ScrollArea, TextEdit, Ui};
 
 use pindah_drive::gaya::{self, kecil, tebal, tombol, tombol_utama, KUNING, MERAH, REDUP, TAUTAN, TINTA};
 use pindah_drive::mesin::penyedia::{self, JenisKolom, Kelompok, Penyedia};
@@ -127,7 +127,7 @@ pub fn pemilih(ui: &mut Ui, s: &mut Pemilih) -> Option<Hasil> {
         });
     });
     ui.add_space(12.0);
-    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+    pindah_drive::gaya::baris_tombol(ui, |ui| {
         if ui.add(tombol("Batal").min_size(vec2(0.0, 38.0))).clicked() {
             h = Some(Hasil::Batal);
         }
@@ -238,7 +238,7 @@ pub fn kredensial(ui: &mut Ui, s: &mut Kredensial) -> Option<Hasil> {
         ui.add(egui::Label::new(RichText::new(g).color(MERAH)).wrap());
     }
     ui.add_space(14.0);
-    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+    pindah_drive::gaya::baris_tombol(ui, |ui| {
         let lanjut = if p.oauth { "Lanjut ke login" } else { "Hubungkan" };
         if ui.add(tombol_utama(lanjut)).clicked() || enter {
             let kosong = p.kolom.iter().zip(&s.nilai).find(|(k, v)| k.wajib && v.trim().is_empty());
@@ -317,7 +317,7 @@ pub fn tanya_konfig(ui: &mut Ui, s: &mut TanyaKonfig) -> Option<Hasil> {
         });
     }
     ui.add_space(14.0);
-    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+    pindah_drive::gaya::baris_tombol(ui, |ui| {
         if ui.add(tombol_utama("Lanjut")).clicked() || enter {
             h = Some(Hasil::JawabKonfig {
                 akun: s.akun.clone(),
@@ -392,7 +392,7 @@ pub fn impor(ui: &mut Ui, s: &mut Impor) -> Option<Hasil> {
         }
     }
     ui.add_space(14.0);
-    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+    pindah_drive::gaya::baris_tombol(ui, |ui| {
         let terpilih = s.pilih.and_then(|i| s.calon.as_ref().and_then(|c| c.get(i)));
         if ui.add_enabled(terpilih.is_some(), tombol_utama("Pakai")).clicked() {
             if let Some((n, _)) = terpilih {

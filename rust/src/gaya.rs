@@ -440,6 +440,15 @@ pub fn pasang(ctx: &egui::Context) {
 /// Jarak teks dari tepi kotak isian (kiri-kanan, atas-bawah).
 pub const JARAK_ISIAN: egui::Margin = egui::Margin { left: 12, right: 12, top: 6, bottom: 6 };
 
+/// Baris tombol rata kanan di dasar dialog, setinggi tombol. Jangan memakai
+/// `ui.with_layout(right_to_left(Align::Center))` langsung di badan dialog: tata letak itu
+/// menengahkan tombol di SELURUH sisa tinggi, sehingga dialog melar setinggi jendela dan tombolnya
+/// mengambang jauh dari isi.
+pub fn baris_tombol<R>(ui: &mut Ui, isi: impl FnOnce(&mut Ui) -> R) -> egui::InnerResponse<R> {
+    let ukuran = vec2(ui.available_width(), 38.0);
+    ui.allocate_ui_with_layout(ukuran, egui::Layout::right_to_left(egui::Align::Center), isi)
+}
+
 /// Tombol biasa: putih bergaris tepi.
 pub fn tombol(teks: &str) -> Button<'static> {
     Button::new(RichText::new(teks).family(tebal()).size(13.5).color(TINTA)).min_size(vec2(0.0, 34.0))

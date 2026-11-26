@@ -435,7 +435,7 @@ fn judul(ui: &mut Ui, t: &str) {
 
 fn baris_tombol(ui: &mut Ui, isi: impl FnOnce(&mut Ui)) {
     ui.add_space(18.0);
-    ui.with_layout(Layout::right_to_left(Align::Center), isi);
+    pindah_drive::gaya::baris_tombol(ui, isi);
 }
 
 fn isian(ui: &mut Ui, teks: &mut String, sandi: bool) -> egui::Response {

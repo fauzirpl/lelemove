@@ -145,7 +145,7 @@ pub fn tampil(ui: &mut Ui, r: &mut Riwayat) -> Option<Hasil> {
         ui.add(egui::Label::new(RichText::new(p).color(*w)).wrap());
     }
     ui.add_space(14.0);
-    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+    pindah_drive::gaya::baris_tombol(ui, |ui| {
         if ui.add(tombol_utama("Tutup")).clicked() {
             h = Some(Hasil::Batal);
         }

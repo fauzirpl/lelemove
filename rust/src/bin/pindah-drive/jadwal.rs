@@ -298,7 +298,7 @@ pub fn daftar(ui: &mut Ui, d: &mut Daftar) -> Option<Hasil> {
         ui.label(RichText::new(p).color(*w));
     }
     ui.add_space(14.0);
-    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+    pindah_drive::gaya::baris_tombol(ui, |ui| {
         if ui.add(tombol_utama("Tutup")).clicked() {
             h = Some(Hasil::Batal);
         }
@@ -434,7 +434,7 @@ pub fn isian(ui: &mut Ui, s: &mut Isian) -> Option<Hasil> {
 
     let mut h = None;
     ui.add_space(18.0);
-    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+    pindah_drive::gaya::baris_tombol(ui, |ui| {
         if ui.add_enabled(s.rute.is_some(), tombol_utama("Simpan jadwal")).clicked() {
             let nama = s.nama.trim().to_string();
             if nama.is_empty() {

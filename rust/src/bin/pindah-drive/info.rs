@@ -434,7 +434,7 @@ pub fn tampil(ui: &mut Ui, i: &mut Info) -> Option<Hasil> {
             }
         });
     ui.add_space(12.0);
-    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+    pindah_drive::gaya::baris_tombol(ui, |ui| {
         if ui.add(tombol_utama("Tutup")).clicked() {
             h = Some(Hasil::Batal);
         }

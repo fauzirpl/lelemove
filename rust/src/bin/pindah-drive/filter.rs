@@ -141,7 +141,7 @@ pub fn tampil(ui: &mut Ui, s: &mut FilterIsian) -> Option<Hasil> {
 
     let mut h = None;
     ui.add_space(16.0);
-    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+    pindah_drive::gaya::baris_tombol(ui, |ui| {
         if ui.add_enabled(hasil.is_ok(), tombol_utama("Simpan filter")).clicked() {
             match &hasil {
                 Ok(f) => h = Some(Hasil::FilterSimpan(f.clone())),
