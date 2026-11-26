@@ -2889,12 +2889,16 @@ impl Mesin {
         }
         info(&format!("Mengunduh {}.", pb::nama_berkas(&r.versi)));
         let mut lapor = 0u64;
-        let hasil = pb::unduh(&r, &mut |n, total| {
-            if total > 0 && n * 10 / total > lapor {
-                lapor = n * 10 / total;
-                info(&format!("Mengunduh {} dari {} ({}%)", format_ukuran(n as f64), format_ukuran(total as f64), n * 100 / total));
-            }
-        });
+        // Untuk menguji installer yang belum dirilis lewat alur tombol: PINDAH_DRIVE_INSTALLER_UJI=<berkas>
+        let hasil = match std::env::var_os("PINDAH_DRIVE_INSTALLER_UJI") {
+            Some(p) => Ok(std::path::PathBuf::from(p)),
+            None => pb::unduh(&r, &mut |n, total| {
+                if total > 0 && n * 10 / total > lapor {
+                    lapor = n * 10 / total;
+                    info(&format!("Mengunduh {} dari {} ({}%)", format_ukuran(n as f64), format_ukuran(total as f64), n * 100 / total));
+                }
+            }),
+        };
         let berkas = match hasil {
             Ok(p) => p,
             Err(e) => {

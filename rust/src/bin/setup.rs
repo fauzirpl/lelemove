@@ -515,21 +515,40 @@ impl eframe::App for Jendela {
     }
 }
 
+/// Galat pemasangan karena berkas sedang dipakai proses lain (sharing violation / akses ditolak).
+fn berkas_terkunci(e: &str) -> bool {
+    e.contains("os error 32") || e.contains("os error 5)") || e.contains("os error 33")
+}
+
 /// Pembaruan yang dimulai dari dalam LELEMOVE (`pindah pembaruan -Jalankan`): tunggu jendela
 /// LELEMOVE dan pindah.exe pengunduhnya selesai (paling lama 2 menit), pasang dengan pintasan
 /// Desktop seperti sebelumnya, lalu buka LELEMOVE lagi. Pengguna tidak sedang melihat apa-apa, jadi
 /// kegagalan ditampilkan sebagai kotak pesan.
 fn perbarui_dari_aplikasi(dir: PathBuf) -> i32 {
     use std::time::{Duration, Instant};
+    let dir = mutlak(&dir);
+    // Mutex jendela dilepas sebelum proses LELEMOVE benar-benar berakhir (eframe masih membereskan
+    // jendela/OpenGL), dan selama itu LELEMOVE.exe masih terkunci. Jadi tunggu prosesnya juga.
     let batas = Instant::now() + Duration::from_secs(120);
-    while (aplikasi_terbuka() || salin_berjalan(&dir)) && Instant::now() < batas {
+    while (aplikasi_terbuka() || salin_berjalan(&dir) || win::proses_di_folder(&dir, &[EXE_APP]))
+        && Instant::now() < batas
+    {
         std::thread::sleep(Duration::from_millis(500));
     }
     let desktop = pintasan().iter().any(|(di_desktop, p)| *di_desktop && p.exists());
-    match pasang(&dir, desktop, &mut |_, _| {}) {
+    // Pengaman bila berkas masih dikunci sebentar (antivirus, Explorer): ulangi hingga 30 detik.
+    let batas = Instant::now() + Duration::from_secs(30);
+    let hasil = loop {
+        let h = pasang(&dir, desktop, &mut |_, _| {});
+        match &h {
+            Err(e) if berkas_terkunci(e) && Instant::now() < batas => std::thread::sleep(Duration::from_secs(1)),
+            _ => break h,
+        }
+    };
+    match hasil {
         Ok(()) => {
-            let dir = mutlak(&dir);
-            let _ = Command::new(dir.join(EXE_APP)).current_dir(&dir).spawn();
+            // Variabel uji jangan terbawa ke LELEMOVE baru (ia akan mengira dirinya masih versi lama).
+            let _ = Command::new(dir.join(EXE_APP)).current_dir(&dir).env_remove("PINDAH_DRIVE_VERSI_UJI").env_remove("PINDAH_DRIVE_INSTALLER_UJI").spawn();
             0
         }
         Err(e) => {
