@@ -39,6 +39,10 @@ jobs:
     env:
       CARGO_TERM_COLOR: always
       CARGO_NET_RETRY: '10'
+      # Runner punya MinGW sistem di PATH. Tanpa ini rustc mengira harus memakai pustaka sistem,
+      # padahal linker yang terpanggil adalah bawaan rustup (folder self-contained) dan gagal
+      # mencari crt2.o. Di komputer pengembang tidak ada MinGW sistem, jadi mode ini sudah otomatis.
+      RUSTFLAGS: -C link-self-contained=yes
     steps:
       - uses: actions/checkout@v4
 
