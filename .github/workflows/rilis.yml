@@ -1,0 +1,74 @@
+# Rilis: saat tag v<versi> di-push, bangun installer Windows dan .dmg macOS, lalu buat DRAF rilis
+# berisi keduanya beserta berkas .sha256. Draf diperiksa manusia dulu, baru diterbitkan:
+#   gh release edit v<versi> --draft=false --latest
+name: Rilis
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    uses: ./.github/workflows/windows.yml
+  macos:
+    uses: ./.github/workflows/macos.yml
+
+  draf:
+    name: Draf rilis
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: LELEMOVE-Windows
+          path: rilis
+      - uses: actions/download-artifact@v4
+        with:
+          name: LELEMOVE-macOS
+          path: rilis
+
+      - name: Susun catatan dan buat draf
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          VERSI="${TAG#v}"
+          DI_CARGO=$(sed -n 's/^version *= *"\(.*\)"\r\{0,1\}$/\1/p' rust/Cargo.toml | head -n 1)
+          if [ "$VERSI" != "$DI_CARGO" ]; then
+            echo "Tag $TAG tidak sama dengan versi di rust/Cargo.toml ($DI_CARGO)." >&2
+            exit 1
+          fi
+          EXE="rilis/LELEMOVE-Setup-$VERSI.exe"
+          DMG="rilis/LELEMOVE-$VERSI-macOS.dmg"
+          for f in "$EXE" "$EXE.sha256" "$DMG" "$DMG.sha256"; do
+            [ -s "$f" ] || { echo "Berkas rilis tidak ada: $f" >&2; exit 1; }
+          done
+          # Berkas .sha256 harus cocok dengan berkas yang akan diunggah.
+          ( cd rilis && sha256sum -c "LELEMOVE-Setup-$VERSI.exe.sha256" && sha256sum -c "LELEMOVE-$VERSI-macOS.dmg.sha256" )
+          {
+            printf '%s  %s\n' "$(cut -d' ' -f1 "$EXE.sha256")" "LELEMOVE-Setup-$VERSI.exe"
+            printf '%s  %s\n' "$(cut -d' ' -f1 "$DMG.sha256")" "LELEMOVE-$VERSI-macOS.dmg"
+          } > sidik.txt
+          CATATAN="catatan-rilis/$VERSI.md"
+          if [ -f "$CATATAN" ]; then
+            # Baris @@CHECKSUM@@ diganti isi sidik.txt.
+            sed -e '/^@@CHECKSUM@@\r\{0,1\}$/{r sidik.txt' -e 'd}' "$CATATAN" > catatan.md
+          else
+            {
+              printf 'Catatan rilis belum ditulis (catatan-rilis/%s.md tidak ada).\n\n## Checksum\n\n```\n' "$VERSI"
+              cat sidik.txt
+              printf '```\n'
+            } > catatan.md
+          fi
+          gh release create "$TAG" --draft --verify-tag --title "LELEMOVE $VERSI" --notes-file catatan.md \
+            "$EXE" "$EXE.sha256" "$DMG" "$DMG.sha256"
+          echo "Draf dibuat. Terbitkan dengan: gh release edit $TAG --draft=false --latest"

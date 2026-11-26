@@ -1,0 +1,112 @@
+# Versi Windows: uji unit, lint, installer publik (tanpa client ID), pemeriksaan rahasia, dan uji
+# alur pembaruan. Hasilnya artefak unduhan di halaman run ini; workflow Rilis memakainya.
+name: Windows
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'rust/**'
+      - 'aset/**'
+      - 'alat/**'
+      - 'buat-installer.ps1'
+      - '.github/workflows/windows.yml'
+  pull_request:
+    paths:
+      - 'rust/**'
+      - 'aset/**'
+      - 'alat/**'
+      - 'buat-installer.ps1'
+      - '.github/workflows/windows.yml'
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installer:
+    name: Uji dan kemas installer
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_NET_RETRY: '10'
+    steps:
+      - uses: actions/checkout@v4
+
+      # Toolchain GNU, sama dengan yang dipakai buat-installer.ps1 di komputer pengembang.
+      - name: Rust (GNU)
+        run: |
+          rustup toolchain install stable-x86_64-pc-windows-gnu --profile minimal --component clippy --no-self-update
+          rustup default stable-x86_64-pc-windows-gnu
+          $tc = Split-Path (Split-Path (rustup which rustc))
+          "$tc\lib\rustlib\x86_64-pc-windows-gnu\bin\self-contained" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          rustc --version
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: cargo-windows-gnu-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: cargo-windows-gnu-
+
+      - name: Uji unit (Windows)
+        working-directory: rust
+        run: cargo test --locked --release --lib --bin pindah-drive
+
+      # Belum menggagalkan build: daftar peringatannya dibereskan bertahap.
+      - name: Clippy
+        working-directory: rust
+        continue-on-error: true
+        run: cargo clippy --locked --release --all-targets
+
+      - name: rclone resmi (SHA-256 dicek)
+        run: |
+          $rv = $env:RCLONE_VERSI
+          if (-not $rv) { $rv = ((Invoke-WebRequest https://downloads.rclone.org/version.txt -MaximumRetryCount 5).Content -split '\s+')[1] }
+          if ($rv -notmatch '^v\d') { throw "Versi rclone tidak dikenali: '$rv'" }
+          $zip = "rclone-$rv-windows-amd64.zip"
+          Set-Location $env:RUNNER_TEMP
+          Invoke-WebRequest "https://downloads.rclone.org/$rv/$zip" -OutFile $zip -MaximumRetryCount 5
+          Invoke-WebRequest "https://downloads.rclone.org/$rv/SHA256SUMS" -OutFile SHA256SUMS -MaximumRetryCount 5
+          $harap = (Get-Content SHA256SUMS | Where-Object { $_ -match "\s$([regex]::Escape($zip))\s*$" } | Select-Object -First 1) -split '\s+' | Select-Object -First 1
+          $nyata = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          if (-not $harap -or $harap -ne $nyata) { throw "SHA-256 $zip tidak cocok ($nyata, seharusnya $harap)" }
+          Expand-Archive $zip -DestinationPath .
+          "RCLONE_EXE=$env:RUNNER_TEMP\rclone-$rv-windows-amd64\rclone.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Installer publik (tanpa client ID)
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\buat-installer.ps1 -TanpaClient -Rclone $env:RCLONE_EXE
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $exe = (Get-ChildItem dist\LELEMOVE-Setup-*.exe | Select-Object -First 1).FullName
+          "$((Get-FileHash $exe -Algorithm SHA256).Hash.ToLower())  $(Split-Path $exe -Leaf)" | Set-Content -NoNewline -Encoding ascii "$exe.sha256"
+          Get-Content "$exe.sha256"
+          "INSTALLER=$exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Installer bersih dari client ID/secret
+        run: python alat\periksa_installer.py $env:INSTALLER
+
+      - name: Uji alur pembaruan
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\alat\uji-pembaruan.ps1 -Installer $env:INSTALLER -TanpaJendela
+          exit $LASTEXITCODE
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LELEMOVE-Windows
+          path: |
+            dist/LELEMOVE-Setup-*.exe
+            dist/LELEMOVE-Setup-*.exe.sha256
+          if-no-files-found: error
+          retention-days: 14
