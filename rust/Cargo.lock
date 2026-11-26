@@ -2475,7 +2475,7 @@ checksum = "c938015719552d665fd0553b90d96cd7ff58e83e4c061ca99e6bb78865a72752"
 
 [[package]]
 name = "pindah-drive"
-version = "2.4.2"
+version = "2.4.3"
 dependencies = [
  "eframe",
  "image",
