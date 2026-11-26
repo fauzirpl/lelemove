@@ -803,6 +803,7 @@ Sekali pertjoema, tetap pertjoema!
 
 | Versi | Isi oetama |
 |---|---|
+| [2.4.4](https://github.com/fauzirpl/lelemove/releases/tag/v2.4.4) | Pembaroean mentjoba oelang sendiri ketika sambungan ke GitHub gagal (misalnja DNS poetoes sesaat), sampai lima kali; oendoehan jang terpoetoes dioelang |
 | [2.4.3](https://github.com/fauzirpl/lelemove/releases/tag/v2.4.3) | Perbaikan *Unduh & pasang*: installer menoenggoe LELEMOVE benar-benar tertoetoep sebeloem mengganti berkas (sebeloemnja kadang gagal dengan pesan berkas sedang dipakai) |
 | [2.4.2](https://github.com/fauzirpl/lelemove/releases/tag/v2.4.2) | Tombol *Periksa pembaruan* / *Unduh & pasang* di *Bantuan & info > Tentang* (installer ditjek SHA-256-nja, LELEMOVE diboeka lagi sendiri); tjatatan izin admin oentoek akoen Outlook kantor |
 | [2.4.1](https://github.com/fauzirpl/lelemove/releases/tag/v2.4.1) | Menoe *Cadangan email* sendiri di daftar kiri (tab *Cadangkan ke komputer* dan *Pulihkan ke server*); *Migrasi email* kembali choesoes server ke server |
