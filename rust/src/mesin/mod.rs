@@ -21,6 +21,7 @@ pub mod job;
 pub mod kode;
 pub mod lanjut;
 pub mod mbox;
+pub mod pembaruan;
 pub mod oauth;
 pub mod penyedia;
 pub mod perintah;

@@ -207,6 +207,9 @@ pub enum Hasil {
     /// Migrasi email: jalankan `pindah email` (kata sandi lewat stdin); dialog tetap terbuka.
     EmailMulai { periksa: bool, args: Vec<String>, rahasia: String },
     EmailHenti,
+    /// Bantuan & info > Tentang: periksa rilis terbaru / unduh & pasang.
+    PembaruanCek,
+    PembaruanPasang,
 }
 
 /// Akses untuk memulai pemuatan latar dari dalam dialog.

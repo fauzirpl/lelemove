@@ -3,6 +3,8 @@
 //!   LELEMOVE-Setup.exe                    jendela pemasangan
 //!   LELEMOVE-Setup.exe /silent            pasang tanpa pertanyaan (pintasan Desktop dibuat)
 //!   ... /silent /nodesktop                tanpa pintasan Desktop
+//!   ... /silent /perbarui                 pembaruan dari dalam LELEMOVE: tunggu LELEMOVE tertutup,
+//!                                         pertahankan pintasan Desktop apa adanya, lalu buka lagi
 //!   uninstall.exe /uninstall [/silent]    hapus (dipanggil dari Settings > Apps)
 //!
 //! Isi aplikasi (termasuk rclone.exe) tertanam sebagai payload.zip (include_bytes!). Program yang
@@ -513,10 +515,35 @@ impl eframe::App for Jendela {
     }
 }
 
+/// Pembaruan yang dimulai dari dalam LELEMOVE (`pindah pembaruan -Jalankan`): tunggu jendela
+/// LELEMOVE dan pindah.exe pengunduhnya selesai (paling lama 2 menit), pasang dengan pintasan
+/// Desktop seperti sebelumnya, lalu buka LELEMOVE lagi. Pengguna tidak sedang melihat apa-apa, jadi
+/// kegagalan ditampilkan sebagai kotak pesan.
+fn perbarui_dari_aplikasi(dir: PathBuf) -> i32 {
+    use std::time::{Duration, Instant};
+    let batas = Instant::now() + Duration::from_secs(120);
+    while (aplikasi_terbuka() || salin_berjalan(&dir)) && Instant::now() < batas {
+        std::thread::sleep(Duration::from_millis(500));
+    }
+    let desktop = pintasan().iter().any(|(di_desktop, p)| *di_desktop && p.exists());
+    match pasang(&dir, desktop, &mut |_, _| {}) {
+        Ok(()) => {
+            let dir = mutlak(&dir);
+            let _ = Command::new(dir.join(EXE_APP)).current_dir(&dir).spawn();
+            0
+        }
+        Err(e) => {
+            win::kotak_pesan(NAMA, &format!("Pembaruan {NAMA} ke versi {VERSI} gagal:\n\n{e}"), win::MB_OK | win::MB_ICONWARNING);
+            1
+        }
+    }
+}
+
 pub fn main() {
     let mut copot_diminta = false;
     let mut diam = false;
     let mut tanpa_desktop = false;
+    let mut perbarui = false;
     let mut dir: Option<PathBuf> = None;
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut i = 0;
@@ -525,6 +552,10 @@ pub fn main() {
             "/uninstall" => copot_diminta = true,
             "/silent" | "/s" => diam = true,
             "/nodesktop" => tanpa_desktop = true,
+            "/perbarui" => {
+                perbarui = true;
+                diam = true;
+            }
             "/dir" if i + 1 < args.len() => {
                 i += 1;
                 dir = Some(PathBuf::from(&args[i]));
@@ -536,6 +567,9 @@ pub fn main() {
     // uninstall.exe adalah build yang sama tanpa muatan: dibuka langsung pun berarti "hapus".
     if copot_diminta || MUATAN.is_empty() {
         std::process::exit(copot(dir, diam));
+    }
+    if perbarui {
+        std::process::exit(perbarui_dari_aplikasi(dir.unwrap_or_else(folder_usulan)));
     }
     if diam {
         let h = pasang(&dir.unwrap_or_else(folder_usulan), !tanpa_desktop, &mut |_, _| {});

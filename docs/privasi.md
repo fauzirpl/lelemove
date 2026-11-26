@@ -18,6 +18,8 @@ LELEMOVE berjalan sepenuhnya di komputer Anda. Tidak ada server LELEMOVE, tidak 
 
 Data mengalir langsung antara komputer Anda dan server layanan yang Anda hubungkan (Google, Microsoft, Dropbox, server kantor Anda, dan sebagainya), lewat rclone yang berjalan di komputer Anda. Saat menyalin antar akun cloud, data melewati memori komputer Anda tanpa disimpan utuh ke disk.
 
+Pembaruan aplikasi: hanya bila Anda mengeklik Periksa pembaruan (Bantuan & info > Tentang), LELEMOVE menghubungi github.com untuk membaca nomor versi terbaru, dan bila Anda memilih Unduh & pasang, mengunduh berkas rilisnya dari GitHub. Tidak ada pemeriksaan otomatis, dan yang dikirim hanya permintaan unduh biasa (dengan keterangan versi LELEMOVE Anda); GitHub menerapkan kebijakan privasinya sendiri.
+
 ## Data yang disimpan di komputer Anda
 
 - Token login akun cloud, disimpan oleh rclone di %APPDATA%\rclone\rclone.conf.

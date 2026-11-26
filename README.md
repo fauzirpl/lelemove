@@ -86,7 +86,9 @@ Oendoeh **`LELEMOVE-Setup-<versi>.exe`** dari halaman
   aplikasinja dapat dihapoes kembali.
 - Pemasangan diam-diam: `LELEMOVE-Setup-<versi>.exe /silent` (tambah `/nodesktop` bila
   tidak menghendaki pintasan Desktop).
-- Memperbaroei tjoekoep dengan memasang versi baroe di atasnja. Akoen, pengatoeran, djadwal, dan
+- Memperbaroei: boeka *Bantuan & info > Tentang > Periksa pembaruan*, laloe *Unduh & pasang*.
+  Installer dioendoeh dari Releases, ditjotjokkan dengan SHA-256 rilisnja, dipasang, dan LELEMOVE
+  diboeka lagi. GitHub hanja dihoeboengi saat tombol itoe diklik. Tjara lain: pasang versi baroe di atasnja. Akoen, pengatoeran, djadwal, dan
   riwajat tetap terbatja, termasoek dari versi 1.x (bentoek datanja sama). Toetoep djendela LELEMOVE doeloe.
 - Bila sebeloemnja terpasang dengan nama lama di `Programs\Pindah Drive`, installer memindahkannja ke
   `Programs\LELEMOVE` dan mengganti pintasan "Pindah Drive" dengan "LELEMOVE".
@@ -583,6 +585,7 @@ terachir keloearannja beroepa `##HASIL {json}`.
 
 ```powershell
 pindah cek                                              # rclone, akun, folder OneDrive, rute
+pindah pembaruan [-Unduh | -Jalankan]                   # periksa rilis terbaru; unduh (+cek SHA-256) / pasang
 pindah akun                                             # daftar akun
 pindah hubungkan -Akun pd-onedrive-2 -Jenis onedrive -Label "Kantor"
 pindah hubungkan -Akun pd-gdrive -Ulang                 # login ulang (token kedaluwarsa)

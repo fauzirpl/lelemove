@@ -51,6 +51,24 @@ pub struct Info {
     pub dir_app: String,
     pub dir_data: String,
     pub dir_log: String,
+    pub pembaruan: Pembaruan,
+    /// Aksi lain atau penyalinan sedang berjalan: pembaruan belum boleh dipasang (diisi jendela).
+    pub sibuk: bool,
+}
+
+/// Keadaan pembaruan di tab Tentang. GitHub hanya dihubungi saat tombol diklik.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub enum Pembaruan {
+    #[default]
+    Belum,
+    Memeriksa,
+    Terbaru,
+    Ada { versi: String, halaman: String, catatan: String },
+    /// Mengunduh lalu memasang; `baris` = kemajuan terakhir dari pindah.exe.
+    Mengunduh { versi: String, baris: String },
+    /// macOS: .dmg sudah dibuka, tinggal diseret ke Applications.
+    DmgDibuka,
+    Galat(String),
 }
 
 // ------------------------------------------------------------------ penampil Markdown sederhana
@@ -292,10 +310,73 @@ fn dukung(ui: &mut Ui) {
         });
 }
 
-fn tentang(ui: &mut Ui, i: &Info) {
+/// Kotak pembaruan: periksa rilis terbaru di GitHub, lalu unduh & pasang.
+fn pembaruan(ui: &mut Ui, i: &Info) -> Option<Hasil> {
+    let mut h = None;
+    egui::Frame::new()
+        .fill(gaya::LATAR2)
+        .stroke(egui::Stroke::new(1.0_f32, gaya::GARIS))
+        .corner_radius(8)
+        .inner_margin(egui::Margin::symmetric(14, 10))
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                ui.vertical(|ui| {
+                    ui.label(RichText::new("Pembaruan").family(tebal()).color(TINTA));
+                    let (t, w) = match &i.pembaruan {
+                        Pembaruan::Belum => ("GitHub hanya dihubungi saat Anda mengeklik Periksa pembaruan.".to_string(), REDUP),
+                        Pembaruan::Memeriksa => ("Memeriksa rilis terbaru di GitHub\u{2026}".into(), REDUP),
+                        Pembaruan::Terbaru => (format!("Sudah versi terbaru ({VERSI})."), gaya::HIJAU),
+                        Pembaruan::Ada { versi, .. } => (format!("Versi {versi} tersedia (terpasang: {VERSI})."), gaya::TAUTAN),
+                        Pembaruan::Mengunduh { versi, baris } => {
+                            (if baris.is_empty() { format!("Mengunduh versi {versi}\u{2026}") } else { baris.clone() }, REDUP)
+                        }
+                        Pembaruan::DmgDibuka => ("Berkas .dmg dibuka: seret LELEMOVE ke Applications (ganti yang lama), lalu buka lagi.".into(), gaya::HIJAU),
+                        Pembaruan::Galat(e) => (e.clone(), gaya::MERAH),
+                    };
+                    ui.add(egui::Label::new(kecil(&t, w)).wrap());
+                    if let Pembaruan::Ada { catatan, halaman, .. } = &i.pembaruan {
+                        if !catatan.is_empty() {
+                            ui.add(egui::Label::new(kecil(catatan, TINTA)).wrap());
+                        }
+                        ui.hyperlink_to(kecil("Lihat catatan rilis", gaya::TAUTAN), halaman);
+                    }
+                });
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| match &i.pembaruan {
+                    Pembaruan::Memeriksa | Pembaruan::Mengunduh { .. } => {
+                        ui.add(egui::Spinner::new().size(16.0).color(gaya::TAUTAN));
+                    }
+                    Pembaruan::Ada { .. } => {
+                        let label = if cfg!(windows) { "Unduh & pasang" } else { "Unduh" };
+                        let r = ui
+                            .add_enabled(!i.sibuk, tombol_utama(label))
+                            .on_hover_text(if cfg!(windows) {
+                                "Installer diunduh, dicocokkan dengan SHA-256 rilis, lalu dipasang. LELEMOVE ditutup sebentar dan dibuka lagi."
+                            } else {
+                                "Berkas .dmg diunduh, dicocokkan dengan SHA-256 rilis, lalu dibuka."
+                            })
+                            .on_disabled_hover_text("Tunggu penyalinan atau aksi lain selesai dulu.");
+                        if r.clicked() {
+                            h = Some(Hasil::PembaruanPasang);
+                        }
+                    }
+                    _ => {
+                        if ui.add_enabled(!i.sibuk, tombol("Periksa pembaruan")).clicked() {
+                            h = Some(Hasil::PembaruanCek);
+                        }
+                    }
+                });
+            });
+        });
+    h
+}
+
+fn tentang(ui: &mut Ui, i: &Info) -> Option<Hasil> {
     ui.label(RichText::new("LELEMOVE").family(tebal()).size(22.0).color(gaya::HIJAU));
     ui.label(RichText::new(format!("Versi {VERSI}")).color(TINTA));
     ui.add_space(6.0);
+    let h = pembaruan(ui, i);
+    ui.add_space(8.0);
     paragraf(ui, "Salin file antar OneDrive, SharePoint, Google Drive, dan folder komputer, ke arah mana pun. Menyalin dan mencocokkan; file di sumber tidak diubah, kecuali Anda sendiri memilih Pindahkan setelah verifikasi (yang dihapus masuk ke Recycle Bin / Tong Sampah / Sampah).");
     ui.add_space(8.0);
     dukung(ui);
@@ -315,6 +396,7 @@ fn tentang(ui: &mut Ui, i: &Info) {
     baris_folder(ui, "Folder aplikasi", &i.dir_app);
     baris_folder(ui, "Data & pengaturan", &i.dir_data);
     baris_folder(ui, "Log", &i.dir_log);
+    h
 }
 
 // ------------------------------------------------------------------ dialog
@@ -335,6 +417,7 @@ pub fn tampil(ui: &mut Ui, i: &mut Info) -> Option<Hasil> {
     });
     ui.separator();
     let tinggi = (ui.ctx().screen_rect().height() - 260.0).clamp(240.0, 470.0);
+    let mut h = None;
     ScrollArea::vertical()
         .id_salt(("info", i.tab as u8))
         .max_height(tinggi)
@@ -347,10 +430,9 @@ pub fn tampil(ui: &mut Ui, i: &mut Info) -> Option<Hasil> {
                 Tab::Ketentuan => dokumen(ui, KETENTUAN),
                 Tab::Privasi => dokumen(ui, PRIVASI),
                 Tab::Atribusi => atribusi(ui),
-                Tab::Tentang => tentang(ui, i),
+                Tab::Tentang => h = tentang(ui, i),
             }
         });
-    let mut h = None;
     ui.add_space(12.0);
     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
         if ui.add(tombol_utama("Tutup")).clicked() {

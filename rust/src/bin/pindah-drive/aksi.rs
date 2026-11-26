@@ -66,6 +66,8 @@ pub enum Setelah {
     AkunPenyedia { nama: String, kunci: String },
     /// Migrasi email (`periksa`: hanya memeriksa).
     Email { periksa: bool },
+    /// Pembaruan aplikasi (`pasang`: unduh lalu jalankan installer / buka .dmg).
+    Pembaruan { pasang: bool },
 }
 
 pub struct Aksi {

@@ -213,6 +213,8 @@ struct App {
     exe_mesin: PathBuf,
     /// Migrasi email yang dialognya ditutup saat masih berjalan (dibuka lagi dari sidebar).
     email_latar: Option<email::Email>,
+    /// Keadaan pembaruan aplikasi (ditampilkan di Bantuan & info > Tentang).
+    pembaruan: info::Pembaruan,
 
     rclone: Option<PathBuf>,
     versi_rclone: String,
@@ -287,6 +289,7 @@ impl App {
             rx,
             exe_mesin: exe_mesin(),
             email_latar: None,
+            pembaruan: info::Pembaruan::Belum,
             rclone: None,
             versi_rclone: String::new(),
             status_siap: false,
@@ -515,10 +518,25 @@ impl App {
         self.dialog = Some(Dialog::Email(e));
     }
 
+    /// Keadaan pembaruan: disimpan di jendela dan, bila terbuka, di dialog Bantuan & info.
+    fn set_pembaruan(&mut self, p: info::Pembaruan) {
+        if let Some(Dialog::Info(i)) = &mut self.dialog {
+            i.pembaruan = p.clone();
+        }
+        self.pembaruan = p;
+    }
+
     fn terima_baris(&mut self, b: &str) {
         if let Some(e) = self.email_mut() {
             if e.berjalan() {
                 email::terima_baris(e, b);
+            }
+        }
+        if let info::Pembaruan::Mengunduh { versi, .. } = &self.pembaruan {
+            let t = b.trim().trim_start_matches(['[', ']']).trim();
+            if t.starts_with("Mengunduh") || t.starts_with("[OK]") || t.contains("SHA-256") {
+                let versi = versi.clone();
+                self.set_pembaruan(info::Pembaruan::Mengunduh { versi, baris: t.trim_start_matches("OK]").trim().to_string() });
             }
         }
         let t = b.trim();
@@ -653,6 +671,9 @@ impl App {
         let Some(a) = self.aksi.take() else { return };
         self.url_login = None;
         if a.dibatalkan {
+            if let Setelah::Pembaruan { .. } = a.setelah {
+                self.set_pembaruan(info::Pembaruan::Galat("Dibatalkan.".into()));
+            }
             if let Setelah::Email { periksa } = a.setelah {
                 if let Some(e) = self.email_mut() {
                     e.tahap = email::Tahap::Selesai { periksa, kode: -1 };
@@ -697,6 +718,7 @@ impl App {
             Setelah::Pindahkan => self.selesai_pindahkan(kode, &h),
             Setelah::AkunPenyedia { nama, kunci } => self.selesai_akun_penyedia(kode, &h, &nama, &kunci),
             Setelah::Email { periksa } => self.selesai_email(kode, h, periksa),
+            Setelah::Pembaruan { pasang } => self.selesai_pembaruan(kode, &h, pasang),
             Setelah::Jadwal { ok } => {
                 if kode == 0 {
                     self.set_pesan(&ok, HIJAU);
@@ -966,6 +988,37 @@ impl App {
         self.tanya("Pindahkan", isi, "Lanjut", true, Konfirmasi::Pindahkan1);
     }
 
+    /// Pemeriksaan/pemasangan pembaruan selesai. Bila installer sudah dijalankan (Windows), jendela
+    /// ditutup agar installer bisa mengganti berkas; installer membuka LELEMOVE lagi sesudahnya.
+    fn selesai_pembaruan(&mut self, kode: i32, h: &Value, pasang: bool) {
+        let galat = teks(h.get("Galat"));
+        if kode != 0 || !galat.is_empty() {
+            let e = if galat.is_empty() { "Pembaruan gagal. Lihat log aktivitas.".to_string() } else { galat };
+            self.set_pesan(&e, MERAH);
+            self.set_pembaruan(info::Pembaruan::Galat(e));
+            return;
+        }
+        if pasang && h.get("Dipasang").and_then(Value::as_bool) == Some(true) {
+            self.set_pesan(&format!("Memperbarui ke {}: LELEMOVE ditutup dan dibuka lagi\u{2026}", teks(h.get("Terbaru"))), TINTA);
+            self.tulis_log("Installer pembaruan dijalankan; jendela ditutup agar berkas bisa diganti.");
+            self.boleh_tutup = true;
+            self.ctx.send_viewport_cmd(ViewportCommand::Close);
+            return;
+        }
+        if pasang && h.get("Dibuka").and_then(Value::as_bool) == Some(true) {
+            self.set_pembaruan(info::Pembaruan::DmgDibuka);
+            return;
+        }
+        if h.get("Ada").and_then(Value::as_bool) == Some(true) {
+            let versi = teks(h.get("Terbaru"));
+            self.set_pesan(&format!("Versi {versi} tersedia (Bantuan & info > Tentang)."), TINTA);
+            self.set_pembaruan(info::Pembaruan::Ada { versi, halaman: teks(h.get("Halaman")), catatan: teks(h.get("Catatan")) });
+        } else {
+            self.set_pesan("LELEMOVE sudah versi terbaru.", HIJAU);
+            self.set_pembaruan(info::Pembaruan::Terbaru);
+        }
+    }
+
     /// Migrasi/cadangan email selesai: hasil per folder ke dialog (terbuka atau di latar), ringkasan ke bilah status.
     fn selesai_email(&mut self, kode: i32, h: Value, periksa: bool) {
         let n = |k: &str| h.get(k).and_then(Value::as_i64).unwrap_or(0);
@@ -1213,6 +1266,28 @@ impl App {
                 }
             }
             Hasil::EmailHenti => self.klik_batal(),
+            Hasil::PembaruanCek => {
+                self.set_pembaruan(info::Pembaruan::Memeriksa);
+                self.jalankan_aksi("Memeriksa pembaruan", vec!["pembaruan".into()], Setelah::Pembaruan { pasang: false });
+                if self.aksi.is_none() {
+                    self.set_pembaruan(info::Pembaruan::Galat(format!("{MESIN} tidak bisa dijalankan; lihat log aktivitas.")));
+                }
+            }
+            Hasil::PembaruanPasang => {
+                let versi = match &self.pembaruan {
+                    info::Pembaruan::Ada { versi, .. } => versi.clone(),
+                    _ => String::new(),
+                };
+                if self.job_jalan {
+                    self.set_pembaruan(info::Pembaruan::Galat("Penyalinan sedang berjalan; perbarui sesudah selesai.".into()));
+                } else {
+                    self.set_pembaruan(info::Pembaruan::Mengunduh { versi, baris: String::new() });
+                    self.jalankan_aksi("Memperbarui LELEMOVE", vec!["pembaruan".into(), "-Jalankan".into()], Setelah::Pembaruan { pasang: true });
+                    if self.aksi.is_none() {
+                        self.set_pembaruan(info::Pembaruan::Galat(format!("{MESIN} tidak bisa dijalankan; lihat log aktivitas.")));
+                    }
+                }
+            }
             Hasil::BatalSharePoint => self.set_pesan("Situs SharePoint belum dipilih; akun ini belum bisa dipakai.", KUNING),
             Hasil::Ya(k) => self.konfirmasi(k),
             Hasil::AkunBaru { jenis, label, izin_penuh } => self.hubungkan_baru(&jenis, &label, izin_penuh),
@@ -2933,6 +3008,8 @@ impl App {
             dir_app: j.dir_app.to_string_lossy().to_string(),
             dir_data: j.data.to_string_lossy().to_string(),
             dir_log: j.log.to_string_lossy().to_string(),
+            pembaruan: self.pembaruan.clone(),
+            sibuk: false,
         }));
     }
 
@@ -3483,6 +3560,9 @@ impl App {
         if let Dialog::Email(e) = &mut d {
             e.sibuk = self.aksi.is_some() && !e.berjalan();
         }
+        if let Dialog::Info(i) = &mut d {
+            i.sibuk = self.aksi.is_some() || self.job_jalan;
+        }
         let hasil = {
             let mut p = Pemuat { tx: &self.tx, ctx: &self.ctx, gen: &mut self.gen };
             dialog::tampil(ctx, &mut d, &mut p)
@@ -3490,7 +3570,7 @@ impl App {
         match hasil {
             None => self.dialog = Some(d),
             // Dialog Migrasi email tetap terbuka saat migrasi dimulai/dihentikan.
-            Some(h @ (Hasil::EmailMulai { .. } | Hasil::EmailHenti)) => {
+            Some(h @ (Hasil::EmailMulai { .. } | Hasil::EmailHenti | Hasil::PembaruanCek | Hasil::PembaruanPasang)) => {
                 self.dialog = Some(d);
                 self.tangani_dialog(h);
             }
@@ -3571,6 +3651,18 @@ impl App {
                 if let Some(Dialog::Email(e)) = &mut self.dialog {
                     e.mode = email::Mode::Pulihkan;
                 }
+            }
+            "pembaruan" => {
+                self.pembaruan = info::Pembaruan::Ada {
+                    versi: "2.5.0".into(),
+                    halaman: "https://github.com/fauzirpl/lelemove/releases/tag/v2.5.0".into(),
+                    catatan: String::new(),
+                };
+                self.buka_info(info::Tab::Tentang);
+            }
+            "pembaruan-unduh" => {
+                self.pembaruan = info::Pembaruan::Mengunduh { versi: "2.5.0".into(), baris: "Mengunduh 23,9 MB dari 39,9 MB (60%)".into() };
+                self.buka_info(info::Tab::Tentang);
             }
             "email-hasil" => {
                 self.buka_email(email::Mode::Migrasi);

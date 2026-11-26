@@ -74,7 +74,9 @@ Unduh **`LELEMOVE-Setup-<versi>.exe`** dari halaman
   aplikasinya dapat dihapus kembali.
 - Pemasangan diam-diam: `LELEMOVE-Setup-<versi>.exe /silent` (tambah `/nodesktop` bila
   tidak menghendaki pintasan Desktop).
-- Memperbarui cukup dengan memasang versi baru di atasnya. Akun, pengaturan, jadwal, dan
+- Memperbarui: buka *Bantuan & info > Tentang > Periksa pembaruan*, lalu *Unduh & pasang*.
+  Installer diunduh dari Releases, dicocokkan dengan SHA-256 rilisnya, dipasang, dan LELEMOVE
+  dibuka lagi. GitHub hanya dihubungi saat tombol itu diklik. Cara lain: pasang versi baru di atasnya. Akun, pengaturan, jadwal, dan
   riwayat tetap terbaca, termasuk dari versi 1.x (bentuk datanya sama). Tutup jendela LELEMOVE dulu.
 - Bila sebelumnya terpasang dengan nama lama di `Programs\Pindah Drive`, installer memindahkannya ke
   `Programs\LELEMOVE` dan mengganti pintasan "Pindah Drive" dengan "LELEMOVE".
@@ -559,6 +561,7 @@ terakhir keluarannya berupa `##HASIL {json}`.
 
 ```powershell
 pindah cek                                              # rclone, akun, folder OneDrive, rute
+pindah pembaruan [-Unduh | -Jalankan]                   # periksa rilis terbaru; unduh (+cek SHA-256) / pasang
 pindah akun                                             # daftar akun
 pindah hubungkan -Akun pd-onedrive-2 -Jenis onedrive -Label "Kantor"
 pindah hubungkan -Akun pd-gdrive -Ulang                 # login ulang (token kedaluwarsa)

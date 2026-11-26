@@ -26,7 +26,7 @@ use crate::{notifikasi, v, win};
 
 pub const PERINTAH: &[&str] = &[
     "menu", "cek", "akun", "pasang", "hubungkan", "lepas", "bawaan", "klien", "situs", "pustaka", "periksa", "uji",
-    "salin", "status", "berhenti", "verifikasi", "pindahkan", "jadwal", "riwayat", "penyedia", "impor", "email", "bantuan",
+    "salin", "status", "berhenti", "verifikasi", "pindahkan", "jadwal", "riwayat", "penyedia", "impor", "email", "pembaruan", "bantuan",
 ];
 
 static RE_FS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"file system for "([^":]+):"#).unwrap());
@@ -73,6 +73,8 @@ pub struct Opsi {
     /// jadwal: -Tambah (jadwal baru), -Jalankan (dipakai tugas Windows), -Aktifkan / -Nonaktifkan.
     pub tambah: bool,
     pub jalankan: bool,
+    /// pembaruan: unduh & cek berkas rilis (tanpa menjalankannya).
+    pub unduh: bool,
     pub aktifkan: bool,
     pub nonaktifkan: bool,
     pub tanpa_verifikasi: bool,
@@ -140,6 +142,7 @@ impl Default for Opsi {
             hapus: false,
             tambah: false,
             jalankan: false,
+            unduh: false,
             aktifkan: false,
             nonaktifkan: false,
             tanpa_verifikasi: false,
@@ -200,6 +203,7 @@ pub fn urai_argumen<I: IntoIterator<Item = String>>(args: I) -> Result<Opsi, Str
                 "hapus" => o.hapus = true,
                 "tambah" => o.tambah = true,
                 "jalankan" => o.jalankan = true,
+                "unduh" => o.unduh = true,
                 "aktifkan" => o.aktifkan = true,
                 "nonaktifkan" => o.nonaktifkan = true,
                 "tanpaverifikasi" => o.tanpa_verifikasi = true,
@@ -631,6 +635,7 @@ impl Mesin {
             "penyedia" => self.daftar_penyedia(),
             "impor" => self.impor(),
             "email" => self.email(),
+            "pembaruan" => self.pembaruan(),
             _ => {
                 tampilkan_bantuan();
                 0
@@ -2851,6 +2856,81 @@ impl Mesin {
         kode
     }
 
+    /// pindah pembaruan [-Unduh | -Jalankan]: periksa rilis terbaru di GitHub; -Unduh mengunduh dan
+    /// mencocokkan SHA-256 berkas untuk sistem ini; -Jalankan juga menjalankannya (Windows:
+    /// installer diam yang menunggu LELEMOVE tertutup lalu membukanya lagi; macOS: membuka .dmg).
+    fn pembaruan(&mut self) -> i32 {
+        use super::pembaruan as pb;
+        judul("Pembaruan LELEMOVE");
+        // Untuk menguji alur unduh tanpa rilis baru: PINDAH_DRIVE_VERSI_UJI=2.0.0
+        let kini = std::env::var("PINDAH_DRIVE_VERSI_UJI").unwrap_or_else(|_| crate::VERSI.to_string());
+        info(&format!("Versi terpasang: {kini}"));
+        let r = match pb::cek() {
+            Ok(r) => r,
+            Err(e) => {
+                gagal(&format!("Rilis di GitHub tidak bisa diperiksa: {e}"));
+                self.catat("Galat", e);
+                return 1;
+            }
+        };
+        let ada = pb::lebih_baru(&r.versi, &kini);
+        self.catat("Versi", kini.clone());
+        self.catat("Terbaru", r.versi.clone());
+        self.catat("Ada", ada);
+        self.catat("Halaman", r.halaman.clone());
+        if !ada {
+            ok(&format!("Sudah versi terbaru ({kini})."));
+            return 0;
+        }
+        ok(&format!("Versi baru tersedia: {} ({}).", r.versi, r.halaman));
+        if !self.o.unduh && !self.o.jalankan {
+            info("Unduh dan pasang: pindah pembaruan -Jalankan");
+            return 0;
+        }
+        info(&format!("Mengunduh {}.", pb::nama_berkas(&r.versi)));
+        let mut lapor = 0u64;
+        let hasil = pb::unduh(&r, &mut |n, total| {
+            if total > 0 && n * 10 / total > lapor {
+                lapor = n * 10 / total;
+                info(&format!("Mengunduh {} dari {} ({}%)", format_ukuran(n as f64), format_ukuran(total as f64), n * 100 / total));
+            }
+        });
+        let berkas = match hasil {
+            Ok(p) => p,
+            Err(e) => {
+                gagal(&format!("Unduhan gagal: {e}"));
+                self.catat("Galat", e);
+                return 1;
+            }
+        };
+        ok(&format!("Diunduh dan cocok dengan SHA-256 rilis: {}", berkas.display()));
+        self.catat("Berkas", berkas.display().to_string());
+        if !self.o.jalankan {
+            return 0;
+        }
+        if cfg!(windows) {
+            // Installer diam yang menunggu jendela LELEMOVE dan proses ini tertutup, memasang, lalu
+            // membuka LELEMOVE lagi. Terlepas agar tetap berjalan setelah pindah.exe selesai.
+            match win::mulai_terlepas(&berkas, &["/silent".to_string(), "/perbarui".to_string()]) {
+                Ok(_) => {
+                    ok("Installer dijalankan: LELEMOVE ditutup, diperbarui, lalu dibuka lagi.");
+                    self.catat("Dipasang", true);
+                    0
+                }
+                Err(e) => {
+                    gagal(&format!("Installer tidak bisa dijalankan: {e}"));
+                    self.catat("Galat", e.to_string());
+                    1
+                }
+            }
+        } else {
+            win::buka(&berkas.to_string_lossy());
+            ok("Berkas .dmg dibuka: seret LELEMOVE ke Applications (ganti yang lama), lalu buka lagi.");
+            self.catat("Dibuka", true);
+            0
+        }
+    }
+
     fn pindahkan(&mut self) -> i32 {
         let r = self.ambil_rute();
         if !self.rute_siap(&r, true) {
@@ -3317,6 +3397,7 @@ pub fn tampilkan_bantuan() {
     polos("  Filter (periksa, uji, salin, verifikasi, pindahkan; diingat untuk berikutnya):");
     polos("    -Sertakan \"pdf,docx\"  hanya jenis file ini   -Lewati \"*.tmp,node_modules/\"  lewati pola ini");
     polos("    -Sejak 2026-01-31     hanya yang diubah sejak tanggal itu   -TanpaFilter  hapus filter");
+    polos("  pembaruan [-Unduh | -Jalankan]   periksa rilis terbaru di GitHub; unduh (+cek SHA-256) / pasang");
     polos("  email -Sumber <akun|jalur> -Tujuan <akun|jalur> [-HanyaPeriksa] [-Ya]   migrasi/cadangan email (semua folder)");
     polos("        akun: gmail:nama@gmail.com | outlook:nama@outlook.com | imap://pengguna@server[:port]");
     polos("              (imap+starttls://, imap+polos://); kata sandi lewat -RahasiaStdin {\"Sumber\":..,\"Tujuan\":..}");
