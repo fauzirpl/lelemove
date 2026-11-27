@@ -122,7 +122,7 @@ pub(crate) fn ringkas_galat(e: &str) -> (&'static str, String) {
     if jaringan.iter().any(|j| k.contains(j)) {
         return ("Internet sedang putus", "Folder belum bisa dimuat. Klik Coba lagi setelah internet tersambung.".into());
     }
-    let baris = e.lines().map(str::trim).filter(|l| !l.is_empty()).next_back().unwrap_or("");
+    let baris = e.lines().map(str::trim).rfind(|l| !l.is_empty()).unwrap_or("");
     let mut t = RE_AWAL_LOG.replace(baris, "").to_string();
     if t.chars().count() > 160 {
         t = t.chars().take(157).collect::<String>() + ELIPSIS;
