@@ -20,6 +20,7 @@ labels: bug
 
 **Log aktivitas**
 Tempel potongan yang relevan. Jangan menempelkan token, kata sandi, client secret, atau isi rclone.conf.
+Bila LELEMOVE menutup sendiri, sertakan juga isi `galat-tak-terduga.txt` dari folder log (klik *Folder log* di bilah bawah jendela).
 
 ```
 ```

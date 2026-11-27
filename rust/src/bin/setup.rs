@@ -583,6 +583,9 @@ pub fn main() {
         }
         i += 1;
     }
+    // Installer diam tidak menampilkan apa-apa, kecuali pembaruan dari aplikasi: di situ pengguna
+    // menunggu LELEMOVE terbuka lagi, jadi galat tak terduga harus terlihat.
+    pindah_drive::catat_panik("Installer LELEMOVE", !diam || perbarui);
     // uninstall.exe adalah build yang sama tanpa muatan: dibuka langsung pun berarti "hapus".
     if copot_diminta || MUATAN.is_empty() {
         std::process::exit(copot(dir, diam));

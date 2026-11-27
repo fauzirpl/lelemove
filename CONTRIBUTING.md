@@ -10,7 +10,9 @@ Buka [Issues](https://github.com/fauzirpl/lelemove/issues) dan sertakan:
 - versi LELEMOVE (*Bantuan & info > Tentang*) dan sistem operasi;
 - layanan sumber dan tujuan (misalnya OneDrive ke Google Drive);
 - langkah untuk mengulang masalahnya, dan apa yang Anda harapkan terjadi;
-- potongan *Log aktivitas* yang relevan.
+- potongan *Log aktivitas* yang relevan;
+- bila LELEMOVE menutup sendiri atau menampilkan "galat tak terduga": berkas
+  `galat-tak-terduga.txt` di folder log (klik *Folder log* di bilah bawah jendela).
 
 **Jangan menempelkan token, kata sandi, client secret, atau isi `rclone.conf`.** Periksa dulu log
 yang akan ditempel; alamat email dan nama folder pribadi boleh disamarkan.

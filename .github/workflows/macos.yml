@@ -52,6 +52,15 @@ jobs:
         working-directory: rust
         run: cargo test --locked --lib --bin pindah-drive
 
+      # Kode khusus macOS (mac.rs, notifikasi_mac.rs) hanya terperiksa di sini; clippy di workflow
+      # Windows tidak melihatnya. Belum menggagalkan build sampai daftar peringatannya dibereskan.
+      - name: Clippy (macOS)
+        working-directory: rust
+        continue-on-error: true
+        run: |
+          rustup component add clippy
+          cargo clippy --locked --all-targets
+
       - name: Kemas LELEMOVE.app dan .dmg
         run: sh ./buat-dmg.sh
 

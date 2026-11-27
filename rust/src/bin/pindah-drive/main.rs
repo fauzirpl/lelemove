@@ -387,6 +387,12 @@ fn main() -> eframe::Result {
         tunda: Duration::from_millis(ambil_arg(&args, "--tunda").and_then(|t| t.parse().ok()).unwrap_or(2500)),
         diminta: false,
     });
+    // Galat tak terduga dicatat ke folder log; kotak pesannya tidak muncul saat pratinjau (otomatis).
+    pindah_drive::catat_panik("LELEMOVE", pratinjau.is_none());
+    // Untuk menguji pencatat di atas pada build sungguhan: PINDAH_DRIVE_UJI_PANIK=1
+    if std::env::var_os("PINDAH_DRIVE_UJI_PANIK").is_some() {
+        panic!("uji pencatat galat (PINDAH_DRIVE_UJI_PANIK)");
+    }
     // Hanya satu jendela pada satu waktu (installer juga memakai mutex ini).
     let _kunci = if pratinjau.is_none() {
         match win::kunci_tunggal(MUTEX_JENDELA) {
