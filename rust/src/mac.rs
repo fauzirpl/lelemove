@@ -224,7 +224,7 @@ fn statfs(p: &Path) -> Option<libc::statfs> {
 
 /// Sisa ruang disk tempat `path` berada (folder boleh belum ada).
 pub fn ruang_bebas(path: &Path) -> u64 {
-    statfs(path).map_or(0, |s| s.f_bavail as u64 * s.f_bsize as u64)
+    statfs(path).map_or(0, |s| s.f_bavail * s.f_bsize as u64)
 }
 
 /// Volume lokal (disk internal, SSD/flashdisk USB) punya Tong Sampah; volume jaringan
@@ -500,7 +500,7 @@ pub fn daftar_drive() -> Vec<(String, String)> {
 /// Tinggi layar utama dalam point, dikurangi perkiraan bilah menu dan Dock.
 pub fn tinggi_area_kerja() -> Option<f32> {
     let r = unsafe { CGDisplayBounds(CGMainDisplayID()) };
-    (r.tinggi > 0.0).then(|| (r.tinggi - 70.0) as f32)
+    (r.tinggi > 0.0).then_some((r.tinggi - 70.0) as f32)
 }
 
 #[cfg(test)]
@@ -563,7 +563,7 @@ mod uji {
         assert!(!tersembunyi(&m, OsStr::new("buang aku.txt")));
         assert!(tersembunyi(&m, OsStr::new(".DS_Store")));
         assert!(!hanya_cloud(&m));
-        assert_eq!(ke_recycle_bin(&[f.clone()]), 1, "berkas tidak masuk Tong Sampah");
+        assert_eq!(ke_recycle_bin(std::slice::from_ref(&f)), 1, "berkas tidak masuk Tong Sampah");
         assert!(!f.exists());
         let _ = std::fs::remove_dir_all(&d);
     }

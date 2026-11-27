@@ -80,6 +80,10 @@ pub fn catat_panik(program: &'static str, kotak: bool) {
     }));
 }
 
+
+/// Nama mutex jendela aplikasi; installer memakainya untuk tahu aplikasi sedang terbuka.
+pub const MUTEX_JENDELA: &str = "Local\\PindahDriveGui";
+
 #[cfg(test)]
 mod uji {
     #[test]
@@ -90,6 +94,3 @@ mod uji {
         assert!(b.ends_with('\n'));
     }
 }
-
-/// Nama mutex jendela aplikasi; installer memakainya untuk tahu aplikasi sedang terbuka.
-pub const MUTEX_JENDELA: &str = "Local\\PindahDriveGui";
