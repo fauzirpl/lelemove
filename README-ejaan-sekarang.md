@@ -789,6 +789,7 @@ ada jaminan apa pun. rclone dan pustaka lain yang ikut dibawa memakai lisensinya
 
 | Versi | Isi utama |
 |---|---|
+| [2.5.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.5.0) | Tampilan baru bertema kolam: daftar lokasi gelap, panel berbentuk kartu, jarak teks lebih lega; tombol dialog tidak lagi mengambang jauh dari isinya; nama tombol terbaca pembaca layar; membuka LELEMOVE dua kali menampilkan jendela yang sudah ada; lisensi MIT |
 | [2.4.4](https://github.com/fauzirpl/lelemove/releases/tag/v2.4.4) | Pembaruan mencoba ulang sendiri ketika sambungan ke GitHub gagal (misalnya DNS putus sesaat), sampai lima kali; unduhan yang terputus diulang |
 | [2.4.3](https://github.com/fauzirpl/lelemove/releases/tag/v2.4.3) | Perbaikan *Unduh & pasang*: installer menunggu LELEMOVE benar-benar tertutup sebelum mengganti berkas (sebelumnya kadang gagal dengan pesan berkas sedang dipakai) |
 | [2.4.2](https://github.com/fauzirpl/lelemove/releases/tag/v2.4.2) | Tombol *Periksa pembaruan* / *Unduh & pasang* di *Bantuan & info > Tentang* (installer dicek SHA-256-nya, LELEMOVE dibuka lagi sendiri); catatan izin admin untuk akun Outlook kantor |
