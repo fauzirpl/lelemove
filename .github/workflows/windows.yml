@@ -68,11 +68,11 @@ jobs:
         working-directory: rust
         run: cargo test --locked --release --lib --bin pindah-drive
 
-      # Belum menggagalkan build: daftar peringatannya dibereskan bertahap.
+      # Wajib bersih: peringatan apa pun menggagalkan build. Bila versi Rust baru menambah aturan
+      # dan build tertahan, perbaiki kodenya atau beri #[allow(...)] beserta alasannya di tempat itu.
       - name: Clippy
         working-directory: rust
-        continue-on-error: true
-        run: cargo clippy --locked --release --all-targets
+        run: cargo clippy --locked --release --all-targets -- -D warnings
 
       - name: rclone resmi (SHA-256 dicek)
         run: |

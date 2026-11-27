@@ -37,6 +37,9 @@ README menjelaskan susunan kode, cara menguji tanpa menyentuh data asli (`PINDAH
 
 - **Uji dulu.** Uji unit harus lulus di Windows dan macOS; keduanya dijalankan GitHub Actions pada
   setiap pull request. Perubahan pada alur pembaruan diuji dengan `alat\uji-pembaruan.ps1`.
+- **Clippy harus bersih.** CI Windows menjalankan `cargo clippy --all-targets -- -D warnings`;
+  peringatan apa pun menggagalkan build. Pengecualian yang disengaja ditulis sebagai `#[allow(...)]`
+  di tempatnya, dengan komentar alasannya.
 - **Jangan pernah meng-commit rahasia**: `client-google.json`, `rclone.conf`, token, atau installer
   di `dist\` (installer pribadi bisa membawa client ID).
 - **Fungsi khusus sistem** ditaruh di `win.rs` dan `mac.rs` dengan nama yang sama, supaya kode lain
