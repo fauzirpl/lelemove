@@ -1,6 +1,6 @@
 {
   "name": "pindah-drive",
-  "version": "2.5.0",
+  "version": "2.5.1",
   "description": "Salin file antar Google Drive, OneDrive, SharePoint, Dropbox, NAS/Nextcloud/SFTP, S3, dan folder komputer (ke arah mana pun, banyak akun) dengan rclone (pindah.exe, Rust): cek ruang, uji coba, filter file, salin di latar belakang, jadwal, verifikasi, riwayat & laporan audit. Menyalin; sumber hanya dihapus lewat 'pindahkan' atas permintaan eksplisit (ke Recycle Bin/Sampah).",
   "author": {
     "name": "Fauzi"

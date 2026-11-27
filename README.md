@@ -818,6 +818,7 @@ ada djaminan apa poen. rclone dan poestaka lain jang ikoet dibawa memakai lisens
 
 | Versi | Isi oetama |
 |---|---|
+| [2.5.1](https://github.com/fauzirpl/lelemove/releases/tag/v2.5.1) | Galat tak terdoega kini ditjatat di folder log dan ditampilkan, tidak lagi memboeat aplikasi menghilang begitoe sadja; kode dirapikan |
 | [2.5.0](https://github.com/fauzirpl/lelemove/releases/tag/v2.5.0) | Tampilan baroe bertema kolam: daftar lokasi gelap, panel berbentoek kartoe, djarak teks lebih lega; tombol dialog tidak lagi mengambang djaoeh dari isinja; nama tombol terbatja pembatja lajar; memboeka LELEMOVE doea kali menampilkan djendela jang soedah ada; lisensi MIT |
 | [2.4.4](https://github.com/fauzirpl/lelemove/releases/tag/v2.4.4) | Pembaroean mentjoba oelang sendiri ketika sambungan ke GitHub gagal (misalnja DNS poetoes sesaat), sampai lima kali; oendoehan jang terpoetoes dioelang |
 | [2.4.3](https://github.com/fauzirpl/lelemove/releases/tag/v2.4.3) | Perbaikan *Unduh & pasang*: installer menoenggoe LELEMOVE benar-benar tertoetoep sebeloem mengganti berkas (sebeloemnja kadang gagal dengan pesan berkas sedang dipakai) |
