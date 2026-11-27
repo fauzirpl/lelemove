@@ -224,7 +224,7 @@ pub fn kutip(a: &str) -> String {
 /// Menjalankan program yang terlepas dari proses ini: tanpa jendela, tanpa mewarisi handle
 /// (pipa keluaran jendela aplikasi tidak ikut terbawa), dan tetap jalan bila induknya ditutup.
 pub fn mulai_terlepas(exe: &Path, args: &[String]) -> std::io::Result<u32> {
-    let mut baris = format!("{}", kutip(&exe.to_string_lossy()));
+    let mut baris = kutip(&exe.to_string_lossy());
     for a in args {
         baris.push(' ');
         baris.push_str(&kutip(a));

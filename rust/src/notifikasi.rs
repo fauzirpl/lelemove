@@ -120,7 +120,9 @@ impl Combase {
         macro_rules! ambil {
             ($nama:literal) => {
                 match unsafe { GetProcAddress(h, concat!($nama, "\0").as_ptr()) } {
-                    // Tanda tangan fungsi diambil dari tipe field tujuan.
+                    // Tanda tangan fungsi diambil dari tipe field tujuan, jadi tipenya sengaja
+                    // tidak ditulis di sini (berbeda untuk tiap field).
+                    #[allow(clippy::missing_transmute_annotations)]
                     Some(f) => unsafe { std::mem::transmute(f) },
                     None => return Err(format!("{} tidak ada di combase.dll", $nama)),
                 }

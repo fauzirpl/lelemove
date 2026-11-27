@@ -501,7 +501,7 @@ impl Sisi {
                 let t = match token.take() {
                     Some(t) if !t.hampir_habis() => t,
                     Some(t) => oauth::segarkan(p, klien, &t).map_err(Galat::Ditolak)?,
-                    None => oauth::login(p, klien, &akun.pengguna, |a| crate::win::buka(a), info).map_err(Galat::Ditolak)?,
+                    None => oauth::login(p, klien, &akun.pengguna, crate::win::buka, info).map_err(Galat::Ditolak)?,
                 };
                 let r = s.masuk_oauth(&akun.pengguna, &t.akses);
                 *token = Some(t);

@@ -171,7 +171,7 @@ impl Mbox {
                     }
                 }
             }
-            daftar.sort_by(|a, b| a.1.to_lowercase().cmp(&b.1.to_lowercase()));
+            daftar.sort_by_key(|a| a.1.to_lowercase());
         }
         if daftar.is_empty() {
             return Err(io::Error::new(io::ErrorKind::NotFound, format!("tidak ada berkas mbox di {}", akar.display())));

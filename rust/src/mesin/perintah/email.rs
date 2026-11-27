@@ -9,12 +9,6 @@ use super::Mesin;
 use crate::{notifikasi, win};
 
 impl Mesin {
-    // -------------------------------------------------------------- pindahkan
-
-    /// Menghapus dari SUMBER file yang terbukti sama di tujuan. Selalu memverifikasi ulang saat
-    /// itu juga dan hanya menghapus file berstatus cocok persis ("=" di laporan rclone); file lain
-    /// (belum ada, berbeda, gagal dibaca, Office yang diubah SharePoint) tidak disentuh.
-    /// Komputer: ke Recycle Bin. Google Drive: ke Sampah. OneDrive/SharePoint: ke Recycle bin.
     // -------------------------------------------------------------- migrasi email
 
     /// Kredensial satu sisi: Outlook selalu OAuth (client ID Azure), Gmail OAuth bila dipilih

@@ -506,7 +506,7 @@ pub fn daftar_folder_cloud(remote: &str, jalur: &str) -> Result<Vec<String>, Str
             .lines()
             .map(str::trim)
             .filter(|l| !l.is_empty() && !l.contains("client_id"))
-            .last()
+            .next_back()
             .unwrap_or("")
             .to_string();
         return Err(e);

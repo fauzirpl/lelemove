@@ -917,7 +917,7 @@ fn sharepoint(ui: &mut Ui, s: &mut SharePoint, p: &mut Pemuat) -> Option<Hasil> 
             ScrollArea::vertical().id_salt("pustaka").min_scrolled_height(110.0).max_height(110.0).auto_shrink([false, false]).show(ui, |ui| {
                 ui.set_width(ui.available_width());
                 for (i, pk) in s.pustaka.iter().enumerate() {
-                    let r = item(ui, &&pk.nama, s.pilih_pustaka == Some(i));
+                    let r = item(ui, &pk.nama, s.pilih_pustaka == Some(i));
                     if r.clicked() {
                         s.pilih_pustaka = Some(i);
                     }

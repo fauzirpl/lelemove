@@ -121,6 +121,8 @@ const fn bawaan(mut k: Kolom, nilai: &'static str) -> Kolom {
 }
 
 /// Penyedia OAuth tanpa isian.
+// Sembilan argumen posisional: tabel penyedia di bawah ditulis satu baris per layanan.
+#[allow(clippy::too_many_arguments)]
 const fn oauth(
     kunci: &'static str,
     nama: &'static str,

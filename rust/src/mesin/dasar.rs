@@ -349,7 +349,7 @@ pub fn argumen_kecualian() -> Vec<String> {
 /// Vec<String> dari campuran &str dan String.
 #[macro_export]
 macro_rules! v {
-    ($($x:expr),* $(,)?) => { vec![$($x.to_string()),*] };
+    ($($x:expr),* $(,)?) => { Vec::from([$($x.to_string()),*]) };
 }
 
 #[cfg(test)]

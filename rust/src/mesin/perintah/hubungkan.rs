@@ -110,7 +110,7 @@ impl Mesin {
                 pesan.push("Catatan: memakai client ID bersama rclone, yang sedang dibatasi Google dan bisa membuat penyalinan macet.".into());
             }
             uji = v!["about", format!("{nama}:"), "--json"];
-            let ganti_izin = ada && self.o.izin_penuh && konf.as_ref().map_or(true, |k| k.scope != "drive");
+            let ganti_izin = ada && self.o.izin_penuh && konf.as_ref().is_none_or(|k| k.scope != "drive");
             paksa = self.o.ulang || self.o.client_id.is_some() || ganti_izin;
             arg_buat = v!["config", "create", &nama, "drive", format!("scope={scope}")];
             if let Some(i) = &cid {
